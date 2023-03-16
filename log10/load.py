@@ -11,24 +11,24 @@ orig_completion = openai.Completion.create
 
 
 def intercepted_completion(**params):
-    session_url = url + "/api/sessions"
+    session_url = url + "/api/completions"
     output = None
 
     try:
         res = requests.request("PUT",
                                session_url, headers={"x-log10-token": token, "Content-Type": "application/json"})
 
-        sessionID = res.json()['sessionID']
+        completionID = res.json()['completionID']
 
         res = requests.request("POST",
-                               session_url + "/" + sessionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                               session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
                                    "request": json.dumps(params)
                                })
 
         output = orig_completion(**params)
 
         res = requests.request("POST",
-                               session_url + "/" + sessionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                               session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
                                    "response": json.dumps(output)
                                })
 
