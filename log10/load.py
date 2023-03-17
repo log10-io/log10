@@ -50,3 +50,37 @@ def intercepted_embedding(**params):
 
 
 openai.Embedding.create = intercepted_embedding
+
+
+orig_chatcompletion = openai.ChatCompletion.create
+
+
+def intercepted_chatcompletion(**params):
+    session_url = url + "/api/completions"
+    output = None
+
+    try:
+        res = requests.request("PUT",
+                               session_url, headers={"x-log10-token": token, "Content-Type": "application/json"})
+
+        completionID = res.json()['completionID']
+
+        res = requests.request("POST",
+                               session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                                   "request": json.dumps(params)
+                               })
+
+        output = orig_chatcompletion(**params)
+
+        res = requests.request("POST",
+                               session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                                   "response": json.dumps(output)
+                               })
+
+    except Exception as e:
+        print(e)
+
+    return output
+
+
+openai.ChatCompletion.create = intercepted_chatcompletion
