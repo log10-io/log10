@@ -1,7 +1,8 @@
 import os
+from log10.load import intercept_and_overwrite_methods
 import openai
-import log10.load
 
+intercept_and_overwrite_methods(openai)
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
