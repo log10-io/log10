@@ -3,6 +3,7 @@ import requests
 import openai
 import os
 import json
+import time
 
 url = os.environ.get("LOG10_URL")
 token = os.environ.get("LOG10_TOKEN")
@@ -25,11 +26,14 @@ def intercepted_completion(**params):
                                    "request": json.dumps(params)
                                })
 
+        start_time = time.time()*1000
         output = orig_completion(**params)
+        duration = time.time()*1000 - start_time
 
         res = requests.request("POST",
                                session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
-                                   "response": json.dumps(output)
+                                   "response": json.dumps(output),
+                                   "duration": int(duration)
                                })
 
     except Exception as e:
