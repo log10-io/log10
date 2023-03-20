@@ -1,6 +1,8 @@
+import types
+import functools
+import inspect
 from pprint import pprint
 import requests
-import openai
 import os
 import json
 import time
@@ -8,49 +10,69 @@ import time
 url = os.environ.get("LOG10_URL")
 token = os.environ.get("LOG10_TOKEN")
 
-orig_completion = openai.Completion.create
+
+def intercepting_decorator(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        print(f"Intercepted call to '{func.__name__}'")
+
+        session_url = url + "/api/completions"
+        output = None
+
+        try:
+            res = requests.request("PUT",
+                                session_url, headers={"x-log10-token": token, "Content-Type": "application/json"})
+
+            completionID = res.json()['completionID']
+
+            res = requests.request("POST",
+                                session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                                    "request": json.dumps(kwargs) #do we want to also store args?
+                                })
+
+            start_time = time.time()*1000
+            output = func(*args, **kwargs)
+            duration = time.time()*1000 - start_time
+
+            res = requests.request("POST",
+                                session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                                    "response": json.dumps(output),
+                                    "duration": int(duration)
+                                })
+
+        except Exception as e:
+            print(e)
+
+        return output
+
+    return wrapper
 
 
-def intercepted_completion(**params):
-    session_url = url + "/api/completions"
-    output = None
+def intercept_and_overwrite_methods(module):
+    def intercept_nested_functions(obj):
+        for name, attr in vars(obj).items():
+            if callable(attr) and isinstance(attr, types.FunctionType):
+                setattr(obj, name, intercepting_decorator(attr))
+            elif inspect.isclass(attr):
+                intercept_class_methods(attr)
 
-    try:
-        res = requests.request("PUT",
-                               session_url, headers={"x-log10-token": token, "Content-Type": "application/json"})
-
-        completionID = res.json()['completionID']
-
-        res = requests.request("POST",
-                               session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
-                                   "request": json.dumps(params)
-                               })
-
-        start_time = time.time()*1000
-        output = orig_completion(**params)
-        duration = time.time()*1000 - start_time
-
-        res = requests.request("POST",
-                               session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
-                                   "response": json.dumps(output),
-                                   "duration": int(duration)
-                               })
-
-    except Exception as e:
-        print(e)
-
-    return output
-
-
-openai.Completion.create = intercepted_completion
-
-
-orig_embedding = openai.Embedding.create
-
-
-def intercepted_embedding(**params):
-    output = orig_embedding(**params)
-    return output
-
-
-openai.Embedding.create = intercepted_embedding
+    def intercept_class_methods(cls):
+        for method_name, method in vars(cls).items():
+            if isinstance(method, (types.FunctionType, types.MethodType, classmethod)):
+                if isinstance(method, classmethod):
+                    original_method = method.__func__
+                    decorated_method = intercepting_decorator(original_method)
+                    setattr(cls, method_name, classmethod(decorated_method))
+                else:
+                    setattr(cls, method_name, intercepting_decorator(method))
+            elif inspect.isclass(method):  # Handle nested classes
+                print(f"Overloading nested classes1...")
+                intercept_class_methods(method)
+            
+    for name, attr in vars(module).items():
+        if callable(attr) and isinstance(attr, types.FunctionType):
+            setattr(module, name, intercepting_decorator(attr))
+        elif inspect.isclass(attr):  # Check if attribute is a class
+            intercept_class_methods(attr)   
+        # else: # uncomment if we want to include nested function support
+        #     intercept_nested_functions(attr)
