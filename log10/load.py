@@ -14,15 +14,12 @@ token = os.environ.get("LOG10_TOKEN")
 def intercepting_decorator(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        print(f"Intercepted call to '{func.__name__}'")
-
         session_url = url + "/api/completions"
         output = None
 
         try:
             res = requests.request("PUT",
                                 session_url, headers={"x-log10-token": token, "Content-Type": "application/json"})
-
             completionID = res.json()['completionID']
 
             res = requests.request("POST",
@@ -37,7 +34,9 @@ def intercepting_decorator(func):
             res = requests.request("POST",
                                 session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
                                     "response": json.dumps(output),
-                                    "duration": int(duration)
+                                    "duration": int(duration),
+                                    "orig_module": func.__module__,
+                                    "orig_qualname": func.__qualname__
                                 })
 
         except Exception as e:
