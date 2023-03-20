@@ -48,7 +48,7 @@ def intercepting_decorator(func):
     return wrapper
 
 
-def intercept_and_overwrite_methods(module):
+def log10(module):
     def intercept_nested_functions(obj):
         for name, attr in vars(obj).items():
             if callable(attr) and isinstance(attr, types.FunctionType):
@@ -58,15 +58,13 @@ def intercept_and_overwrite_methods(module):
 
     def intercept_class_methods(cls):
         for method_name, method in vars(cls).items():
-            if isinstance(method, (types.FunctionType, types.MethodType, classmethod)):
-                if isinstance(method, classmethod):
-                    original_method = method.__func__
-                    decorated_method = intercepting_decorator(original_method)
-                    setattr(cls, method_name, classmethod(decorated_method))
-                else:
-                    setattr(cls, method_name, intercepting_decorator(method))
+            if isinstance(method, classmethod):
+                original_method = method.__func__
+                decorated_method = intercepting_decorator(original_method)
+                setattr(cls, method_name, classmethod(decorated_method))
+            elif isinstance(method, (types.FunctionType, types.MethodType)):
+                setattr(cls, method_name, intercepting_decorator(method))
             elif inspect.isclass(method):  # Handle nested classes
-                print(f"Overloading nested classes1...")
                 intercept_class_methods(method)
             
     for name, attr in vars(module).items():
