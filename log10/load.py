@@ -23,9 +23,18 @@ def intercepting_decorator(func):
                                    session_url, headers={"x-log10-token": token, "Content-Type": "application/json"})
             completionID = res.json()['completionID']
 
+            kind = "unknown"
+            if func.__qualname__ == "ChatCompletion.create":
+                kind = "chat"
+            elif func.__qualname__ == "Completion.create":
+                kind = "completion"
+            elif func.__qualname__ == "Embedding.create":
+                kind = "embedding"
+
             res = requests.request("POST",
                                    session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
                                        # do we want to also store args?
+                                       "kind": kind,
                                        "request": json.dumps(kwargs)
                                    })
 
