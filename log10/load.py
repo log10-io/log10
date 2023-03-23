@@ -6,6 +6,7 @@ import requests
 import os
 import json
 import time
+import traceback
 
 url = os.environ.get("LOG10_URL")
 token = os.environ.get("LOG10_TOKEN")
