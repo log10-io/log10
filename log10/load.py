@@ -26,6 +26,7 @@ def intercepting_decorator(func):
             res = requests.request("POST",
                                    session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
                                        # do we want to also store args?
+                                       "status": "started",
                                        "request": json.dumps(kwargs)
                                    })
 
@@ -42,6 +43,7 @@ def intercepting_decorator(func):
             res = requests.request("POST",
                                    session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
                                        "response": json.dumps(output),
+                                       "status": "finished",
                                        "duration": int(duration),
                                        "orig_module": func.__module__,
                                        "orig_qualname": func.__qualname__,
