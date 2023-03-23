@@ -23,21 +23,30 @@ def intercepting_decorator(func):
             completionID = res.json()['completionID']
 
             res = requests.request("POST",
-                                session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
-                                    "request": json.dumps(kwargs) #do we want to also store args?
-                                })
+                                   session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                                       "status": "started",
+                                       "request": json.dumps(kwargs)
+                                   })
+
+            current_stack_frame = traceback.extract_stack()
+            stacktrace = ([{"file": frame.filename,
+                            "line": frame.line,
+                            "lineno": frame.lineno,
+                            "name": frame.name} for frame in current_stack_frame])
 
             start_time = time.time()*1000
             output = func(*args, **kwargs)
             duration = time.time()*1000 - start_time
 
             res = requests.request("POST",
-                                session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
-                                    "response": json.dumps(output),
-                                    "duration": int(duration),
-                                    "orig_module": func.__module__,
-                                    "orig_qualname": func.__qualname__
-                                })
+                                   session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                                       "status": "finished",
+                                       "response": json.dumps(output),
+                                       "duration": int(duration),
+                                       "orig_module": func.__module__,
+                                       "orig_qualname": func.__qualname__,
+                                       "stacktrace": json.dumps(stacktrace)
+                                   })
 
         except Exception as e:
             print(e)

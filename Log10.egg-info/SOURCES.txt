@@ -1,0 +1,9 @@
+README.md
+setup.py
+Log10.egg-info/PKG-INFO
+Log10.egg-info/SOURCES.txt
+Log10.egg-info/dependency_links.txt
+Log10.egg-info/top_level.txt
+log10/        __init__.py
+tests/test_chatcompletion.py
+tests/test_completion.py
