@@ -11,25 +11,37 @@ import traceback
 url = os.environ.get("LOG10_URL")
 token = os.environ.get("LOG10_TOKEN")
 
+def get_session_id():
+    try:
+        session_url = url + "/api/sessions"
+        res = requests.request("PUT",
+                                session_url, headers={"x-log10-token": token, "Content-Type": "application/json"})
+        return res.json()['sessionID']
+    except Exception as e:
+        raise Exception("Failed to create LOG10 session: " + str(e))
+
+# Global variable to store the current sessionID.
+sessionID = get_session_id()
 
 def intercepting_decorator(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        session_url = url + "/api/completions"
+        completion_url = url + "/api/completions"
         output = None
 
         try:
             res = requests.request("PUT",
-                                   session_url, headers={"x-log10-token": token, "Content-Type": "application/json"})
+                                   completion_url, headers={"x-log10-token": token, "Content-Type": "application/json"})
             completionID = res.json()['completionID']
 
             res = requests.request("POST",
-                                   session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                                   completion_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
                                        # do we want to also store args?
                                        "status": "started",
                                        "orig_module": func.__module__,
                                        "orig_qualname": func.__qualname__,
-                                       "request": json.dumps(kwargs)
+                                       "request": json.dumps(kwargs),
+                                       "session_id": sessionID
                                    })
 
             current_stack_frame = traceback.extract_stack()
@@ -43,7 +55,7 @@ def intercepting_decorator(func):
             duration = time.time()*1000 - start_time
 
             res = requests.request("POST",
-                                   session_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                                   completion_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
                                        "response": json.dumps(output),
                                        "status": "finished",
                                        "duration": int(duration),
