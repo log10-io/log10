@@ -10,18 +10,25 @@ import traceback
 
 url = os.environ.get("LOG10_URL")
 token = os.environ.get("LOG10_TOKEN")
+org_id = os.environ.get("LOG10_ORG_ID")
+
 
 def get_session_id():
     try:
         session_url = url + "/api/sessions"
-        res = requests.request("PUT",
-                                session_url, headers={"x-log10-token": token, "Content-Type": "application/json"})
+        res = requests.request("POST",
+                               session_url, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                                   "organization_id": org_id
+                               })
+
         return res.json()['sessionID']
     except Exception as e:
         raise Exception("Failed to create LOG10 session: " + str(e))
 
+
 # Global variable to store the current sessionID.
 sessionID = get_session_id()
+
 
 def intercepting_decorator(func):
     @functools.wraps(func)
@@ -30,8 +37,10 @@ def intercepting_decorator(func):
         output = None
 
         try:
-            res = requests.request("PUT",
-                                   completion_url, headers={"x-log10-token": token, "Content-Type": "application/json"})
+            res = requests.request("POST",
+                                   completion_url, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                                       "organization_id": org_id
+                                   })
             completionID = res.json()['completionID']
 
             res = requests.request("POST",
@@ -41,13 +50,14 @@ def intercepting_decorator(func):
                                        "orig_module": func.__module__,
                                        "orig_qualname": func.__qualname__,
                                        "request": json.dumps(kwargs),
-                                       "session_id": sessionID
+                                       "session_id": sessionID,
+                                       "organization_id": org_id
                                    })
 
             current_stack_frame = traceback.extract_stack()
             stacktrace = ([{"file": frame.filename,
-                            "line": frame.line,
-                            "lineno": frame.lineno,
+                          "line": frame.line,
+                           "lineno": frame.lineno,
                             "name": frame.name} for frame in current_stack_frame])
 
             start_time = time.time()*1000
@@ -63,7 +73,7 @@ def intercepting_decorator(func):
                                    })
 
         except Exception as e:
-            print(e)
+            print("failed", e)
 
         return output
 
