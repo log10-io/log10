@@ -4,7 +4,7 @@
 
 ## Quick Install
 
-`pip install -e git+https://github.com/log10-io/log10.git#egg=log10`
+`pip install log10-io`
 
 ## 🤔 What is this?
 
