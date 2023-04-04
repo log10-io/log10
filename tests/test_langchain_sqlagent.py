@@ -71,7 +71,6 @@ session.close()
 
 # Setup vars for Langchain
 openai.api_key = os.getenv("OPENAI_API_KEY")
-TOOLS_DEFAULT_LIST = ['llm-math', 'wikipedia']
 
 # Setup Langchain SQL agent
 db = SQLDatabase.from_uri("sqlite:///users.db")
