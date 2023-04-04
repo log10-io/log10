@@ -1,19 +1,23 @@
+import faker
+import sqlalchemy
+from langchain.sql_database import SQLDatabase
+from langchain.agents.agent_toolkits import SQLDatabaseToolkit
+from langchain.agents import create_sql_agent
+from langchain.llms import OpenAI
+from faker import Faker
+import random
+import datetime
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import create_engine, Column, Integer, String, DateTime
 import os
 from log10.load import log10
 import openai
 
 log10(openai)
 
-import sqlalchemy, faker
 
 # Set up a dummy database
-from sqlalchemy import create_engine, Column, Integer, String, DateTime
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-import datetime
-import random
-from faker import Faker
-
 fake = Faker()
 
 # Create a SQLite database and connect to it
@@ -44,6 +48,7 @@ def generate_random_user():
     age = random.randint(18, 100)
     return User(username=username, email=email, first_name=first_name, last_name=last_name, age=age)
 
+
 # Create the 'users' table
 Base.metadata.create_all(engine)
 
@@ -66,24 +71,16 @@ session.close()
 
 # Setup vars for Langchain
 openai.api_key = os.getenv("OPENAI_API_KEY")
-MAX_TOKENS = 512
-TOOLS_DEFAULT_LIST =  ['llm-math', 'wikipedia']
+TOOLS_DEFAULT_LIST = ['llm-math', 'wikipedia']
 
-# Setup Langchain
-from langchain.llms import OpenAI
-from langchain.agents import create_sql_agent
-from langchain.agents.agent_toolkits import SQLDatabaseToolkit
-from langchain.sql_database import SQLDatabase
-
+# Setup Langchain SQL agent
 db = SQLDatabase.from_uri("sqlite:///users.db")
 toolkit = SQLDatabaseToolkit(db=db)
 
 agent_executor = create_sql_agent(
-    llm=OpenAI(temperature=0),
+    llm=OpenAI(temperature=0, model_name="text-davinci-003"),
     toolkit=toolkit,
     verbose=True
 )
-
-llm = OpenAI(temperature=0, model_name="text-davinci-003", max_tokens=MAX_TOKENS)
 
 print(agent_executor.run("Who is the least recent user?"))
