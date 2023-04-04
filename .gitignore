@@ -3,3 +3,6 @@ __pycache__/
 
 # Distribution / packaging
 dist
+
+# Temp test files
+users.db
