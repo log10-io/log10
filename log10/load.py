@@ -30,6 +30,15 @@ def get_session_id():
 sessionID = get_session_id()
 
 
+class log10_session:
+    def __enter__(self):
+        global sessionID
+        sessionID = get_session_id()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return
+
+
 def intercepting_decorator(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
