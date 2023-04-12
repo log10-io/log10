@@ -22,6 +22,8 @@ from log10.load import log10
 
 log10(openai)
 
+# Adapted from: https://python.langchain.com/en/latest/use_cases/agents/baby_agi_with_agent.html
+
 # Define your embedding model
 embeddings_model = OpenAIEmbeddings()
 # Initialize the vectorstore as empty
