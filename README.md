@@ -2,6 +2,9 @@
 
 ⚡ Unified LLM data management ⚡
 
+[![pypi](https://github.com/log10-io/log10/actions/workflows/release.yml/badge.svg)](https://github.com/log10-io/log10/actions/workflows/release.yml)
+[![](https://dcbadge.vercel.app/api/server/CZQvnuRV94?compact=true&style=flat)](https://discord.gg/CZQvnuRV94)
+
 ## Quick Install
 
 `pip install log10-io`
