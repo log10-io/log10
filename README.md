@@ -48,4 +48,4 @@ Create a free account at [log10.io](https://log10.io) to get a `LOG10_TOKEN` and
 
 ## 💬 Community
 
-We welcome community participation and feedback. Please leave an issue, submit a PR or join our [Discord](https://discord.gg/CGW6xNbC).
+We welcome community participation and feedback. Please leave an issue, submit a PR or join our [Discord](https://discord.gg/CZQvnuRV94).
