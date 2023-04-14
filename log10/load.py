@@ -1,7 +1,6 @@
 import types
 import functools
 import inspect
-from pprint import pprint
 import requests
 import os
 import json
@@ -13,10 +12,23 @@ import threading
 import queue
 from contextlib import contextmanager
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
 
 url = os.environ.get("LOG10_URL")
 token = os.environ.get("LOG10_TOKEN")
 org_id = os.environ.get("LOG10_ORG_ID")
+
+# log10, bigquery
+target_service = os.environ.get("TARGET_SERVICE")
+
+if target_service == "bigquery":
+    from log10.bigquery import initialize_bigquery
+    bigquery_client, bigquery_table = initialize_bigquery()
+    import uuid
+    from datetime import datetime, timezone
+
 
 # Set this to True during debugging and False in production
 DEBUG = False
@@ -71,18 +83,32 @@ async def log_async(completion_url, func, **kwargs):
                                completion_url, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
                                    "organization_id": org_id
                                })
+        # todo: handle session id for bigquery scenario
         completionID = res.json()['completionID']
+        log_row = {
+            # do we want to also store args?
+            "status": "started",
+            "orig_module": func.__module__,
+            "orig_qualname": func.__qualname__,
+            "request": json.dumps(kwargs),
+            "session_id": sessionID,
+            "organization_id": org_id
+        }
+        if target_service == "log10":
+            res = requests.request("POST",
+                                   completion_url + "/" + completionID,
+                                   headers={"x-log10-token": token,
+                                            "Content-Type": "application/json"},
+                                   json=log_row)
+        elif target_service == "bigquery":
+            log_row["id"] = str(uuid.uuid4())
+            log_row["created_at"] = datetime.now(timezone.utc).isoformat()
+            try:
+                bigquery_client.insert_rows_json(bigquery_table, [log_row])
+            except Exception as e:
+                logging.error(
+                    f"failed to insert in Bigquery: {log_row} with error {e}")
 
-        res = requests.request("POST",
-                               completion_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
-                                   # do we want to also store args?
-                                   "status": "started",
-                                   "orig_module": func.__module__,
-                                   "orig_qualname": func.__qualname__,
-                                   "request": json.dumps(kwargs),
-                                   "session_id": sessionID,
-                                   "organization_id": org_id
-                               })
         return completionID
 
 
@@ -90,6 +116,8 @@ def run_async_in_thread(completion_url, func, result_queue, **kwargs):
     result = asyncio.run(
         log_async(completion_url=completion_url, func=func, **kwargs))
     result_queue.put(result)
+
+# this function is deprecated but available for debugging; use the log_async function going forward
 
 
 def log_sync(completion_url, func, **kwargs):
@@ -100,7 +128,10 @@ def log_sync(completion_url, func, **kwargs):
     completionID = res.json()['completionID']
 
     res = requests.request("POST",
-                           completion_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                           completion_url + "/" + completionID,
+                           headers={"x-log10-token": token,
+                                    "Content-Type": "application/json"},
+                           json={
                                # do we want to also store args?
                                "status": "started",
                                "orig_module": func.__module__,
@@ -141,14 +172,26 @@ def intercepting_decorator(func):
                 completionID = result_queue.get()
 
             with timed_block("result call duration (sync)"):
-                res = requests.request("POST",
-                                       completion_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
-                                           "response": json.dumps(output),
-                                           "status": "finished",
-                                           "duration": int(duration*1000),
-                                           "stacktrace": json.dumps(stacktrace)
-                                       })
-
+                log_row = {
+                    "response": json.dumps(output),
+                    "status": "finished",
+                    "duration": int(duration*1000),
+                    "stacktrace": json.dumps(stacktrace)
+                }
+                if target_service == "log10":
+                    res = requests.request("POST",
+                                           completion_url + "/" + completionID,
+                                           headers={
+                                               "x-log10-token": token, "Content-Type": "application/json"},
+                                           json=log_row)
+                elif target_service == "bigquery":
+                    try:
+                        # todo: need to change to append columns
+                        bigquery_client.insert_rows_json(
+                            bigquery_table, [log_row])
+                    except Exception as e:
+                        logging.error(
+                            f"failed to insert in Bigquery: {log_row} with error {e}")
         except Exception as e:
             logging.error("failed", e)
 
