@@ -7,10 +7,22 @@ import os
 import json
 import time
 import traceback
+from aiohttp import ClientSession
+import asyncio
+import threading
+import queue
+from contextlib import contextmanager
+import logging
 
 url = os.environ.get("LOG10_URL")
 token = os.environ.get("LOG10_TOKEN")
 org_id = os.environ.get("LOG10_ORG_ID")
+
+# Set this to True during debugging and False in production
+DEBUG = False
+
+logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO,
+                    format='%(asctime)s - %(levelname)s - LOG10 - %(message)s')
 
 
 def get_session_id():
@@ -39,29 +51,78 @@ class log10_session:
         return
 
 
+@contextmanager
+def timed_block(block_name):
+    if DEBUG:
+        start_time = time.perf_counter()
+        try:
+            yield
+        finally:
+            elapsed_time = time.perf_counter() - start_time
+            logging.debug(
+                f"TIMED BLOCK - {block_name} took {elapsed_time:.6f} seconds to execute.")
+    else:
+        yield
+
+
+async def log_async(completion_url, func, **kwargs):
+    async with ClientSession() as session:
+        res = requests.request("POST",
+                               completion_url, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                                   "organization_id": org_id
+                               })
+        completionID = res.json()['completionID']
+
+        res = requests.request("POST",
+                               completion_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                                   # do we want to also store args?
+                                   "status": "started",
+                                   "orig_module": func.__module__,
+                                   "orig_qualname": func.__qualname__,
+                                   "request": json.dumps(kwargs),
+                                   "session_id": sessionID,
+                                   "organization_id": org_id
+                               })
+        return completionID
+
+
+def run_async_in_thread(completion_url, func, result_queue, **kwargs):
+    result = asyncio.run(
+        log_async(completion_url=completion_url, func=func, **kwargs))
+    result_queue.put(result)
+
+
+def log_sync(completion_url, func, **kwargs):
+    res = requests.request("POST",
+                           completion_url, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                               "organization_id": org_id
+                           })
+    completionID = res.json()['completionID']
+
+    res = requests.request("POST",
+                           completion_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                               # do we want to also store args?
+                               "status": "started",
+                               "orig_module": func.__module__,
+                               "orig_qualname": func.__qualname__,
+                               "request": json.dumps(kwargs),
+                               "session_id": sessionID,
+                               "organization_id": org_id
+                           })
+    return completionID
+
+
 def intercepting_decorator(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         completion_url = url + "/api/completions"
         output = None
+        result_queue = queue.Queue()
 
         try:
-            res = requests.request("POST",
-                                   completion_url, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
-                                       "organization_id": org_id
-                                   })
-            completionID = res.json()['completionID']
-
-            res = requests.request("POST",
-                                   completion_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
-                                       # do we want to also store args?
-                                       "status": "started",
-                                       "orig_module": func.__module__,
-                                       "orig_qualname": func.__qualname__,
-                                       "request": json.dumps(kwargs),
-                                       "session_id": sessionID,
-                                       "organization_id": org_id
-                                   })
+            with timed_block("async call duration"):
+                threading.Thread(target=run_async_in_thread, kwargs={
+                                 "completion_url": completion_url, "func": func, "result_queue": result_queue, **kwargs}).start()
 
             current_stack_frame = traceback.extract_stack()
             stacktrace = ([{"file": frame.filename,
@@ -69,20 +130,27 @@ def intercepting_decorator(func):
                            "lineno": frame.lineno,
                             "name": frame.name} for frame in current_stack_frame])
 
-            start_time = time.time()*1000
+            start_time = time.perf_counter()
             output = func(*args, **kwargs)
-            duration = time.time()*1000 - start_time
+            duration = time.perf_counter() - start_time
+            logging.debug(f"TIMED BLOCK - OpenAI call duration: {duration}")
 
-            res = requests.request("POST",
-                                   completion_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
-                                       "response": json.dumps(output),
-                                       "status": "finished",
-                                       "duration": int(duration),
-                                       "stacktrace": json.dumps(stacktrace)
-                                   })
+            with timed_block("extra time spent waiting for log10 call"):
+                while result_queue.empty():
+                    pass
+                completionID = result_queue.get()
+
+            with timed_block("result call duration (sync)"):
+                res = requests.request("POST",
+                                       completion_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                                           "response": json.dumps(output),
+                                           "status": "finished",
+                                           "duration": int(duration*1000),
+                                           "stacktrace": json.dumps(stacktrace)
+                                       })
 
         except Exception as e:
-            print("failed", e)
+            logging.error("failed", e)
 
         return output
 
