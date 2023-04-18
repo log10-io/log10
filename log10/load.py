@@ -30,13 +30,6 @@ if target_service == "bigquery":
     from datetime import datetime, timezone
 
 
-# Set this to True during debugging and False in production
-DEBUG = False
-
-logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO,
-                    format='%(asctime)s - %(levelname)s - LOG10 - %(message)s')
-
-
 def get_session_id():
     try:
         session_url = url + "/api/sessions"
@@ -117,8 +110,6 @@ def run_async_in_thread(completion_url, func, result_queue, **kwargs):
         log_async(completion_url=completion_url, func=func, **kwargs))
     result_queue.put(result)
 
-# this function is deprecated but available for debugging; use the log_async function going forward
-
 
 def log_sync(completion_url, func, **kwargs):
     res = requests.request("POST",
@@ -151,9 +142,13 @@ def intercepting_decorator(func):
         result_queue = queue.Queue()
 
         try:
-            with timed_block("async call duration"):
-                threading.Thread(target=run_async_in_thread, kwargs={
-                                 "completion_url": completion_url, "func": func, "result_queue": result_queue, **kwargs}).start()
+            with timed_block(sync_log_text + " call duration"):
+                if USE_ASYNC:
+                    threading.Thread(target=run_async_in_thread, kwargs={
+                        "completion_url": completion_url, "func": func, "result_queue": result_queue, **kwargs}).start()
+                else:
+                    completionID = log_sync(
+                        completion_url=completion_url, func=func, **kwargs)
 
             current_stack_frame = traceback.extract_stack()
             stacktrace = ([{"file": frame.filename,
@@ -166,10 +161,11 @@ def intercepting_decorator(func):
             duration = time.perf_counter() - start_time
             logging.debug(f"TIMED BLOCK - OpenAI call duration: {duration}")
 
-            with timed_block("extra time spent waiting for log10 call"):
-                while result_queue.empty():
-                    pass
-                completionID = result_queue.get()
+            if USE_ASYNC:
+                with timed_block("extra time spent waiting for log10 call"):
+                    while result_queue.empty():
+                        pass
+                    completionID = result_queue.get()
 
             with timed_block("result call duration (sync)"):
                 log_row = {
@@ -200,7 +196,25 @@ def intercepting_decorator(func):
     return wrapper
 
 
-def log10(module):
+def set_sync_log_text(USE_ASYNC=True):
+    return "async" if USE_ASYNC else "sync"
+
+
+def log10(module, DEBUG_=False, USE_ASYNC_=True):
+    """Intercept and overload module for logging purposes
+
+    Keywprd arguments:
+    module -- the module to be intercepted (e.g. openai)
+    DEBUG_ -- whether to show log10 related debug statements via python logging (default False)
+    USE_ASYNC_ -- whether to run in async mode (default True)
+    """
+    global DEBUG, USE_ASYNC, sync_log_text
+    DEBUG = DEBUG_
+    USE_ASYNC = USE_ASYNC_
+    sync_log_text = set_sync_log_text(USE_ASYNC=USE_ASYNC)
+    logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO,
+                        format='%(asctime)s - %(levelname)s - LOG10 - %(message)s')
+
     def intercept_nested_functions(obj):
         for name, attr in vars(obj).items():
             if callable(attr) and isinstance(attr, types.FunctionType):
