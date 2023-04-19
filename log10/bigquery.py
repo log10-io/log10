@@ -9,9 +9,9 @@ import os
 def initialize_bigquery():
 
     # Configure the BigQuery client
-    project_id = os.environ.get("PROJECT_ID")
-    dataset_id = os.environ.get("DATASET_ID")
-    completions_table_id = os.environ.get("COMPLETIONS_TABLE_ID")
+    project_id = os.environ.get("LOG10_BQ_PROJECT_ID")
+    dataset_id = os.environ.get("LOG10_BQ_DATASET_ID")
+    completions_table_id = os.environ.get("LOG10_BQ_COMPLETIONS_TABLE_ID")
 
     client = bigquery.Client(project=project_id)
 

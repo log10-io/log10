@@ -21,7 +21,7 @@ token = os.environ.get("LOG10_TOKEN")
 org_id = os.environ.get("LOG10_ORG_ID")
 
 # log10, bigquery
-target_service = os.environ.get("TARGET_SERVICE")
+target_service = os.environ.get("LOG10_DATA_STORE")
 
 if target_service == "bigquery":
     from log10.bigquery import initialize_bigquery
@@ -31,6 +31,9 @@ if target_service == "bigquery":
 
 
 def get_session_id():
+    if target_service == "bigquery":
+        return str(uuid.uuid4())
+
     try:
         session_url = url + "/api/sessions"
         res = requests.request("POST",
@@ -162,7 +165,6 @@ def intercepting_decorator(func):
                         pass
                     completionID = result_queue.get()
 
-            # TODO(NN): We should only provide the request for Big Query, as we only do a single insert.
             with timed_block("result call duration (sync)"):
                 log_row = {
                     "response": json.dumps(output),
@@ -170,18 +172,31 @@ def intercepting_decorator(func):
                     "duration": int(duration*1000),
                     "stacktrace": json.dumps(stacktrace)
                 }
+
                 if target_service == "log10":
                     res = requests.request("POST",
                                            completion_url + "/" + completionID,
                                            headers={
                                                "x-log10-token": token, "Content-Type": "application/json"},
                                            json=log_row)
+
                 elif target_service == "bigquery":
                     try:
                         log_row["id"] = str(uuid.uuid4())
                         log_row["created_at"] = datetime.now(timezone.utc).isoformat()
                         log_row["request"] = json.dumps(kwargs)
+ 
+                        if func.__qualname__ == "Completion.create":
+                            log_row["kind"] = "completion"
+                        elif func.__qualname__ == "ChatCompletion.create":
+                            log_row["kind"] = "chat"
+
+                        log_row["orig_module"] = func.__module__
+                        log_row["orig_qualname"] = func.__qualname__
+                        log_row["session_id"] = sessionID
+
                         bigquery_client.insert_rows_json(bigquery_table, [log_row])
+
                     except Exception as e:
                         logging.error(
                             f"failed to insert in Bigquery: {log_row} with error {e}")
