@@ -11,7 +11,7 @@ def initialize_bigquery():
     # Configure the BigQuery client
     project_id = os.environ.get("PROJECT_ID")
     dataset_id = os.environ.get("DATASET_ID")
-    table_id = os.environ.get("TABLE_ID")
+    completions_table_id = os.environ.get("COMPLETIONS_TABLE_ID")
 
     client = bigquery.Client(project=project_id)
 
@@ -22,9 +22,9 @@ def initialize_bigquery():
         except NotFound:
             return False
 
-    def table_exists(dataset_id, table_id):
+    def table_exists(dataset_id, completions_table_id):
         try:
-            table_ref = client.dataset(dataset_id).table(table_id)
+            table_ref = client.dataset(dataset_id).table(completions_table_id)
             client.get_table(table_ref)  # API request
             return True
         except NotFound:
@@ -46,13 +46,13 @@ def initialize_bigquery():
     client_dataset = client.dataset(dataset_id)
 
     # Check if table exists
-    if table_exists(dataset_id, table_id):
-        print(f"Table {table_id} exists in dataset {dataset_id}.")
+    if table_exists(dataset_id, completions_table_id):
+        print(f"Table {completions_table_id} exists in dataset {dataset_id}.")
     else:
         print(
-            f"Table {table_id} does not exist in dataset {dataset_id}. Creating...")
+            f"Table {completions_table_id} does not exist in dataset {dataset_id}. Creating...")
         # Create the table
-        table_ref = client_dataset.table(table_id)
+        table_ref = client_dataset.table(completions_table_id)
         script_dir = os.path.dirname(os.path.abspath(__file__))
         schema_path = os.path.join(script_dir, 'schemas', 'bigquery.json')
         schema = client.schema_from_json(schema_path)
@@ -61,7 +61,7 @@ def initialize_bigquery():
         print(f"Table {created_table.table_id} created.")
 
     # load dataset and table
-    table_ref = client_dataset.table(table_id)
+    table_ref = client_dataset.table(completions_table_id)
     table = client.get_table(table_ref)
 
     return client, table

@@ -94,13 +94,8 @@ async def log_async(completion_url, func, **kwargs):
                                             "Content-Type": "application/json"},
                                    json=log_row)
         elif target_service == "bigquery":
-            log_row["id"] = str(uuid.uuid4())
-            log_row["created_at"] = datetime.now(timezone.utc).isoformat()
-            try:
-                bigquery_client.insert_rows_json(bigquery_table, [log_row])
-            except Exception as e:
-                logging.error(
-                    f"failed to insert in Bigquery: {log_row} with error {e}")
+            pass
+            # NOTE: We only save on request finalization.
 
         return completionID
 
@@ -167,6 +162,7 @@ def intercepting_decorator(func):
                         pass
                     completionID = result_queue.get()
 
+            # TODO(NN): We should only provide the request for Big Query, as we only do a single insert.
             with timed_block("result call duration (sync)"):
                 log_row = {
                     "response": json.dumps(output),
@@ -182,9 +178,10 @@ def intercepting_decorator(func):
                                            json=log_row)
                 elif target_service == "bigquery":
                     try:
-                        # todo: need to change to append columns
-                        bigquery_client.insert_rows_json(
-                            bigquery_table, [log_row])
+                        log_row["id"] = str(uuid.uuid4())
+                        log_row["created_at"] = datetime.now(timezone.utc).isoformat()
+                        log_row["request"] = json.dumps(kwargs)
+                        bigquery_client.insert_rows_json(bigquery_table, [log_row])
                     except Exception as e:
                         logging.error(
                             f"failed to insert in Bigquery: {log_row} with error {e}")
@@ -203,7 +200,7 @@ def set_sync_log_text(USE_ASYNC=True):
 def log10(module, DEBUG_=False, USE_ASYNC_=True):
     """Intercept and overload module for logging purposes
 
-    Keywprd arguments:
+    Keyword arguments:
     module -- the module to be intercepted (e.g. openai)
     DEBUG_ -- whether to show log10 related debug statements via python logging (default False)
     USE_ASYNC_ -- whether to run in async mode (default True)
