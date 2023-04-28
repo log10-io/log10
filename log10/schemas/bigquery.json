@@ -1,0 +1,67 @@
+[
+  {
+    "name": "id",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "request",
+    "type": "JSON",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "response",
+    "type": "JSON",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "stacktrace",
+    "type": "JSON",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "duration",
+    "type": "INT64",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "kind",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "orig_module",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "orig_qualname",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "user_id",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "session_id",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "organization_id",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  }
+]

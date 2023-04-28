@@ -1,7 +1,6 @@
 import types
 import functools
 import inspect
-from pprint import pprint
 import requests
 import os
 import json
@@ -13,19 +12,28 @@ import threading
 import queue
 from contextlib import contextmanager
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
 
 url = os.environ.get("LOG10_URL")
 token = os.environ.get("LOG10_TOKEN")
 org_id = os.environ.get("LOG10_ORG_ID")
 
-# Set this to True during debugging and False in production
-DEBUG = False
+# log10, bigquery
+target_service = os.environ.get("LOG10_DATA_STORE")
 
-logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO,
-                    format='%(asctime)s - %(levelname)s - LOG10 - %(message)s')
+if target_service == "bigquery":
+    from log10.bigquery import initialize_bigquery
+    bigquery_client, bigquery_table = initialize_bigquery()
+    import uuid
+    from datetime import datetime, timezone
 
 
 def get_session_id():
+    if target_service == "bigquery":
+        return str(uuid.uuid4())
+
     try:
         session_url = url + "/api/sessions"
         res = requests.request("POST",
@@ -71,18 +79,27 @@ async def log_async(completion_url, func, **kwargs):
                                completion_url, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
                                    "organization_id": org_id
                                })
+        # todo: handle session id for bigquery scenario
         completionID = res.json()['completionID']
+        log_row = {
+            # do we want to also store args?
+            "status": "started",
+            "orig_module": func.__module__,
+            "orig_qualname": func.__qualname__,
+            "request": json.dumps(kwargs),
+            "session_id": sessionID,
+            "organization_id": org_id
+        }
+        if target_service == "log10":
+            res = requests.request("POST",
+                                   completion_url + "/" + completionID,
+                                   headers={"x-log10-token": token,
+                                            "Content-Type": "application/json"},
+                                   json=log_row)
+        elif target_service == "bigquery":
+            pass
+            # NOTE: We only save on request finalization.
 
-        res = requests.request("POST",
-                               completion_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
-                                   # do we want to also store args?
-                                   "status": "started",
-                                   "orig_module": func.__module__,
-                                   "orig_qualname": func.__qualname__,
-                                   "request": json.dumps(kwargs),
-                                   "session_id": sessionID,
-                                   "organization_id": org_id
-                               })
         return completionID
 
 
@@ -100,7 +117,10 @@ def log_sync(completion_url, func, **kwargs):
     completionID = res.json()['completionID']
 
     res = requests.request("POST",
-                           completion_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
+                           completion_url + "/" + completionID,
+                           headers={"x-log10-token": token,
+                                    "Content-Type": "application/json"},
+                           json={
                                # do we want to also store args?
                                "status": "started",
                                "orig_module": func.__module__,
@@ -120,9 +140,13 @@ def intercepting_decorator(func):
         result_queue = queue.Queue()
 
         try:
-            with timed_block("async call duration"):
-                threading.Thread(target=run_async_in_thread, kwargs={
-                                 "completion_url": completion_url, "func": func, "result_queue": result_queue, **kwargs}).start()
+            with timed_block(sync_log_text + " call duration"):
+                if USE_ASYNC:
+                    threading.Thread(target=run_async_in_thread, kwargs={
+                        "completion_url": completion_url, "func": func, "result_queue": result_queue, **kwargs}).start()
+                else:
+                    completionID = log_sync(
+                        completion_url=completion_url, func=func, **kwargs)
 
             current_stack_frame = traceback.extract_stack()
             stacktrace = ([{"file": frame.filename,
@@ -135,20 +159,47 @@ def intercepting_decorator(func):
             duration = time.perf_counter() - start_time
             logging.debug(f"TIMED BLOCK - OpenAI call duration: {duration}")
 
-            with timed_block("extra time spent waiting for log10 call"):
-                while result_queue.empty():
-                    pass
-                completionID = result_queue.get()
+            if USE_ASYNC:
+                with timed_block("extra time spent waiting for log10 call"):
+                    while result_queue.empty():
+                        pass
+                    completionID = result_queue.get()
 
             with timed_block("result call duration (sync)"):
-                res = requests.request("POST",
-                                       completion_url + "/" + completionID, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
-                                           "response": json.dumps(output),
-                                           "status": "finished",
-                                           "duration": int(duration*1000),
-                                           "stacktrace": json.dumps(stacktrace)
-                                       })
+                log_row = {
+                    "response": json.dumps(output),
+                    "status": "finished",
+                    "duration": int(duration*1000),
+                    "stacktrace": json.dumps(stacktrace)
+                }
 
+                if target_service == "log10":
+                    res = requests.request("POST",
+                                           completion_url + "/" + completionID,
+                                           headers={
+                                               "x-log10-token": token, "Content-Type": "application/json"},
+                                           json=log_row)
+
+                elif target_service == "bigquery":
+                    try:
+                        log_row["id"] = str(uuid.uuid4())
+                        log_row["created_at"] = datetime.now(timezone.utc).isoformat()
+                        log_row["request"] = json.dumps(kwargs)
+ 
+                        if func.__qualname__ == "Completion.create":
+                            log_row["kind"] = "completion"
+                        elif func.__qualname__ == "ChatCompletion.create":
+                            log_row["kind"] = "chat"
+
+                        log_row["orig_module"] = func.__module__
+                        log_row["orig_qualname"] = func.__qualname__
+                        log_row["session_id"] = sessionID
+
+                        bigquery_client.insert_rows_json(bigquery_table, [log_row])
+
+                    except Exception as e:
+                        logging.error(
+                            f"failed to insert in Bigquery: {log_row} with error {e}")
         except Exception as e:
             logging.error("failed", e)
 
@@ -157,7 +208,25 @@ def intercepting_decorator(func):
     return wrapper
 
 
-def log10(module):
+def set_sync_log_text(USE_ASYNC=True):
+    return "async" if USE_ASYNC else "sync"
+
+
+def log10(module, DEBUG_=False, USE_ASYNC_=True):
+    """Intercept and overload module for logging purposes
+
+    Keyword arguments:
+    module -- the module to be intercepted (e.g. openai)
+    DEBUG_ -- whether to show log10 related debug statements via python logging (default False)
+    USE_ASYNC_ -- whether to run in async mode (default True)
+    """
+    global DEBUG, USE_ASYNC, sync_log_text
+    DEBUG = DEBUG_
+    USE_ASYNC = USE_ASYNC_
+    sync_log_text = set_sync_log_text(USE_ASYNC=USE_ASYNC)
+    logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO,
+                        format='%(asctime)s - %(levelname)s - LOG10 - %(message)s')
+
     def intercept_nested_functions(obj):
         for name, attr in vars(obj).items():
             if callable(attr) and isinstance(attr, types.FunctionType):

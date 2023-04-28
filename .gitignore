@@ -6,3 +6,6 @@ dist
 
 # Temp test files
 users.db
+
+# Environments
+.env

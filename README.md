@@ -34,6 +34,25 @@ Prompt chains such as those in [Langchain](https://github.com/hwchase17/langchai
 
 Log all your OpenAI calls to compare and find the best prompts, store feedback, collect latency and usage metrics, and perform analytics and compliance monitoring of LLM powered features.
 
+**💿🧩 Flexible data store**
+
+log10 provides a managed data store, but if you'd prefer to manage data in your own environment, you can use data stores like google big query.
+
+Install the big query client library with:
+
+`pip install log10-io[bigquery]`
+
+And provide the following configuration in either a `.env` file, or as environment variables:
+
+| Name | Description |
+|------|-------------|
+| `LOG10_DATA_STORE`  |  Either `log10` or `bigquery` |
+| `LOG10_BQ_PROJECT_ID`   | Your google cloud project id      |
+| `LOG10_BQ_DATASET_ID`  |  The big query dataset id  |
+| `LOG10_BQ_COMPLETIONS_TABLE_ID` | The name of the table to store completions in |
+
+**Note** that your environment should have been setup with google cloud credentials. Read more [here](https://cloud.google.com/sdk/gcloud/reference/auth/login) about authenticating.
+
 **🧠🔁 Readiness for RLHF & self hosting**
 
 Use your data and feedback from users to fine-tune custom models with RLHF with the option of building and deploying more reliable, accurate and efficient self-hosted models. 
@@ -45,6 +64,7 @@ Create flexible groups to share and collaborate over all of the above features
 ## ⚙️ Setup
 
 Create a free account at [log10.io](https://log10.io) to get a `LOG10_TOKEN` and a `LOG10_ORG_ID`. Please add these to your environment along with `LOG10_URL=https://log10.io`. 
+
 
 ## 💬 Community
 
