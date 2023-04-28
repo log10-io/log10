@@ -1,0 +1,11 @@
+langchain
+openai
+requests
+python-dotenv
+google-cloud-bigquery
+pexpect
+faiss-cpu
+google-search-results
+tiktoken
+wikipedia
+faker

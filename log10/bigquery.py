@@ -6,7 +6,7 @@ import os
 # todo: add requirements.txt file
 # todo: add instructions for bigquery integration
 
-def initialize_bigquery():
+def initialize_bigquery(debug=False):
 
     # Configure the BigQuery client
     project_id = os.environ.get("LOG10_BQ_PROJECT_ID")
@@ -32,25 +32,31 @@ def initialize_bigquery():
 
     # Check if dataset exists
     if dataset_exists(dataset_id):
-        print(f"Dataset {dataset_id} exists.")
+        if debug:
+            print(f"Dataset {dataset_id} exists.")
     else:
-        print(f"Dataset {dataset_id} does not exist. Creating...")
+        if debug:
+            print(f"Dataset {dataset_id} does not exist. Creating...")
         # Create the dataset
         dataset_ref = client.dataset(dataset_id)
         dataset = bigquery.Dataset(dataset_ref)
         # Set the location, e.g., "US", "EU", "asia-northeast1", etc.
         dataset.location = "US"
         created_dataset = client.create_dataset(dataset)  # API request
-        print(f"Dataset {created_dataset.dataset_id} created.")
+
+        if debug:
+            print(f"Dataset {created_dataset.dataset_id} created.")
 
     client_dataset = client.dataset(dataset_id)
 
     # Check if table exists
     if table_exists(dataset_id, completions_table_id):
-        print(f"Table {completions_table_id} exists in dataset {dataset_id}.")
+        if debug:
+            print(f"Table {completions_table_id} exists in dataset {dataset_id}.")
     else:
-        print(
-            f"Table {completions_table_id} does not exist in dataset {dataset_id}. Creating...")
+        if debug:
+            print(
+                f"Table {completions_table_id} does not exist in dataset {dataset_id}. Creating...")
         # Create the table
         table_ref = client_dataset.table(completions_table_id)
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -58,7 +64,9 @@ def initialize_bigquery():
         schema = client.schema_from_json(schema_path)
         table = bigquery.Table(table_ref, schema=schema)
         created_table = client.create_table(table)  # API request
-        print(f"Table {created_table.table_id} created.")
+
+        if debug:
+            print(f"Table {created_table.table_id} created.")
 
     # load dataset and table
     table_ref = client_dataset.table(completions_table_id)
