@@ -28,6 +28,8 @@ if target_service == "bigquery":
     bigquery_client, bigquery_table = initialize_bigquery()
     import uuid
     from datetime import datetime, timezone
+elif target_service is None:
+    target_service = "log10"  # default to log10
 
 
 def get_session_id():
@@ -73,6 +75,13 @@ def timed_block(block_name):
         yield
 
 
+def log_url(res, completionID):
+    output = res.json()
+    organizationSlug = output['organizationSlug']
+    full_url = url + '/app/' + organizationSlug + '/completions/' + completionID
+    logging.debug(f"LOG10: Completion URL: {full_url}")
+
+
 async def log_async(completion_url, func, **kwargs):
     async with ClientSession() as session:
         res = requests.request("POST",
@@ -81,6 +90,8 @@ async def log_async(completion_url, func, **kwargs):
                                })
         # todo: handle session id for bigquery scenario
         completionID = res.json()['completionID']
+        if DEBUG:
+            log_url(res, completionID)
         log_row = {
             # do we want to also store args?
             "status": "started",
@@ -115,7 +126,8 @@ def log_sync(completion_url, func, **kwargs):
                                "organization_id": org_id
                            })
     completionID = res.json()['completionID']
-
+    if DEBUG:
+        log_url(res, completionID)
     res = requests.request("POST",
                            completion_url + "/" + completionID,
                            headers={"x-log10-token": token,
@@ -157,7 +169,8 @@ def intercepting_decorator(func):
             start_time = time.perf_counter()
             output = func(*args, **kwargs)
             duration = time.perf_counter() - start_time
-            logging.debug(f"TIMED BLOCK - OpenAI call duration: {duration}")
+            logging.debug(
+                f"LOG10: TIMED BLOCK - OpenAI call duration: {duration}")
 
             if USE_ASYNC:
                 with timed_block("extra time spent waiting for log10 call"):
@@ -179,13 +192,13 @@ def intercepting_decorator(func):
                                            headers={
                                                "x-log10-token": token, "Content-Type": "application/json"},
                                            json=log_row)
-
                 elif target_service == "bigquery":
                     try:
                         log_row["id"] = str(uuid.uuid4())
-                        log_row["created_at"] = datetime.now(timezone.utc).isoformat()
+                        log_row["created_at"] = datetime.now(
+                            timezone.utc).isoformat()
                         log_row["request"] = json.dumps(kwargs)
- 
+
                         if func.__qualname__ == "Completion.create":
                             log_row["kind"] = "completion"
                         elif func.__qualname__ == "ChatCompletion.create":
@@ -195,13 +208,14 @@ def intercepting_decorator(func):
                         log_row["orig_qualname"] = func.__qualname__
                         log_row["session_id"] = sessionID
 
-                        bigquery_client.insert_rows_json(bigquery_table, [log_row])
+                        bigquery_client.insert_rows_json(
+                            bigquery_table, [log_row])
 
                     except Exception as e:
                         logging.error(
-                            f"failed to insert in Bigquery: {log_row} with error {e}")
+                            f"LOG10: failed to insert in Bigquery: {log_row} with error {e}")
         except Exception as e:
-            logging.error("failed", e)
+            logging.error("LOG10: failed", e)
 
         return output
 
