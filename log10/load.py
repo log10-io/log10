@@ -75,6 +75,13 @@ def timed_block(block_name):
         yield
 
 
+def log_url(res, completionID):
+    output = res.json()
+    organizationSlug = output['organizationSlug']
+    full_url = url + '/app/' + organizationSlug + '/completions/' + completionID
+    logging.debug(f"LOG10: Completion URL: {full_url}")
+
+
 async def log_async(completion_url, func, **kwargs):
     async with ClientSession() as session:
         res = requests.request("POST",
@@ -83,6 +90,8 @@ async def log_async(completion_url, func, **kwargs):
                                })
         # todo: handle session id for bigquery scenario
         completionID = res.json()['completionID']
+        if DEBUG:
+            log_url(res, completionID)
         log_row = {
             # do we want to also store args?
             "status": "started",
@@ -117,7 +126,8 @@ def log_sync(completion_url, func, **kwargs):
                                "organization_id": org_id
                            })
     completionID = res.json()['completionID']
-
+    if DEBUG:
+        log_url(res, completionID)
     res = requests.request("POST",
                            completion_url + "/" + completionID,
                            headers={"x-log10-token": token,
@@ -182,7 +192,6 @@ def intercepting_decorator(func):
                                            headers={
                                                "x-log10-token": token, "Content-Type": "application/json"},
                                            json=log_row)
-
                 elif target_service == "bigquery":
                     try:
                         log_row["id"] = str(uuid.uuid4())
