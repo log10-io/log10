@@ -13,6 +13,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "openai",
+        "python-dotenv",
     ],
     extras_require={
         "bigquery": ["google-cloud-bigquery"],
