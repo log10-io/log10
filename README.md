@@ -63,8 +63,12 @@ Create flexible groups to share and collaborate over all of the above features
 
 ## ⚙️ Setup
 
-Create a free account at [log10.io](https://log10.io) to get a `LOG10_TOKEN` and a `LOG10_ORG_ID`. Please add these to your environment along with `LOG10_URL=https://log10.io`. 
-
+1. Create a free account at [log10.io](https://log10.io)
+2. Set the following environment variables:
+- `LOG10_URL=https://log10.io`
+- `LOG10_TOKEN`: From the Settings tab in log10.io
+- `LOG10_ORG_ID`: From the Organization tab in log10.io
+- `OPENAI_API_KEY`: OpenAI API key
 
 ## 💬 Community
 

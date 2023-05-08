@@ -45,7 +45,8 @@ def get_session_id():
 
         return res.json()['sessionID']
     except Exception as e:
-        raise Exception("Failed to create LOG10 session: " + str(e))
+        raise Exception("Failed to create LOG10 session: " + str(e) + "\nLikely cause: LOG10 env vars missing or not picked up correctly!" +
+                        "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details")
 
 
 # Global variable to store the current sessionID.
