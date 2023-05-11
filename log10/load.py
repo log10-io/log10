@@ -51,12 +51,22 @@ def get_session_id():
 
 # Global variable to store the current sessionID.
 sessionID = get_session_id()
-
+last_completion_response = None
 
 class log10_session:
     def __enter__(self):
         global sessionID
+        global last_completion_response
         sessionID = get_session_id()
+        last_completion_response = None
+        return self
+
+    def last_completion_url(self):
+        if last_completion_response is None:
+            return None
+
+        return url + '/app/' +  last_completion_response['organizationSlug'] + '/completions/' + last_completion_response['completionID']
+
 
     def __exit__(self, exc_type, exc_value, traceback):
         return
@@ -85,12 +95,16 @@ def log_url(res, completionID):
 
 async def log_async(completion_url, func, **kwargs):
     async with ClientSession() as session:
+        global last_completion_response
+
         res = requests.request("POST",
                                completion_url, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
                                    "organization_id": org_id
                                })
         # todo: handle session id for bigquery scenario
+        last_completion_response = res.json()
         completionID = res.json()['completionID']
+
         if DEBUG:
             log_url(res, completionID)
         log_row = {
@@ -122,10 +136,13 @@ def run_async_in_thread(completion_url, func, result_queue, **kwargs):
 
 
 def log_sync(completion_url, func, **kwargs):
+    global last_completion_response
     res = requests.request("POST",
                            completion_url, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
                                "organization_id": org_id
                            })
+
+    last_completion_response = res.json()
     completionID = res.json()['completionID']
     if DEBUG:
         log_url(res, completionID)
