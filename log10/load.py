@@ -13,6 +13,8 @@ import queue
 from contextlib import contextmanager
 import logging
 from dotenv import load_dotenv
+import backoff  # for exponential backoff
+from openai.error import RateLimitError
 
 load_dotenv()
 
@@ -30,6 +32,11 @@ if target_service == "bigquery":
     from datetime import datetime, timezone
 elif target_service is None:
     target_service = "log10"  # default to log10
+
+
+@backoff.on_exception(backoff.expo, RateLimitError)
+def func_with_backoff(func, *args, **kwargs):
+    return func(*args, **kwargs)
 
 
 def get_session_id():
@@ -185,7 +192,7 @@ def intercepting_decorator(func):
                             "name": frame.name} for frame in current_stack_frame])
 
             start_time = time.perf_counter()
-            output = func(*args, **kwargs)
+            output = func_with_backoff(func, *args, **kwargs)
             duration = time.perf_counter() - start_time
             logging.debug(
                 f"LOG10: TIMED BLOCK - OpenAI call duration: {duration}")
