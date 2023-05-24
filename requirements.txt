@@ -9,3 +9,4 @@ google-search-results
 tiktoken
 wikipedia
 faker
+backoff
