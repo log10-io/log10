@@ -2,7 +2,8 @@ from log10.load import log10_session
 import logging
 from dotenv import load_dotenv
 load_dotenv()
-from anthropic import HUMAN_PROMPT, AI_PROMPT
+from anthropic import HUMAN_PROMPT
+from utils import convert_history_to_claude
 
 # OpenAI hyper params supported in playground
 # openai_hparams = ['temperature', 'top_p', 'max_tokens', 'presence_penalty', 'frequency_penalty']
@@ -13,19 +14,6 @@ repeat_word_threshold = 4
 repeat_word_list = [
     "goodbye", "good bye", "thank", "bye", "welcome", "language model"
 ]
-
-
-def convert_history_to_claude(history):
-    text = ""
-    for item in history:
-        # Anthropic doesn't support a system prompt OOB
-        if item['role'] == 'user' or item['role'] == 'system':
-            text += HUMAN_PROMPT
-        elif item['role'] == 'assistant':
-            text += AI_PROMPT
-        text += f" {item['content']}"
-    text += AI_PROMPT
-    return text
 
 
 def camel_agent(userRole, assistantRole, taskPrompt, model, summary_model, maxTurns, module, hparams):

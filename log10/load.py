@@ -302,7 +302,7 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
     for name, attr in vars(module).items():
         if inspect.isclass(attr):
             # OpenAI
-            if name in ["ChatCompletion", "Completion"]:
+            if module.__name__ == "openai" and name in ["ChatCompletion", "Completion"]:
                 for method_name, method in vars(attr).items():
                     if isinstance(method, classmethod):
                         original_method = method.__func__
@@ -312,7 +312,7 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
                             setattr(attr, method_name,
                                     classmethod(decorated_method))
             # Anthropic
-            elif name == "Client":
+            elif module.__name__ == "anthropic" and name == "Client":
                 for method_name, method in vars(attr).items():
                     if isinstance(method, (types.FunctionType, types.MethodType)) and method_name == "completion":
                         setattr(attr, method_name,
