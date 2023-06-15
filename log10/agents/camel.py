@@ -28,7 +28,7 @@ def convert_history_to_claude(history):
     return text
 
 
-def camel_agent(userRole, assistantRole, taskPrompt, model, maxTurns, module, hparams):
+def camel_agent(userRole, assistantRole, taskPrompt, model, summary_model, maxTurns, module, hparams):
 
     try:
         assistant_inception_prompt = f"""Never forget you are a {assistantRole} and I am a {userRole}. Never flip roles! Never instruct me!
@@ -90,28 +90,7 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
         for i in range(maxTurns):
             repeated_word_current_turn = False
 
-            if 'claude' in model:
-                messages = convert_history_to_claude(assistant_messages)
-                assistant_completion = module.completion(
-                    prompt=messages,
-                    stop_sequences=[HUMAN_PROMPT],
-                    model=model,
-                    **hparams
-                )
-                assistant_message = {
-                    "role": "assistant",
-                    "content": assistant_completion['completion'],
-                }
-            else:
-                assistant_completion = module.ChatCompletion.create(
-                    model=model, messages=assistant_messages, **hparams)
-                assistant_message = assistant_completion.choices[0].message
-            assistant_messages.append(assistant_message)
-            user_messages.append(
-                {"role": "user", "content": assistant_message['content']})
-            logging.info(
-                f"Assistant turn {i}: {assistant_message}")
-
+            # User turn
             if 'claude' in model:
                 messages = convert_history_to_claude(user_messages)
                 user_completion = module.completion(
@@ -134,6 +113,29 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
             logging.info(
                 f"User turn {i}: {user_message}")
 
+            # Assistant turn
+            if 'claude' in model:
+                messages = convert_history_to_claude(assistant_messages)
+                assistant_completion = module.completion(
+                    prompt=messages,
+                    stop_sequences=[HUMAN_PROMPT],
+                    model=model,
+                    **hparams
+                )
+                assistant_message = {
+                    "role": "assistant",
+                    "content": assistant_completion['completion'],
+                }
+            else:
+                assistant_completion = module.ChatCompletion.create(
+                    model=model, messages=assistant_messages, **hparams)
+                assistant_message = assistant_completion.choices[0].message
+            assistant_messages.append(assistant_message)
+            user_messages.append(
+                {"role": "user", "content": assistant_message['content']})
+            logging.info(
+                f"Assistant turn {i}: {assistant_message}")
+
             for repeat_word in repeat_word_list:
                 if repeat_word in assistant_message['content'].lower(
                 ) or repeat_word in user_message['content'].lower():
@@ -147,7 +149,7 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
             if not repeated_word_current_turn:
                 repeat_word_counter = 0
 
-            if ("CAMEL_TASK_DONE" in user_messages[-1]['content']) or (i == maxTurns-1) or repeat_word_threshold_exceeded:
+            if ("CAMEL_TASK_DONE" in user_messages[-2]['content']) or (i == maxTurns-1) or repeat_word_threshold_exceeded:
                 # summary_context = '\n'.join(
                 #     turn['content'] for turn in assistant_messages if turn['role'] == 'assistant')
                 summary_context = '\n'.join([
@@ -176,14 +178,11 @@ Even if I told you that the task is completed in the context above you should st
                     {"role": "system", "content": summary_system_prompt},
                     {"role": "user", "content": "Here is the conversation: " + summary_prompt}
                 ]
-
-                # todo: accept kwargs for other openai params
                 if 'claude' in model:
-                    # todo: ideally use claude-1-100k
                     summary_completion = module.completion(
                         prompt=convert_history_to_claude(summary_messages),
                         stop_sequences=[HUMAN_PROMPT],
-                        model=model,
+                        model=summary_model,
                         **hparams
                     )
                     message = {
@@ -191,9 +190,8 @@ Even if I told you that the task is completed in the context above you should st
                         "content": summary_completion['completion'],
                     }
                 else:
-                    # todo: ideally use gpt-4 or gpt-4-32k
                     summary_completion = module.ChatCompletion.create(
-                        model=model, messages=summary_messages, temperature=0.2)
+                        model=summary_model, messages=summary_messages, temperature=0.2)
                     message = summary_completion.choices[0].message
                 assistant_messages.append(message)
                 user_messages.append(
@@ -203,14 +201,3 @@ Even if I told you that the task is completed in the context above you should st
     except Exception as e:
         logging.error("Error in CAMEL agent: ", e)
     return user_messages, assistant_messages
-
-
-def run_camel_agent(userRole, assistantRole, taskPrompt, model, maxTurns, module, hparams={}):
-    if isinstance(userRole, (str)) and isinstance(assistantRole, (str)) and isinstance(taskPrompt, (str)) and isinstance(model, (str)) and isinstance(maxTurns, (int, float)):
-        with log10_session():
-            user_messages, assistant_messages = camel_agent(
-                userRole, assistantRole, taskPrompt, model, maxTurns, module, hparams)
-        return user_messages, assistant_messages
-    else:
-        return logging.error('Invalid inputs. Input formats do not match spec')
-
