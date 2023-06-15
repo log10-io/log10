@@ -9,6 +9,8 @@
   - Performing a molecular dynamics solution by a PhD student and an Experienced Computational Chemist
   - Writing a blog in a different language by a subject matter expert and a language expert
 
+- `scrape_summarizer.py` Scrape and summarize any website
+
 ## Evals
 
 Can be run on `OpenAI` or `Anthropic`

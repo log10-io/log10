@@ -1,9 +1,8 @@
-from log10.load import log10_session
 import logging
 from dotenv import load_dotenv
 load_dotenv()
 from anthropic import HUMAN_PROMPT
-from utils import convert_history_to_claude
+from log10.utils import convert_history_to_claude
 
 # OpenAI hyper params supported in playground
 # openai_hparams = ['temperature', 'top_p', 'max_tokens', 'presence_penalty', 'frequency_penalty']
