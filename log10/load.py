@@ -14,7 +14,7 @@ from contextlib import contextmanager
 import logging
 from dotenv import load_dotenv
 import backoff  # for exponential backoff
-from openai.error import RateLimitError
+from openai.error import RateLimitError, APIConnectionError
 
 load_dotenv()
 
@@ -34,7 +34,7 @@ elif target_service is None:
     target_service = "log10"  # default to log10
 
 
-@backoff.on_exception(backoff.expo, RateLimitError)
+@backoff.on_exception(backoff.expo, (RateLimitError, APIConnectionError))
 def func_with_backoff(func, *args, **kwargs):
     return func(*args, **kwargs)
 
