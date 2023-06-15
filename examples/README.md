@@ -11,7 +11,10 @@
 
 ## Evals
 
-- `match.py` A simple example showcasing how to use metrics such as Match
+Can be run on `OpenAI` or `Anthropic`
+
+- `match.py` A simple example showcasing how to use metrics such as Match, Includes
+- `fuzzy.py` Fuzzy matching
 
 ## Logging (and debugging)
 
