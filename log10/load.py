@@ -60,6 +60,7 @@ def get_session_id():
 sessionID = get_session_id()
 last_completion_response = None
 
+
 class log10_session:
     def __enter__(self):
         global sessionID
@@ -72,8 +73,7 @@ class log10_session:
         if last_completion_response is None:
             return None
 
-        return url + '/app/' +  last_completion_response['organizationSlug'] + '/completions/' + last_completion_response['completionID']
-
+        return url + '/app/' + last_completion_response['organizationSlug'] + '/completions/' + last_completion_response['completionID']
 
     def __exit__(self, exc_type, exc_value, traceback):
         return
@@ -195,7 +195,7 @@ def intercepting_decorator(func):
             output = func_with_backoff(func, *args, **kwargs)
             duration = time.perf_counter() - start_time
             logging.debug(
-                f"LOG10: TIMED BLOCK - OpenAI call duration: {duration}")
+                f"LOG10: TIMED BLOCK - LLM call duration: {duration}")
 
             if USE_ASYNC:
                 with timed_block("extra time spent waiting for log10 call"):
@@ -204,12 +204,26 @@ def intercepting_decorator(func):
                     completionID = result_queue.get()
 
             with timed_block("result call duration (sync)"):
-                log_row = {
-                    "response": json.dumps(output),
-                    "status": "finished",
-                    "duration": int(duration*1000),
-                    "stacktrace": json.dumps(stacktrace)
-                }
+                # Adjust the Anthropic output to match OAI completion output
+                if func.__qualname__ == "Client.completion":
+                    output['choices'] = [{
+                        'text': output['completion'],
+                        'index': 0,
+                    }]
+                    log_row = {
+                        "response": json.dumps(output),
+                        "status": "finished",
+                        "duration": int(duration*1000),
+                        "stacktrace": json.dumps(stacktrace),
+                        "kind": "completion"
+                    }
+                else:
+                    log_row = {
+                        "response": json.dumps(output),
+                        "status": "finished",
+                        "duration": int(duration*1000),
+                        "stacktrace": json.dumps(stacktrace)
+                    }
 
                 if target_service == "log10":
                     res = requests.request("POST",
@@ -266,28 +280,49 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
     logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO,
                         format='%(asctime)s - %(levelname)s - LOG10 - %(message)s')
 
-    def intercept_nested_functions(obj):
-        for name, attr in vars(obj).items():
-            if callable(attr) and isinstance(attr, types.FunctionType):
-                setattr(obj, name, intercepting_decorator(attr))
-            elif inspect.isclass(attr):
-                intercept_class_methods(attr)
+    # def intercept_nested_functions(obj):
+    #     for name, attr in vars(obj).items():
+    #         if callable(attr) and isinstance(attr, types.FunctionType):
+    #             setattr(obj, name, intercepting_decorator(attr))
+    #         elif inspect.isclass(attr):
+    #             intercept_class_methods(attr)
 
-    def intercept_class_methods(cls):
-        for method_name, method in vars(cls).items():
-            if isinstance(method, classmethod):
-                original_method = method.__func__
-                decorated_method = intercepting_decorator(original_method)
-                setattr(cls, method_name, classmethod(decorated_method))
-            elif isinstance(method, (types.FunctionType, types.MethodType)):
-                setattr(cls, method_name, intercepting_decorator(method))
-            elif inspect.isclass(method):  # Handle nested classes
-                intercept_class_methods(method)
+    # def intercept_class_methods(cls):
+    #     for method_name, method in vars(cls).items():
+    #         if isinstance(method, classmethod):
+    #             original_method = method.__func__
+    #             decorated_method = intercepting_decorator(original_method)
+    #             setattr(cls, method_name, classmethod(decorated_method))
+    #         elif isinstance(method, (types.FunctionType, types.MethodType)):
+    #             print(f"method:{method}")
+    #             setattr(cls, method_name, intercepting_decorator(method))
+    #         elif inspect.isclass(method):  # Handle nested classes
+    #             intercept_class_methods(method)
 
     for name, attr in vars(module).items():
-        if callable(attr) and isinstance(attr, types.FunctionType):
-            setattr(module, name, intercepting_decorator(attr))
-        elif inspect.isclass(attr):  # Check if attribute is a class
-            intercept_class_methods(attr)
-        # else: # uncomment if we want to include nested function support
-        #     intercept_nested_functions(attr)
+        if inspect.isclass(attr):
+            # OpenAI
+            if name in ["ChatCompletion", "Completion"]:
+                for method_name, method in vars(attr).items():
+                    if isinstance(method, classmethod):
+                        original_method = method.__func__
+                        if original_method.__qualname__ in ["ChatCompletion.create", "Completion.create"]:
+                            decorated_method = intercepting_decorator(
+                                original_method)
+                            setattr(attr, method_name,
+                                    classmethod(decorated_method))
+            # Anthropic
+            elif name == "Client":
+                for method_name, method in vars(attr).items():
+                    if isinstance(method, (types.FunctionType, types.MethodType)) and method_name == "completion":
+                        setattr(attr, method_name,
+                                intercepting_decorator(method))
+
+            # For future reference:
+            # if callable(attr) and isinstance(attr, types.FunctionType):
+            #     print(f"attr:{attr}")
+            #     setattr(module, name, intercepting_decorator(attr))
+            # elif inspect.isclass(attr):  # Check if attribute is a class
+            #     intercept_class_methods(attr)
+            # # else: # uncomment if we want to include nested function support
+            # #     intercept_nested_functions(attr)
