@@ -1,3 +1,6 @@
+import subprocess
+import tempfile
+import os
 import csv
 import json
 import logging
@@ -71,3 +74,14 @@ def eval(completion_func, completion_params, dataset, metric, out_file_path):
                 f"\n\nIdeal:{example['ideal']}\nModel output:{model_completion}")
             print(f"Correct:{example_metric}")
     return
+
+def compile(code):
+    with tempfile.NamedTemporaryFile(suffix=".c", delete=False) as temp:
+        temp.write(code.encode())
+        temp.close()
+        process = subprocess.run(["gcc", temp.name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        os.remove(temp.name)  # remove the temp file
+        if process.returncode == 0:
+            return True
+        else:
+            return False, process.stderr.decode()
