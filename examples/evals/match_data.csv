@@ -1,0 +1,4 @@
+my_input_column,my_output_column
+"[{""role"": ""system"", ""content"": ""Complete the phrase as concisely as possible.""}, {""role"": ""user"", ""content"": ""Once upon a ""}]",time
+"[{""role"": ""system"", ""content"": ""Complete the phrase as concisely as possible.""}, {""role"": ""user"", ""content"": ""The first US president was ""}]",George Washington
+"[{""role"": ""system"", ""content"": ""Complete the phrase as concisely as possible.""}, {""role"": ""user"", ""content"": ""OpenAI was founded in 20""}]",15
