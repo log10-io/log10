@@ -14,9 +14,12 @@ repeat_word_list = [
     "goodbye", "good bye", "thank", "bye", "welcome", "language model"
 ]
 
-
 def camel_agent(userRole, assistantRole, taskPrompt, model, summary_model, maxTurns, module, hparams):
+    generator = camel_agent_generator(userRole, assistantRole, taskPrompt, model, summary_model, maxTurns, module, hparams)
+    *_, last = generator
+    return last
 
+def camel_agent_generator(userRole, assistantRole, taskPrompt, model, summary_model, maxTurns, module, hparams):
     try:
         assistant_inception_prompt = f"""Never forget you are a {assistantRole} and I am a {userRole}. Never flip roles! Never instruct me!
 We share a common interest in collaborating to successfully complete a task.
@@ -122,6 +125,8 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
                 {"role": "user", "content": assistant_message['content']})
             logging.info(
                 f"Assistant turn {i}: {assistant_message}")
+ 
+            yield (user_messages, assistant_messages)
 
             for repeat_word in repeat_word_list:
                 if repeat_word in assistant_message['content'].lower(
@@ -133,6 +138,7 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
                     if repeat_word_counter == repeat_word_threshold:
                         repeat_word_threshold_exceeded = True
                     break
+
             if not repeated_word_current_turn:
                 repeat_word_counter = 0
 
@@ -184,7 +190,10 @@ Even if I told you that the task is completed in the context above you should st
                 user_messages.append(
                     {"role": "user", "content": message['content']})
                 logging.info(message['content'])
+
+                # End of conversation
+                yield (user_messages, assistant_messages)
                 break
+
     except Exception as e:
         logging.error("Error in CAMEL agent: ", e)
-    return user_messages, assistant_messages
