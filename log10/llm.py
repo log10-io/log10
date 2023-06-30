@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from enum import Enum
+import os
 
 from anthropic import HUMAN_PROMPT, AI_PROMPT
 
@@ -9,8 +10,15 @@ Kind = Enum("Kind", ["chat", "text"])
 
 from typing import List
 
-import logging
 import json
+
+import logging
+from log10.load import log10
+import openai
+import anthropic
+
+log10(openai)
+log10(anthropic)
 
 
 class Message(ABC):
@@ -44,6 +52,9 @@ class ChatCompletion(Completion):
             "role": self.role,
             "content": self.content,
         }
+
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict())
 
 
 class TextCompletion(Completion):
@@ -92,8 +103,6 @@ class OpenAI(LLM):
         self.hparams = hparams
 
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
-        import openai
-
         merged_hparams = deepcopy(self.hparams)
         if hparams:
             for hparam in hparams:
@@ -109,8 +118,6 @@ class OpenAI(LLM):
         )
 
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
-        import openai
-
         merged_hparams = deepcopy(self.hparams)
         if hparams:
             for hparam in hparams:
@@ -122,14 +129,28 @@ class OpenAI(LLM):
 
 
 class Anthropic(LLM):
-    def __init__(self):
-        pass
+    def __init__(self, hparams: dict = None):
+        self.client = anthropic.Client(os.environ["ANTHROPIC_API_KEY"])
+        self.hparams = hparams
 
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
-        pass
+        merged_hparams = deepcopy(self.hparams)
+        if hparams:
+            for hparam in hparams:
+                merged_hparams[hparam] = hparams[hparam]
+        prompt = Anthropic.convert_history_to_claude(messages)
+        completion = self.client.completion(prompt=prompt, **hparams)
+        content = completion["completion"]
+        return ChatCompletion(role="assistant", content=content)
 
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
-        pass
+        merged_hparams = deepcopy(self.hparams)
+        if hparams:
+            for hparam in hparams:
+                merged_hparams[hparam] = hparams[hparam]
+        completion = self.client.completion(prompt=prompt, **hparams)
+        content = completion["completion"]
+        return TextCompletion(text=content)
 
     def convert_history_to_claude(history):
         text = ""
