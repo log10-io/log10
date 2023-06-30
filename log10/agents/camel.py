@@ -104,7 +104,6 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
 
         for i in range(maxTurns):
             repeated_word_current_turn = False
-
             #
             # User turn
             #
@@ -127,6 +126,9 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
 
             yield (user_messages, assistant_messages)
 
+            #
+            # Termination conditions.
+            #
             for repeat_word in repeat_word_list:
                 if (
                     repeat_word in assistant_message["content"].lower()
