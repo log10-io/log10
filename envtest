@@ -1,0 +1,4 @@
+export LOG10_TOKEN=79f280b5-9f5b-4cea-a09f-68dbcd352bb7
+export LOG10_ORG_ID=1a0c95c5-9e21-45c7-9de5-59cf9808e4c0
+# export LOG10_URL=https://log10.io
+export LOG10_URL=http://localhost:3000

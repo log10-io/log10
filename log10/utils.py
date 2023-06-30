@@ -24,19 +24,6 @@ def fuzzy_match(s1: str, s2: str) -> bool:
     return s1 in s2 or s2 in s1
 
 
-def convert_history_to_claude(history):
-    text = ""
-    for item in history:
-        # Anthropic doesn't support a system prompt OOB
-        if item['role'] == 'user' or item['role'] == 'system':
-            text += HUMAN_PROMPT
-        elif item['role'] == 'assistant':
-            text += AI_PROMPT
-        text += f"{item['content']}"
-    text += AI_PROMPT
-    return text
-
-
 def parse_field(value):
     try:
         # Try to parse the value as JSON (list)
