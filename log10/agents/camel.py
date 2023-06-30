@@ -16,26 +16,45 @@ repeat_word_threshold = 4
 repeat_word_list = ["goodbye", "good bye", "thank", "bye", "welcome", "language model"]
 
 
-def camel_agent(userRole, assistantRole, taskPrompt, maxTurns, userPrompt, assistantPrompt, llm: LLM):
+def camel_agent(
+    user_role,
+    assistant_role,
+    task_prompt,
+    max_turns,
+    userPrompt,
+    assistantPrompt,
+    summary_model: str,
+    llm: LLM,
+):
     generator = camel_agent_generator(
-        userRole,
-        assistantRole,
-        taskPrompt,
-        maxTurns,
+        user_role,
+        assistant_role,
+        task_prompt,
+        max_turns,
         userPrompt,
         assistantPrompt,
+        summary_model,
         llm,
     )
     *_, last = generator
     return last
 
 
-def camel_agent_generator(userRole, assistantRole, taskPrompt, maxTurns, llm: LLM, userPrompt, assistantPrompt):
+def camel_agent_generator(
+    user_role,
+    assistant_role,
+    task_prompt,
+    max_turns,
+    userPrompt,
+    assistantPrompt,
+    summary_model: str,
+    llm: LLM,
+):
     try:
-        assistant_inception_prompt = f"""Never forget you are a {assistantRole} and I am a {userRole}. Never flip roles! Never instruct me!
+        assistant_inception_prompt = f"""Never forget you are a {assistant_role} and I am a {user_role}. Never flip roles! Never instruct me!
 We share a common interest in collaborating to successfully complete a task.
 You must help me to complete the task.
-Here is the task: {taskPrompt}. Never forget our task!
+Here is the task: {task_prompt}. Never forget our task!
 I must instruct you based on your expertise and my needs to complete the task.
 
 I must give you one instruction at a time.
@@ -55,10 +74,10 @@ Always end <YOUR_SOLUTION> with: Next request."""
         if assistantPrompt is not None:
             assistant_inception_prompt = assistantPrompt
 
-        user_inception_prompt = f"""Never forget you are a {userRole} and I am a {assistantRole}. Never flip roles! You will always instruct me.
+        user_inception_prompt = f"""Never forget you are a {user_role} and I am a {assistant_role}. Never flip roles! You will always instruct me.
 We share a common interest in collaborating to successfully complete a task.
 I must help you to complete the task.
-Here is the task: {taskPrompt}. Never forget our task!
+Here is the task: {task_prompt}. Never forget our task!
 You must instruct me based on my expertise and your needs to complete the task ONLY in the following two ways:
 
 1. Instruct with a necessary input:
@@ -102,7 +121,7 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
         repeat_word_counter = 0
         repeat_word_threshold_exceeded = False
 
-        for i in range(maxTurns):
+        for i in range(max_turns):
             repeated_word_current_turn = False
             #
             # User turn
@@ -146,7 +165,7 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
 
             if (
                 ("CAMEL_TASK_DONE" in user_messages[-2]["content"])
-                or (i == maxTurns - 1)
+                or (i == max_turns - 1)
                 or repeat_word_threshold_exceeded
             ):
                 #
@@ -154,7 +173,7 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
                 #
                 summary_context = "\n".join(
                     [
-                        f"{turn['role'].capitalize()} ({userRole if turn['role'] == 'user' else assistantRole}): {turn['content']}"
+                        f"{turn['role'].capitalize()} ({user_role if turn['role'] == 'user' else assistant_role}): {turn['content']}"
                         for turn in assistant_messages
                         if turn["role"] in ["assistant", "user"]
                     ]
@@ -170,12 +189,12 @@ You should not miss any necessary details or examples.
 Keep all provided explanations and codes provided throughout the conversation.
 Remember your task is not to summarize rather to extract the full solution."""
 
-                summary_closing_prompt = f"""\n\nAs a reminder, the above context is to help you provide a complete and concise solution to the following task: {taskPrompt}
+                summary_closing_prompt = f"""\n\nAs a reminder, the above context is to help you provide a complete and concise solution to the following task: {task_prompt}
 Do not attempt to describe the solution, but try to answer in a way such that your answer will directly solve the task - not just describe the steps required to solve the task.
 Only use the provided context above and no other sources.
 Even if I told you that the task is completed in the context above you should still reply with a complete solution. Never tell me the task is completed or ask for the next request, but instead replay the final solution back to me."""
                 summary_prompt = (
-                    f"Task:{taskPrompt}\n" + summary_context + summary_closing_prompt
+                    f"Task:{task_prompt}\n" + summary_context + summary_closing_prompt
                 )
                 summary_messages = [
                     {"role": "system", "content": summary_system_prompt},
@@ -185,7 +204,10 @@ Even if I told you that the task is completed in the context above you should st
                     },
                 ]
 
-                message = llm.chat(summary_messages)
+                hparams = {
+                    "model": summary_model
+                }
+                message = llm.chat(summary_messages, hparams)
                 assistant_messages.append(message)
                 user_messages.append({"role": "user", "content": message["content"]})
                 logging.info(message["content"])

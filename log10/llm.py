@@ -14,7 +14,7 @@ class Message(ABC):
         self.id = id
         self.role = role
         self.content = content
-        self.completion = None
+        self.completion = completion
 
 
 class Completion(ABC):
@@ -63,14 +63,35 @@ class HParams(ABC):
     pass
 
 
-def convert_history_to_claude(history):
-    text = ""
-    for item in history:
-        # Anthropic doesn't support a system prompt OOB
-        if item["role"] == "user" or item["role"] == "system":
-            text += HUMAN_PROMPT
-        elif item["role"] == "assistant":
-            text += AI_PROMPT
-        text += f"{item['content']}"
-    text += AI_PROMPT
-    return text
+class OpenAI(LLM):
+    def __init__(self):
+        pass
+
+    def chat(self, messages: List[Message], hparams: dict) -> ChatCompletion:
+        pass
+
+    def text(self, prompt: str, hparams: dict) -> TextCompletion:
+        pass
+
+
+class Anthropic(LLM):
+    def __init__(self):
+        pass
+
+    def chat(self, messages: List[Message], hparams: dict) -> ChatCompletion:
+        pass
+
+    def text(self, prompt: str, hparams: dict) -> TextCompletion:
+        pass
+
+    def convert_history_to_claude(history):
+        text = ""
+        for item in history:
+            # Anthropic doesn't support a system prompt OOB
+            if item["role"] == "user" or item["role"] == "system":
+                text += HUMAN_PROMPT
+            elif item["role"] == "assistant":
+                text += AI_PROMPT
+            text += f"{item['content']}"
+        text += AI_PROMPT
+        return text
