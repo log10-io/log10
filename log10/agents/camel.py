@@ -1,5 +1,6 @@
 import logging
 from dotenv import load_dotenv
+
 load_dotenv()
 from anthropic import HUMAN_PROMPT
 from log10.utils import convert_history_to_claude
@@ -10,16 +11,49 @@ from log10.utils import convert_history_to_claude
 # Repeat word termination conditions
 # https://github.com/lightaime/camel/blob/master/examples/ai_society/role_playing_multiprocess.py#L63
 repeat_word_threshold = 4
-repeat_word_list = [
-    "goodbye", "good bye", "thank", "bye", "welcome", "language model"
-]
+repeat_word_list = ["goodbye", "good bye", "thank", "bye", "welcome", "language model"]
 
-def camel_agent(userRole, assistantRole, taskPrompt, model, summary_model, maxTurns, module, hparams):
-    generator = camel_agent_generator(userRole, assistantRole, taskPrompt, model, summary_model, maxTurns, module, hparams)
+
+def camel_agent(
+    userRole,
+    assistantRole,
+    taskPrompt,
+    model,
+    summary_model,
+    maxTurns,
+    module,
+    hparams,
+    userPrompt=None,
+    assistantPrompt=None,
+):
+    generator = camel_agent_generator(
+        userRole,
+        userPrompt,
+        assistantRole,
+        assistantPrompt,
+        taskPrompt,
+        model,
+        summary_model,
+        maxTurns,
+        module,
+        hparams,
+    )
     *_, last = generator
     return last
 
-def camel_agent_generator(userRole, assistantRole, taskPrompt, model, summary_model, maxTurns, module, hparams):
+
+def camel_agent_generator(
+    userRole,
+    userPrompt,
+    assistantRole,
+    assistantPrompt,
+    taskPrompt,
+    model,
+    summary_model,
+    maxTurns,
+    module,
+    hparams,
+):
     try:
         assistant_inception_prompt = f"""Never forget you are a {assistantRole} and I am a {userRole}. Never flip roles! Never instruct me!
 We share a common interest in collaborating to successfully complete a task.
@@ -40,6 +74,9 @@ Solution: <YOUR_SOLUTION>
 
 <YOUR_SOLUTION> should be specific and provide preferable implementations and examples for task-solving.
 Always end <YOUR_SOLUTION> with: Next request."""
+
+        if assistantPrompt is not None:
+            assistant_inception_prompt = assistantPrompt
 
         user_inception_prompt = f"""Never forget you are a {userRole} and I am a {assistantRole}. Never flip roles! You will always instruct me.
 We share a common interest in collaborating to successfully complete a task.
@@ -67,13 +104,24 @@ Keep giving me instructions and necessary inputs until you think the task is com
 When the task is completed, you must only reply with a single word <CAMEL_TASK_DONE>.
 Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
 
-        assistant_prompt = f'ASSISTANT PROMPT: \n {assistant_inception_prompt}'
-        user_prompt = f'USER PROMPT: \n {user_inception_prompt}'
+        if userPrompt is not None:
+            user_inception_prompt = userPrompt
 
-        assistant_messages = [{"role": "system", "content": assistant_prompt},
-                              {"role": "user", "content": assistant_prompt}]
-        user_messages = [{"role": "system", "content": user_prompt},
-                         {"role": "user",   "content": user_prompt + " Now start to give me instructions one by one. Only reply with Instruction and Input."}]
+        assistant_prompt = f"ASSISTANT PROMPT: \n {assistant_inception_prompt}"
+        user_prompt = f"USER PROMPT: \n {user_inception_prompt}"
+
+        assistant_messages = [
+            {"role": "system", "content": assistant_prompt},
+            {"role": "user", "content": assistant_prompt},
+        ]
+        user_messages = [
+            {"role": "system", "content": user_prompt},
+            {
+                "role": "user",
+                "content": user_prompt
+                + " Now start to give me instructions one by one. Only reply with Instruction and Input.",
+            },
+        ]
         repeat_word_counter = 0
         repeat_word_threshold_exceeded = False
 
@@ -81,60 +129,63 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
             repeated_word_current_turn = False
 
             # User turn
-            if 'claude' in model:
+            if "claude" in model:
                 messages = convert_history_to_claude(user_messages)
                 user_completion = module.completion(
                     prompt=messages,
                     stop_sequences=[HUMAN_PROMPT],
                     model=model,
-                    **hparams
+                    **hparams,
                 )
                 user_message = {
                     "role": "assistant",
-                    "content": user_completion['completion'],
+                    "content": user_completion["completion"],
                 }
             else:
                 user_completion = module.ChatCompletion.create(
-                    model=model, messages=user_messages, **hparams)
+                    model=model, messages=user_messages, **hparams
+                )
                 user_message = user_completion.choices[0].message
             user_messages.append(user_message)
             assistant_messages.append(
-                {"role": "user", "content": user_message['content']})
-            logging.info(
-                f"User turn {i}: {user_message}")
+                {"role": "user", "content": user_message["content"]}
+            )
+            logging.info(f"User turn {i}: {user_message}")
 
             # Assistant turn
-            if 'claude' in model:
+            if "claude" in model:
                 messages = convert_history_to_claude(assistant_messages)
                 assistant_completion = module.completion(
                     prompt=messages,
                     stop_sequences=[HUMAN_PROMPT],
                     model=model,
-                    **hparams
+                    **hparams,
                 )
                 assistant_message = {
                     "role": "assistant",
-                    "content": assistant_completion['completion'],
+                    "content": assistant_completion["completion"],
                 }
             else:
                 assistant_completion = module.ChatCompletion.create(
-                    model=model, messages=assistant_messages, **hparams)
+                    model=model, messages=assistant_messages, **hparams
+                )
                 assistant_message = assistant_completion.choices[0].message
             assistant_messages.append(assistant_message)
             user_messages.append(
-                {"role": "user", "content": assistant_message['content']})
-            logging.info(
-                f"Assistant turn {i}: {assistant_message}")
- 
+                {"role": "user", "content": assistant_message["content"]}
+            )
+            logging.info(f"Assistant turn {i}: {assistant_message}")
+
             yield (user_messages, assistant_messages)
 
             for repeat_word in repeat_word_list:
-                if repeat_word in assistant_message['content'].lower(
-                ) or repeat_word in user_message['content'].lower():
+                if (
+                    repeat_word in assistant_message["content"].lower()
+                    or repeat_word in user_message["content"].lower()
+                ):
                     repeat_word_counter += 1
                     repeated_word_current_turn = True
-                    logging.info(
-                        f"Repeat word counter = {repeat_word_counter}")
+                    logging.info(f"Repeat word counter = {repeat_word_counter}")
                     if repeat_word_counter == repeat_word_threshold:
                         repeat_word_threshold_exceeded = True
                     break
@@ -142,14 +193,20 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
             if not repeated_word_current_turn:
                 repeat_word_counter = 0
 
-            if ("CAMEL_TASK_DONE" in user_messages[-2]['content']) or (i == maxTurns-1) or repeat_word_threshold_exceeded:
+            if (
+                ("CAMEL_TASK_DONE" in user_messages[-2]["content"])
+                or (i == maxTurns - 1)
+                or repeat_word_threshold_exceeded
+            ):
                 # summary_context = '\n'.join(
                 #     turn['content'] for turn in assistant_messages if turn['role'] == 'assistant')
-                summary_context = '\n'.join([
-                    f"{turn['role'].capitalize()} ({userRole if turn['role'] == 'user' else assistantRole}): {turn['content']}"
-                    for turn in assistant_messages
-                    if turn['role'] in ['assistant', 'user']
-                ])
+                summary_context = "\n".join(
+                    [
+                        f"{turn['role'].capitalize()} ({userRole if turn['role'] == 'user' else assistantRole}): {turn['content']}"
+                        for turn in assistant_messages
+                        if turn["role"] in ["assistant", "user"]
+                    ]
+                )
 
                 logging.info(f"summary context: {summary_context}")
                 summary_system_prompt = """You are an experienced solution extracting agent.
@@ -166,30 +223,34 @@ Do not attempt to describe the solution, but try to answer in a way such that yo
 Only use the provided context above and no other sources.
 Even if I told you that the task is completed in the context above you should still reply with a complete solution. Never tell me the task is completed or ask for the next request, but instead replay the final solution back to me."""
                 summary_prompt = (
-                    f"Task:{taskPrompt}\n" + summary_context + summary_closing_prompt)
+                    f"Task:{taskPrompt}\n" + summary_context + summary_closing_prompt
+                )
                 summary_messages = [
                     {"role": "system", "content": summary_system_prompt},
-                    {"role": "user", "content": "Here is the conversation: " + summary_prompt}
+                    {
+                        "role": "user",
+                        "content": "Here is the conversation: " + summary_prompt,
+                    },
                 ]
-                if 'claude' in model:
+                if "claude" in model:
                     summary_completion = module.completion(
                         prompt=convert_history_to_claude(summary_messages),
                         stop_sequences=[HUMAN_PROMPT],
                         model=summary_model,
-                        **hparams
+                        **hparams,
                     )
                     message = {
                         "role": "assistant",
-                        "content": summary_completion['completion'],
+                        "content": summary_completion["completion"],
                     }
                 else:
                     summary_completion = module.ChatCompletion.create(
-                        model=summary_model, messages=summary_messages, temperature=0.2)
+                        model=summary_model, messages=summary_messages, temperature=0.2
+                    )
                     message = summary_completion.choices[0].message
                 assistant_messages.append(message)
-                user_messages.append(
-                    {"role": "user", "content": message['content']})
-                logging.info(message['content'])
+                user_messages.append({"role": "user", "content": message["content"]})
+                logging.info(message["content"])
 
                 # End of conversation
                 yield (user_messages, assistant_messages)
