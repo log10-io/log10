@@ -33,6 +33,7 @@ messages = [
     {"role": "user", "content": "Write a hello world program. Insert a null character after the hello world"}
 ]
 
+# TODO: Port to llm
 if 'claude' in model:
     prompt = convert_history_to_claude(messages)
     completion = anthropicClient.completion(prompt=prompt, model=model, **hparams)

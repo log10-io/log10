@@ -17,8 +17,8 @@ from log10.load import log10
 import openai
 import anthropic
 
-log10(openai)
-log10(anthropic)
+# log10(openai)
+# log10(anthropic)
 
 
 class Message(ABC):
@@ -133,6 +133,9 @@ class Anthropic(LLM):
         self.client = anthropic.Client(os.environ["ANTHROPIC_API_KEY"])
         self.hparams = hparams
 
+        if "max_tokens_to_sample" not in self.hparams:
+            self.hparams["max_tokens_to_sample"] = 1024
+
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
         merged_hparams = deepcopy(self.hparams)
         if hparams:
@@ -152,14 +155,14 @@ class Anthropic(LLM):
         content = completion["completion"]
         return TextCompletion(text=content)
 
-    def convert_history_to_claude(history):
+    def convert_history_to_claude(messages: List[Message]):
         text = ""
-        for item in history:
+        for message in messages:
             # Anthropic doesn't support a system prompt OOB
-            if item["role"] == "user" or item["role"] == "system":
+            if message.role == "user" or message.role == "system":
                 text += HUMAN_PROMPT
-            elif item["role"] == "assistant":
+            elif message.role == "assistant":
                 text += AI_PROMPT
-            text += f"{item['content']}"
+            text += f"{message.content}"
         text += AI_PROMPT
         return text
