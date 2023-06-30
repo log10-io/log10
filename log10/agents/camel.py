@@ -1,14 +1,16 @@
 import logging
 from dotenv import load_dotenv
 
-from log10.llm import LLM
+from log10.llm import LLM, Message
+
+from typing import List, Tuple
 
 load_dotenv()
-from anthropic import HUMAN_PROMPT
-from log10.utils import convert_history_to_claude
 
-# OpenAI hyper params supported in playground
-# openai_hparams = ['temperature', 'top_p', 'max_tokens', 'presence_penalty', 'frequency_penalty']
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s - LOG10 - CAMEL - %(message)s",
+)
 
 # Repeat word termination conditions
 # https://github.com/lightaime/camel/blob/master/examples/ai_society/role_playing_multiprocess.py#L63
@@ -17,22 +19,22 @@ repeat_word_list = ["goodbye", "good bye", "thank", "bye", "welcome", "language 
 
 
 def camel_agent(
-    user_role,
-    assistant_role,
-    task_prompt,
-    max_turns,
-    userPrompt,
-    assistantPrompt,
-    summary_model: str,
-    llm: LLM,
-):
+    user_role: str,
+    assistant_role: str,
+    task_prompt: str,
+    max_turns: int,
+    user_prompt: str = None,
+    assistant_prompt: str = None,
+    summary_model: str = None,
+    llm: LLM = None,
+) -> tuple[List[Message], List[Message]]:
     generator = camel_agent_generator(
         user_role,
         assistant_role,
         task_prompt,
         max_turns,
-        userPrompt,
-        assistantPrompt,
+        user_prompt,
+        assistant_prompt,
         summary_model,
         llm,
     )
@@ -41,12 +43,12 @@ def camel_agent(
 
 
 def camel_agent_generator(
-    user_role,
-    assistant_role,
-    task_prompt,
-    max_turns,
-    userPrompt,
-    assistantPrompt,
+    user_role: str,
+    assistant_role: str,
+    task_prompt: str,
+    max_turns: int,
+    user_prompt: str,
+    assistant_prompt: str,
     summary_model: str,
     llm: LLM,
 ):
@@ -71,8 +73,8 @@ Solution: <YOUR_SOLUTION>
 <YOUR_SOLUTION> should be specific and provide preferable implementations and examples for task-solving.
 Always end <YOUR_SOLUTION> with: Next request."""
 
-        if assistantPrompt is not None:
-            assistant_inception_prompt = assistantPrompt
+        if assistant_prompt is not None:
+            assistant_inception_prompt = assistant_prompt
 
         user_inception_prompt = f"""Never forget you are a {user_role} and I am a {assistant_role}. Never flip roles! You will always instruct me.
 We share a common interest in collaborating to successfully complete a task.
@@ -100,23 +102,23 @@ Keep giving me instructions and necessary inputs until you think the task is com
 When the task is completed, you must only reply with a single word <CAMEL_TASK_DONE>.
 Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
 
-        if userPrompt is not None:
-            user_inception_prompt = userPrompt
+        if user_prompt is not None:
+            user_inception_prompt = user_prompt
 
         assistant_prompt = f"ASSISTANT PROMPT: \n {assistant_inception_prompt}"
         user_prompt = f"USER PROMPT: \n {user_inception_prompt}"
 
         assistant_messages = [
-            {"role": "system", "content": assistant_prompt},
-            {"role": "user", "content": assistant_prompt},
+            Message(role="system", content=assistant_prompt),
+            Message(role="user", content=assistant_prompt),
         ]
         user_messages = [
-            {"role": "system", "content": user_prompt},
-            {
-                "role": "user",
-                "content": user_prompt
+            Message(role="system", content=user_prompt),
+            Message(
+                role="user",
+                content=user_prompt
                 + " Now start to give me instructions one by one. Only reply with Instruction and Input.",
-            },
+            ),
         ]
         repeat_word_counter = 0
         repeat_word_threshold_exceeded = False
@@ -129,7 +131,7 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
             user_message = llm.chat(user_messages)
             user_messages.append(user_message)
             assistant_messages.append(
-                {"role": "user", "content": user_message["content"]}
+                Message(role="user", content=user_message.content)
             )
             logging.info(f"User turn {i}: {user_message}")
 
@@ -139,7 +141,7 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
             assistant_message = llm.chat(assistant_messages)
             assistant_messages.append(assistant_message)
             user_messages.append(
-                {"role": "user", "content": assistant_message["content"]}
+                Message(role="user", content=assistant_message.content)
             )
             logging.info(f"Assistant turn {i}: {assistant_message}")
 
@@ -150,8 +152,8 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
             #
             for repeat_word in repeat_word_list:
                 if (
-                    repeat_word in assistant_message["content"].lower()
-                    or repeat_word in user_message["content"].lower()
+                    repeat_word in assistant_message.content.lower()
+                    or repeat_word in user_message.content.lower()
                 ):
                     repeat_word_counter += 1
                     repeated_word_current_turn = True
@@ -164,7 +166,7 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
                 repeat_word_counter = 0
 
             if (
-                ("CAMEL_TASK_DONE" in user_messages[-2]["content"])
+                ("CAMEL_TASK_DONE" in user_messages[-2].content)
                 or (i == max_turns - 1)
                 or repeat_word_threshold_exceeded
             ):
@@ -173,9 +175,9 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
                 #
                 summary_context = "\n".join(
                     [
-                        f"{turn['role'].capitalize()} ({user_role if turn['role'] == 'user' else assistant_role}): {turn['content']}"
+                        f"{turn.role.capitalize()} ({user_role if turn.role == 'user' else assistant_role}): {turn.content}"
                         for turn in assistant_messages
-                        if turn["role"] in ["assistant", "user"]
+                        if turn.role in ["assistant", "user"]
                     ]
                 )
 
@@ -204,13 +206,11 @@ Even if I told you that the task is completed in the context above you should st
                     },
                 ]
 
-                hparams = {
-                    "model": summary_model
-                }
+                hparams = {"model": summary_model}
                 message = llm.chat(summary_messages, hparams)
                 assistant_messages.append(message)
-                user_messages.append({"role": "user", "content": message["content"]})
-                logging.info(message["content"])
+                user_messages.append(Message(role="user", content=message.content))
+                logging.info(message.content)
 
                 # End of conversation
                 yield (user_messages, assistant_messages)

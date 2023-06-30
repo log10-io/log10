@@ -4,19 +4,21 @@ import os
 import csv
 import json
 import logging
-from log10.utils import fuzzy_match, convert_history_to_claude, parse_field
+from log10.llm import Anthropic
+from log10.utils import fuzzy_match, parse_field
 
+# TODO: 
 def run_completion(example, completion_func, completion_params):
     funcname = completion_func.__qualname__
     try:
         if funcname == 'ChatCompletion.create':
-            response = completion_func(**completion_params, messages=json.loads(example['input']))
+            response = completion_func(**completion_params, )
             model_completion = response['choices'][0]['message']['content']
         elif funcname == 'Completion.create':
             response = completion_func(**completion_params, prompt=json.loads(example['input']))
             model_completion = response['choices'][0]['text']
         elif funcname == 'Client.completion':
-            prompt = convert_history_to_claude(json.loads(example['input']))
+            prompt = Anthropic.convert_history_to_claude(json.loads(example['input']))
             response = completion_func(**completion_params, prompt=prompt)
             model_completion = response['completion']
         else:

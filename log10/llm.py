@@ -8,9 +8,13 @@ Kind = Enum("Kind", ["chat", "text"])
 
 from typing import List
 
+import logging
+
 
 class Message(ABC):
-    def __init__(self, role: Role, content: str, id: str, completion: str = None):
+    def __init__(
+        self, role: Role, content: str, id: str = None, completion: str = None
+    ):
         self.id = id
         self.role = role
         self.content = content
@@ -18,32 +22,31 @@ class Message(ABC):
 
 
 class Completion(ABC):
-    @abstractmethod
-    def completion_id(self) -> str:
-        pass
-
-    @abstractmethod
-    def to_dict(self) -> dict:
-        pass
+    pass
 
 
 class ChatCompletion(Completion):
-    def __init__(self, message: dict):
-        self.message = message
-
-    def completion_id(self) -> str:
-        return self.message["completion"]
+    def __init__(self, role: str, content: str, completion_id: str = None):
+        self.role = role
+        self.content = content
+        self.completion_id = completion_id
 
     def to_dict(self) -> dict:
-        return self.message
+        return {
+            "role": self.role,
+            "content": self.content,
+        }
 
 
 class TextCompletion(Completion):
-    def __init__(self, output: dict):
-        self.output = output
+    def __init__(self, text):
+        self._text = text
 
     def completion_id(self) -> str:
         return self.output["completion_id"]
+
+    def text(self) -> str:
+        return self._text
 
     def to_dict(self) -> dict:
         return self.output
@@ -51,11 +54,11 @@ class TextCompletion(Completion):
 
 class LLM(ABC):
     @abstractmethod
-    def text(self, prompt: str) -> TextCompletion:
+    def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
         raise Exception("Not implemented")
 
     @abstractmethod
-    def chat(self, messages: List[Message]) -> ChatCompletion:
+    def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
         raise Exception("Not implemented")
 
 
@@ -63,14 +66,27 @@ class HParams(ABC):
     pass
 
 
+class NoopLLM(LLM):
+    def __init__(self):
+        pass
+
+    def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
+        logging.info("Received chat completion requst: " + str(messages))
+        return ChatCompletion(role="assistant", content="I'm not a real LLM")
+
+    def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
+        logging.info("Received text completion requst: " + prompt)
+        return TextCompletion(text="I'm not a real LLM")
+
+
 class OpenAI(LLM):
     def __init__(self):
         pass
 
-    def chat(self, messages: List[Message], hparams: dict) -> ChatCompletion:
+    def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
         pass
 
-    def text(self, prompt: str, hparams: dict) -> TextCompletion:
+    def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
         pass
 
 
@@ -78,10 +94,10 @@ class Anthropic(LLM):
     def __init__(self):
         pass
 
-    def chat(self, messages: List[Message], hparams: dict) -> ChatCompletion:
+    def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
         pass
 
-    def text(self, prompt: str, hparams: dict) -> TextCompletion:
+    def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
         pass
 
     def convert_history_to_claude(history):

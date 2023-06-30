@@ -5,6 +5,7 @@ from log10.evals import eval
 # Choose provider
 provider = "openai" # "anthropic"
 
+# TODO: Replace with LLM abstraction.
 if provider == "openai":
     import openai
     log10(openai)

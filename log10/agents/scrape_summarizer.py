@@ -1,5 +1,4 @@
 from log10.llm import LLM
-from log10.utils import convert_history_to_claude
 from anthropic import HUMAN_PROMPT
 from log10.tools import browser
 
@@ -23,4 +22,4 @@ def scrape_summarizer(url, llm: LLM):
 
     completion = llm.chat(messages, hparams)
 
-    return completion.get("content")
+    return completion.content

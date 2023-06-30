@@ -1,5 +1,5 @@
 import os
-from log10.llm import Anthropic, OpenAI
+from log10.llm import Anthropic, NoopLLM, OpenAI
 from log10.load import log10
 from log10.evals import compile
 from log10.agents.camel import camel_agent
@@ -7,7 +7,8 @@ from log10.tools import code_extractor
 
 # Select one of OpenAI or Anthropic models
 # model = "gpt-3.5-turbo-16k"
-model = "claude-1"
+# model = "claude-1"
+model = "noop"
 max_turns = 10
 
 llm = None
@@ -17,6 +18,10 @@ if "claude" in model:
     summary_model = "claude-1-100k"
     extraction_model = "claude-1-100k"
     llm = Anthropic({"model": model})
+elif model == "noop":
+    summary_model = model
+    extraction_model = model
+    llm = NoopLLM()
 else:
     summary_model = "gpt-3.5-turbo-16k"
     extraction_model = "gpt-4"
@@ -33,7 +38,7 @@ user_messages, assistant_messages = camel_agent(
     llm=llm,
 )
 
-full_response = assistant_messages[-1]["content"]
+full_response = assistant_messages[-1].content
 
 # Next extract just the C code
 code = code_extractor(full_response, "C", extraction_model, llm=llm)

@@ -9,6 +9,7 @@ from log10.utils import convert_history_to_claude
 model = "gpt-3.5-turbo"
 #model = "claude-1"
 
+# TODO: Replace with LLM abstraction
 if 'claude' in model:
     import anthropic
     log10(anthropic)
