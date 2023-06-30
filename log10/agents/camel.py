@@ -16,19 +16,21 @@ repeat_word_threshold = 4
 repeat_word_list = ["goodbye", "good bye", "thank", "bye", "welcome", "language model"]
 
 
-def camel_agent(userRole, assistantRole, taskPrompt, maxTurns, llm: LLM):
+def camel_agent(userRole, assistantRole, taskPrompt, maxTurns, userPrompt, assistantPrompt, llm: LLM):
     generator = camel_agent_generator(
         userRole,
         assistantRole,
         taskPrompt,
         maxTurns,
+        userPrompt,
+        assistantPrompt,
         llm,
     )
     *_, last = generator
     return last
 
 
-def camel_agent_generator(userRole, assistantRole, taskPrompt, maxTurns, llm: LLM):
+def camel_agent_generator(userRole, assistantRole, taskPrompt, maxTurns, llm: LLM, userPrompt, assistantPrompt):
     try:
         assistant_inception_prompt = f"""Never forget you are a {assistantRole} and I am a {userRole}. Never flip roles! Never instruct me!
 We share a common interest in collaborating to successfully complete a task.
@@ -49,6 +51,9 @@ Solution: <YOUR_SOLUTION>
 
 <YOUR_SOLUTION> should be specific and provide preferable implementations and examples for task-solving.
 Always end <YOUR_SOLUTION> with: Next request."""
+
+        if assistantPrompt is not None:
+            assistant_inception_prompt = assistantPrompt
 
         user_inception_prompt = f"""Never forget you are a {userRole} and I am a {assistantRole}. Never flip roles! You will always instruct me.
 We share a common interest in collaborating to successfully complete a task.
@@ -75,6 +80,9 @@ Do not add anything else other than your instruction and the optional correspond
 Keep giving me instructions and necessary inputs until you think the task is completed.
 When the task is completed, you must only reply with a single word <CAMEL_TASK_DONE>.
 Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
+
+        if userPrompt is not None:
+            user_inception_prompt = userPrompt
 
         assistant_prompt = f"ASSISTANT PROMPT: \n {assistant_inception_prompt}"
         user_prompt = f"USER PROMPT: \n {user_inception_prompt}"
