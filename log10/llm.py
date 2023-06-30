@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from enum import Enum
 
 from anthropic import HUMAN_PROMPT, AI_PROMPT
@@ -9,6 +10,7 @@ Kind = Enum("Kind", ["chat", "text"])
 from typing import List
 
 import logging
+import json
 
 
 class Message(ABC):
@@ -19,6 +21,12 @@ class Message(ABC):
         self.role = role
         self.content = content
         self.completion = completion
+
+    def to_dict(self):
+        return {
+            "role": self.role,
+            "content": self.content,
+        }
 
 
 class Completion(ABC):
@@ -80,14 +88,37 @@ class NoopLLM(LLM):
 
 
 class OpenAI(LLM):
-    def __init__(self):
-        pass
+    def __init__(self, hparams: dict = None):
+        self.hparams = hparams
 
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
-        pass
+        import openai
+
+        merged_hparams = deepcopy(self.hparams)
+        if hparams:
+            for hparam in hparams:
+                merged_hparams[hparam] = hparams[hparam]
+
+        completion = openai.ChatCompletion.create(
+            messages=[message.to_dict() for message in messages], **merged_hparams
+        )
+
+        return ChatCompletion(
+            role=completion.choices[0]["message"]["role"],
+            content=completion.choices[0]["message"]["content"],
+        )
 
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
-        pass
+        import openai
+
+        merged_hparams = deepcopy(self.hparams)
+        if hparams:
+            for hparam in hparams:
+                merged_hparams[hparam] = hparams[hparam]
+
+        completion = openai.Completion.create(prompt=prompt, **merged_hparams)
+
+        return TextCompletion(text=completion.choices[0].text)
 
 
 class Anthropic(LLM):

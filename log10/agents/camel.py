@@ -199,11 +199,11 @@ Even if I told you that the task is completed in the context above you should st
                     f"Task:{task_prompt}\n" + summary_context + summary_closing_prompt
                 )
                 summary_messages = [
-                    {"role": "system", "content": summary_system_prompt},
-                    {
-                        "role": "user",
-                        "content": "Here is the conversation: " + summary_prompt,
-                    },
+                    Message(role="system", content=summary_system_prompt),
+                    Message(
+                        role="user",
+                        content="Here is the conversation: " + summary_prompt,
+                    ),
                 ]
 
                 hparams = {"model": summary_model}

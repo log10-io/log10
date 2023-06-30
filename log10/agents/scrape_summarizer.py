@@ -1,4 +1,4 @@
-from log10.llm import LLM
+from log10.llm import LLM, Message
 from anthropic import HUMAN_PROMPT
 from log10.tools import browser
 
@@ -14,8 +14,8 @@ def scrape_summarizer(url, llm: LLM):
     website_text = browser(url)
     prompt = summarize_prompt.format(website_text=website_text)
     messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": prompt},
+        Message(role="system", content=system_prompt),
+        Message(role="user", content=prompt),
     ]
 
     hparams = {"temperature": 0.2}

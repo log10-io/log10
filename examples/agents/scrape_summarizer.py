@@ -5,9 +5,9 @@ from log10.load import log10
 
 
 # Select one of OpenAI or Anthropic models
-# model = "gpt-3.5-turbo-16k"
+model = "gpt-3.5-turbo-16k"
 # model = "claude-1"
-model = "noop"
+# model = "noop"
 
 llm = None
 if "claude" in model:
