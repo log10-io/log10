@@ -1,9 +1,11 @@
 name: 'Examples'
 on: push
 jobs:
-  prettier:
+  examples:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: Install modules
       run: pip install -r requirements.txt
+    - name: Run examples
+      run: make examples
