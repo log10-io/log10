@@ -1,9 +1,11 @@
-
 from copy import deepcopy
 from typing import List
 
 import openai
 from log10.llm import LLM, ChatCompletion, Message, TextCompletion
+from log10.load import log10
+
+log10(openai)
 
 
 class OpenAI(LLM):

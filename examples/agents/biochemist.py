@@ -16,7 +16,7 @@ max_turns = 30
 
 llm = None
 summary_model = None
-if "claude" == model:
+if "claude" in model:
     summary_model = "claude-1-100k"
     llm = Anthropic({"model": model})
 elif model == "noop":

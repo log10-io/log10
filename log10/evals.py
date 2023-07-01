@@ -4,7 +4,7 @@ import os
 import csv
 import json
 import logging
-from log10.llm import Anthropic, Messages
+from log10.llm import Messages
 from log10.utils import fuzzy_match, parse_field
 
 

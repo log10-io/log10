@@ -7,6 +7,10 @@ from log10.llm import LLM, ChatCompletion, Message, TextCompletion
 from anthropic import HUMAN_PROMPT, AI_PROMPT
 import anthropic
 
+from log10.load import log10
+
+log10(anthropic)
+
 
 class Anthropic(LLM):
     def __init__(self, hparams: dict = None):
@@ -22,7 +26,9 @@ class Anthropic(LLM):
             for hparam in hparams:
                 merged_hparams[hparam] = hparams[hparam]
         prompt = Anthropic.convert_history_to_claude(messages)
-        completion = self.client.completion(prompt=prompt, **merged_hparams)
+        completion = self.client.completion(
+            prompt=prompt, stop_sequences=[HUMAN_PROMPT], **merged_hparams
+        )
         content = completion["completion"]
         return ChatCompletion(role="assistant", content=content)
 
