@@ -1,0 +1,9 @@
+name: 'Examples'
+on: push
+jobs:
+  prettier:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install modules
+      run: pip install -r requirements.txt

@@ -1,7 +1,8 @@
-import os
-from log10.llm import Anthropic, Message, NoopLLM, OpenAI
+from log10.anthropic import Anthropic
+from log10.llm import Message, NoopLLM
 from log10.load import log10
 from log10.evals import compile
+from log10.openai import OpenAI
 from log10.tools import code_extractor
 from log10.utils import convert_history_to_claude
 

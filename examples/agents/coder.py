@@ -1,5 +1,6 @@
 import os
-from log10.llm import Anthropic, NoopLLM, OpenAI
+from log10.anthropic import Anthropic
+from log10.llm import NoopLLM, OpenAI
 from log10.load import log10
 from log10.agents.camel import camel_agent
 from dotenv import load_dotenv

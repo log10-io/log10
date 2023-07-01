@@ -1,8 +1,10 @@
 import os
-from log10.llm import Anthropic, NoopLLM, OpenAI
+from log10.anthropic import Anthropic
+from log10.llm import NoopLLM
 from log10.load import log10
 from log10.evals import compile
 from log10.agents.camel import camel_agent
+from log10.openai import OpenAI
 from log10.tools import code_extractor
 
 # Select one of OpenAI or Anthropic models
