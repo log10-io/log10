@@ -14,4 +14,8 @@ jobs:
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        LOG10_TOKEN: ${{ secrets.LOG10_TOKEN }}
+        LOG10_ORG_ID: ${{ secrets.LOG10_ORG_ID }}
+        LOG10_URL: ${{ secrets.LOG10_URL }}
+        LOG10_DATA_STORE: ${{ secrets.LOG10_DATA_STORE }}
 
