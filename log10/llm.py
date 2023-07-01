@@ -17,6 +17,7 @@ from log10.load import log10
 import openai
 import anthropic
 
+# TODO: Turn these on again, and fix any issues.
 # log10(openai)
 # log10(anthropic)
 
@@ -35,6 +36,19 @@ class Message(ABC):
             "role": self.role,
             "content": self.content,
         }
+
+    def from_dict(message: dict):
+        return Message(
+            role=message["role"],
+            content=message["content"],
+            id=message.get("id"),
+            completion=message.get("completion"),
+        )
+
+
+class Messages(ABC):
+    def from_dict(messages: dict):
+        return [Message.from_dict(message) for message in messages]
 
 
 class Completion(ABC):
@@ -142,7 +156,7 @@ class Anthropic(LLM):
             for hparam in hparams:
                 merged_hparams[hparam] = hparams[hparam]
         prompt = Anthropic.convert_history_to_claude(messages)
-        completion = self.client.completion(prompt=prompt, **hparams)
+        completion = self.client.completion(prompt=prompt, **merged_hparams)
         content = completion["completion"]
         return ChatCompletion(role="assistant", content=content)
 
@@ -151,7 +165,7 @@ class Anthropic(LLM):
         if hparams:
             for hparam in hparams:
                 merged_hparams[hparam] = hparams[hparam]
-        completion = self.client.completion(prompt=prompt, **hparams)
+        completion = self.client.completion(prompt=prompt, **merged_hparams)
         content = completion["completion"]
         return TextCompletion(text=content)
 
