@@ -9,8 +9,6 @@ import anthropic
 
 from log10.load import log10
 
-log10(anthropic)
-
 
 class Anthropic(LLM):
     def __init__(self, hparams: dict = None):
@@ -21,18 +19,24 @@ class Anthropic(LLM):
             self.hparams["max_tokens_to_sample"] = 1024
 
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
+        completion = self.client.completion(**self.chat_request(messages, hparams))
+        content = completion["completion"]
+        return ChatCompletion(role="assistant", content=content)
+
+    def chat_request(self, messages: List[Message], hparams: dict = None) -> dict:
         merged_hparams = deepcopy(self.hparams)
         if hparams:
             for hparam in hparams:
                 merged_hparams[hparam] = hparams[hparam]
         prompt = Anthropic.convert_history_to_claude(messages)
-        completion = self.client.completion(
-            prompt=prompt, stop_sequences=[HUMAN_PROMPT], **merged_hparams
-        )
-        content = completion["completion"]
-        return ChatCompletion(role="assistant", content=content)
+        return {"prompt": prompt, "stop_sequences": [HUMAN_PROMPT], **merged_hparams}
 
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
+        completion = self.client.completion(**self.text_request(prompt, hparams))
+        text = completion["completion"]
+        return TextCompletion(text=text)
+
+    def text_request(self, prompt: str, hparams: dict = None) -> TextCompletion:
         merged_hparams = deepcopy(self.hparams)
         if hparams:
             for hparam in hparams:

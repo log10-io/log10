@@ -17,6 +17,8 @@ llm = None
 summary_model = None
 extraction_model = None
 if "claude" in model:
+    import anthropic
+    log10(anthropic)
     summary_model = "claude-1-100k"
     extraction_model = "claude-1-100k"
     llm = Anthropic({"model": model})
@@ -25,6 +27,8 @@ elif model == "noop":
     extraction_model = model
     llm = NoopLLM()
 else:
+    import openai
+    log10(openai)
     summary_model = "gpt-3.5-turbo-16k"
     extraction_model = "gpt-4"
     llm = OpenAI({"model": model})

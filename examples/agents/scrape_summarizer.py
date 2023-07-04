@@ -13,10 +13,14 @@ model = "claude-1"
 
 llm = None
 if "claude" in model:
+    import anthropic
+    log10(anthropic)
     llm = Anthropic({"model": model})
 elif model == "noop":
     llm = NoopLLM()
 else:
+    import openai
+    log10(openai)
     llm = OpenAI({"model": model})
 
 url = "https://nytimes.com"

@@ -19,12 +19,16 @@ max_turns = 30
 llm = None
 summary_model = None
 if "claude" in model:
+    import anthropic
+    log10(anthropic)
     summary_model = "claude-1-100k"
     llm = Anthropic({"model": model})
 elif model == "noop":
     summary_model = model
     llm = NoopLLM()
 else:
+    import openai
+    log10(openai)
     summary_model = "gpt-3.5-turbo-16k"
     llm = OpenAI({"model": model})
 
