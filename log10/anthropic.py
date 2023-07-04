@@ -7,8 +7,6 @@ from log10.llm import LLM, ChatCompletion, Message, TextCompletion
 from anthropic import HUMAN_PROMPT, AI_PROMPT
 import anthropic
 
-from log10.load import log10
-
 
 class Anthropic(LLM):
     def __init__(self, hparams: dict = None):
@@ -28,6 +26,9 @@ class Anthropic(LLM):
         if hparams:
             for hparam in hparams:
                 merged_hparams[hparam] = hparams[hparam]
+
+        # NOTE: That we may have to convert this to openai messages, if we want
+        #       to use the same log viewer for all chat based models.
         prompt = Anthropic.convert_history_to_claude(messages)
         return {"prompt": prompt, "stop_sequences": [HUMAN_PROMPT], **merged_hparams}
 
@@ -41,9 +42,7 @@ class Anthropic(LLM):
         if hparams:
             for hparam in hparams:
                 merged_hparams[hparam] = hparams[hparam]
-        completion = self.client.completion(prompt=prompt, **merged_hparams)
-        content = completion["completion"]
-        return TextCompletion(text=content)
+        return {"prompt": prompt, **merged_hparams}
 
     def convert_history_to_claude(messages: List[Message]):
         text = ""

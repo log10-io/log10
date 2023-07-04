@@ -27,7 +27,7 @@ def camel_agent(
     assistant_prompt: str = None,
     summary_model: str = None,
     llm: LLM = None,
-) -> tuple[List[Message], List[Message]]:
+) -> Tuple[List[Message], List[Message]]:
     generator = camel_agent_generator(
         user_role,
         assistant_role,

@@ -46,9 +46,12 @@ class Completion(ABC):
 
 
 class ChatCompletion(Completion):
-    def __init__(self, role: str, content: str, completion_id: str = None):
+    def __init__(
+        self, role: str, content: str, response: dict = None, completion_id: str = None
+    ):
         self.role = role
         self.content = content
+        self.response = response
         self.completion_id = completion_id
 
     def to_dict(self) -> dict:
@@ -62,24 +65,20 @@ class ChatCompletion(Completion):
 
 
 class TextCompletion(Completion):
-    def __init__(self, text):
+    def __init__(self, text: str, response: dict = None, completion_id=None):
         self._text = text
-
-    def completion_id(self) -> str:
-        return self.output["completion_id"]
+        self.response = response
+        self.completion_id = completion_id
 
     def text(self) -> str:
         return self._text
-
-    def to_dict(self) -> dict:
-        return self.output
 
 
 class LLM(ABC):
     @abstractmethod
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
         raise Exception("Not implemented")
-    
+
     @abstractmethod
     def text_request(self, prompt: str, hparams: dict = None) -> dict:
         raise Exception("Not implemented")
@@ -91,6 +90,7 @@ class LLM(ABC):
     @abstractmethod
     def chat_request(self, messages: List[Message], hparams: dict = None) -> dict:
         raise Exception("Not implemented")
+
 
 class HParams(ABC):
     pass
