@@ -10,7 +10,7 @@ import anthropic
 
 class Anthropic(LLM):
     def __init__(self, hparams: dict = None):
-        self.client = anthropic.Client(os.environ["ANTHROPIC_API_KEY"])
+        self.client = anthropic.Client(os.environ.get("ANTHROPIC_API_KEY"))
         self.hparams = hparams
 
         if "max_tokens_to_sample" not in self.hparams:

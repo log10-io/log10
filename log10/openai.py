@@ -5,11 +5,17 @@ from log10.llm import LLM, ChatCompletion, Message, TextCompletion
 
 import logging
 
+# for exponential backoff
+import backoff
+from openai.error import RateLimitError, APIConnectionError
+import openai
+
 
 class OpenAI(LLM):
     def __init__(self, hparams: dict = None):
         self.hparams = hparams
 
+    @backoff.on_exception(backoff.expo, (RateLimitError, APIConnectionError))
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
         completion = openai.ChatCompletion.create(
             **self.chat_request(messages, hparams)
@@ -32,6 +38,7 @@ class OpenAI(LLM):
             **merged_hparams,
         }
 
+    @backoff.on_exception(backoff.expo, (RateLimitError, APIConnectionError))
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
         request = self.text_request(prompt, hparams)
         logging.info(f"sending request: {request}")
