@@ -7,8 +7,8 @@ from log10.openai import OpenAI
 
 
 # Select one of OpenAI or Anthropic models
-# model = "gpt-3.5-turbo-16k"
-model = "claude-1"
+model = "gpt-3.5-turbo-16k"
+# model = "claude-1"
 # model = "noop"
 
 llm = None

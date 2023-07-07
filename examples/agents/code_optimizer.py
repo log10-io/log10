@@ -8,8 +8,8 @@ from log10.openai import OpenAI
 from log10.tools import code_extractor
 
 # Select one of OpenAI or Anthropic models
-# model = "gpt-3.5-turbo-16k"
-model = "claude-1"
+model = "gpt-3.5-turbo-16k"
+# model = "claude-1"
 # model = "noop"
 max_turns = 10
 

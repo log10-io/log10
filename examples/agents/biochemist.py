@@ -11,8 +11,8 @@ load_dotenv()
 
 # Select one of OpenAI or Anthropic models
 # model = "noop"
-# model = "gpt-3.5-turbo-16k"
-model = "claude-1"
+model = "gpt-3.5-turbo-16k"
+# model = "claude-1"
 max_turns = 30
 
 llm = None
