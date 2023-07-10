@@ -9,3 +9,5 @@ users.db
 
 # Environments
 .env
+
+.vscode/

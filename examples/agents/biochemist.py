@@ -1,31 +1,42 @@
 import os
-from log10.load import log10
+from log10.anthropic import Anthropic
+from log10.llm import NoopLLM
 from log10.agents.camel import camel_agent
 from dotenv import load_dotenv
+
+from log10.openai import OpenAI
+from log10.load import log10
+
 load_dotenv()
 
 # Select one of OpenAI or Anthropic models
+# model = "noop"
 model = "gpt-3.5-turbo-16k"
 # model = "claude-1"
-maxTurns = 30
+max_turns = 30
 
-if 'claude' in model:
+llm = None
+summary_model = None
+if "claude" in model:
     import anthropic
     log10(anthropic)
-    anthropicClient = anthropic.Client(os.environ["ANTHROPIC_API_KEY"])
-    module = anthropicClient
-    hparams = {'max_tokens_to_sample': 1024}
     summary_model = "claude-1-100k"
-else:  # openai
+    llm = Anthropic({"model": model})
+elif model == "noop":
+    summary_model = model
+    llm = NoopLLM()
+else:
     import openai
     log10(openai)
-    openai.api_key = os.getenv("OPENAI_API_KEY")
-    hparams = {}
-    module = openai
     summary_model = "gpt-3.5-turbo-16k"
+    llm = OpenAI({"model": model})
 
 # example calls from playground (select 1)
-camel_agent(userRole='Poor PhD Student', assistantRole='Experienced Computational Chemist',
-            taskPrompt='Perform a molecular dynamics solution of a molecule: CN1CCC[C@H]1c2cccnc2. Design and conduct a 100 ns molecular dynamics simulation of the molecule CN1CCC[C@H]1c2cccnc2 in an explicit solvent environment using the CHARMM force field and analyze the conformational changes and hydrogen bonding patterns over time',
-            model=model, summary_model=summary_model, maxTurns=maxTurns,
-            module=module, hparams=hparams)
+camel_agent(
+    user_role="Poor PhD Student",
+    assistant_role="Experienced Computational Chemist",
+    task_prompt="Perform a molecular dynamics solution of a molecule: CN1CCC[C@H]1c2cccnc2. Design and conduct a 100 ns molecular dynamics simulation of the molecule CN1CCC[C@H]1c2cccnc2 in an explicit solvent environment using the CHARMM force field and analyze the conformational changes and hydrogen bonding patterns over time",
+    summary_model=summary_model,
+    max_turns=max_turns,
+    llm=llm,
+)
