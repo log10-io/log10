@@ -50,7 +50,6 @@ def get_session_id():
                                    "organization_id": org_id
                                })
 
-        logging.info(f"Received: {res.json()}")
         return res.json()['sessionID']
     except Exception as e:
         raise Exception("Failed to create LOG10 session: " + str(e) + "\nLikely cause: LOG10 env vars missing or not picked up correctly!" +
