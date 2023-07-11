@@ -1,5 +1,5 @@
 import os
-from log10.llm import Anthropic, OpenAI
+from log10.llm import Anthropic, Log10Config, OpenAI
 from log10.load import log10
 from log10.evals import eval
 
@@ -15,7 +15,8 @@ if provider == "openai":
             "top_p": 1,
             "frequency_penalty": 0,
             "presence_penalty": 0,
-        }
+        },
+        log10_config=Log10Config(),
     )
 elif provider == "anthropic":
     llm = Anthropic(
@@ -23,7 +24,8 @@ elif provider == "anthropic":
             "model": "claude-1",
             "temperature": 0,
             "max_tokens_to_sample": 1024,
-        }
+        },
+        log10_config=Log10Config(),
     )
 else:
     print(
