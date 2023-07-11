@@ -1,5 +1,5 @@
 from log10.anthropic import Anthropic
-from log10.llm import Message, NoopLLM
+from log10.llm import Log10Config, Message, NoopLLM
 from log10.load import log10
 from log10.evals import compile
 from log10.openai import OpenAI
@@ -13,11 +13,11 @@ model = "gpt-3.5-turbo"
 
 llm = None
 if "claude" in model:
-    llm = Anthropic({"model": model})
+    llm = Anthropic({"model": model}, log10_config=Log10Config())
 elif model == "noop":
     llm = NoopLLM()
 else:
-    llm = OpenAI({"model": model})
+    llm = OpenAI({"model": model}, log10_config=Log10Config()
 
 
 # First, write a hello world program
