@@ -118,19 +118,15 @@ class LLM(ABC):
                 )
                 self.log10_config = None
 
-    @abstractmethod
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
         raise Exception("Not implemented")
 
-    @abstractmethod
     def text_request(self, prompt: str, hparams: dict = None) -> dict:
         raise Exception("Not implemented")
 
-    @abstractmethod
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
         raise Exception("Not implemented")
 
-    @abstractmethod
     def chat_request(self, messages: List[Message], hparams: dict = None) -> dict:
         raise Exception("Not implemented")
 
@@ -173,6 +169,7 @@ class LLM(ABC):
                 "request": json.dumps(request),
             },
         )
+        print(res.text)
 
         return completion_id
 
