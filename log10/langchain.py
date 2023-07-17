@@ -13,6 +13,26 @@ from langchain.schema import AgentAction, AgentFinish, LLMResult
 from log10.llm import LLM, Kind, Message
 
 
+def kwargs_to_hparams(kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert kwargs to hparams."""
+    hparams = {}
+    if "temperature" in kwargs:
+        hparams["temperature"] = kwargs["temperature"]
+    if "top_p" in kwargs:
+        hparams["top_p"] = kwargs["top_p"]
+    if "top_k" in kwargs:
+        hparams["top_k"] = kwargs["top_k"]
+    if "max_tokens" in kwargs:
+        hparams["max_tokens"] = kwargs["max_tokens"]
+    if "max_tokens_to_sample" in kwargs:
+        hparams["max_tokens"] = kwargs["max_tokens_to_sample"]
+    if "frequency_penalty" in kwargs:
+        hparams["frequency_penalty"] = kwargs["frequency_penalty"]
+    if "presence_penalty" in kwargs:
+        hparams["presence_penalty"] = kwargs["presence_penalty"]
+    return hparams
+
+
 class Log10Callback(BaseCallbackHandler, LLM):
     """Callback Handler that prints to std out."""
 
@@ -37,6 +57,8 @@ class Log10Callback(BaseCallbackHandler, LLM):
         )
 
         kwargs = serialized.get("kwargs", {})
+        hparams = kwargs_to_hparams(kwargs)
+
         model = kwargs.get("model_name", None)
         if model is None:
             model = kwargs.get("model", None)
@@ -46,9 +68,11 @@ class Log10Callback(BaseCallbackHandler, LLM):
         if len(prompts) != 1:
             raise BaseException("Only support one prompt at a time")
 
-        completion_id = self.log_start(
-            {"model": model, "prompt": prompts[0]}, Kind.text
-        )
+        request = {"model": model, "prompt": prompts[0], **hparams}
+
+        print(f"request: {request}")
+
+        completion_id = self.log_start(request, Kind.text)
 
         self.runs[run_id] = {
             "kind": Kind.text,
@@ -81,10 +105,8 @@ class Log10Callback(BaseCallbackHandler, LLM):
         if model is None:
             raise ("No model found in serialized or kwargs")
 
-        # TODO: Find rest of hparams
-        hparams = {
-            "model": model,
-        }
+        hparams = kwargs_to_hparams(kwargs)
+        hparams["model"] = model
 
         print(f"hparams: {hparams}")
 
@@ -181,6 +203,14 @@ class Log10Callback(BaseCallbackHandler, LLM):
                     }
                 ],
             }
+
+        # Determine if we can provide usage metrics (token count).
+        print(f"**** response: {response}")
+        if response.llm_output is not None:
+            token_usage = response.llm_output.get("token_usage")
+            if token_usage is not None:
+                log10response["usage"] = token_usage
+                print(f"usage: {log10response['usage']}")
 
         print(
             f"**\n**on_llm_end**\n**\n: response:\n {log10response} \n\n rest: {kwargs}"
