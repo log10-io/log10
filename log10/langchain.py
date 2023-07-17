@@ -22,12 +22,40 @@ class Log10Callback(BaseCallbackHandler, LLM):
         self.runs = {}
 
     def on_llm_start(
-        self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
+        self,
+        serialized: Dict[str, Any],
+        prompts: List[str],
+        *,
+        run_id: UUID,
+        parent_run_id: Optional[UUID] = None,
+        tags: Optional[List[str]] = None,
+        **kwargs: Any,
     ) -> None:
         """Print out the prompts."""
         print(
             f"**\n**on_llm_start**\n**\n: serialized:\n {serialized} \n\n prompts:\n {prompts} \n\n rest: {kwargs}"
         )
+
+        kwargs = serialized.get("kwargs", {})
+        model = kwargs.get("model_name", None)
+        if model is None:
+            model = kwargs.get("model", None)
+        if model is None:
+            raise ("No model found in serialized or kwargs")
+
+        if len(prompts) != 1:
+            raise BaseException("Only support one prompt at a time")
+
+        completion_id = self.log_start(
+            {"model": model, "prompt": prompts[0]}, Kind.text
+        )
+
+        self.runs[run_id] = {
+            "kind": Kind.text,
+            "completion_id": completion_id,
+            "start_time": time.perf_counter(),
+            "model": model,
+        }
 
     def on_chat_model_start(
         self,
@@ -110,10 +138,10 @@ class Log10Callback(BaseCallbackHandler, LLM):
         # Find run in runs.
         run = self.runs.get(run_id, None)
         if run is None:
-            raise ("Could not find run in runs")
+            raise BaseException("Could not find run in runs")
 
-        if run["kind"] != Kind.chat:
-            raise ("Only support chat kind")
+        if run["kind"] != Kind.chat and run["kind"] != Kind.text:
+            raise BaseException("Only support chat kind")
 
         duration = time.perf_counter() - run["start_time"]
 
@@ -124,19 +152,39 @@ class Log10Callback(BaseCallbackHandler, LLM):
             raise BaseException("Only support one message at a time")
 
         content = response.generations[0][0].text
-        log10response = {
-            "id": str(uuid.uuid4()),
-            "object": "chat.completion",
-            "model": run["model"],
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": content},
-                    "finish_reason": "stop",
-                }
-            ],
-        }
-        print(f"**\n**on_llm_end**\n**\n: response:\n {log10response} \n\n rest: {kwargs}")
+
+        log10response = {}
+        if run["kind"] == Kind.chat:
+            log10response = {
+                "id": str(uuid.uuid4()),
+                "object": "chat.completion",
+                "model": run["model"],
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": content},
+                        "finish_reason": "stop",
+                    }
+                ],
+            }
+        elif run["kind"] == Kind.text:
+            log10response = {
+                "id": str(uuid.uuid4()),
+                "object": "text_completion",
+                "model": run["model"],
+                "choices": [
+                    {
+                        "index": 0,
+                        "text": content,
+                        "logprobs": None,
+                        "finish_reason": "stop",
+                    }
+                ],
+            }
+
+        print(
+            f"**\n**on_llm_end**\n**\n: response:\n {log10response} \n\n rest: {kwargs}"
+        )
         self.log_end(run["completion_id"], log10response, duration)
 
     def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
