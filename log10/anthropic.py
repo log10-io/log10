@@ -25,41 +25,9 @@ class Anthropic(LLM):
 
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
         request = self.chat_request(messages, hparams)
-
-        # Log a request which conforms wiht OpenAI.
-        merged_hparams = merge_hparams(hparams, self.hparams)
-        completion_id = self.log_start(
-            {"messages": [message.to_dict() for message in messages], **merged_hparams},
-            Kind.chat,
-        )
-
-        # Carry out completion
-        start_time = time.perf_counter()
         completion = self.client.completions.create(**request)
-        duration = time.perf_counter() - start_time
         content = completion.completion
-
-        # Imitate OpenAI reponse format and store.
-        reason = "stop"
-        if completion.stop_reason == "stop_sequence":
-            reason = "stop"
-        elif completion.stop_reason == "max_tokens":
-            reason = "length"
-        response = {
-            "id": str(uuid.uuid4()),
-            "object": "chat.completion",
-            "model": completion.model,
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": content},
-                    "finish_reason": reason,
-                }
-            ],
-        }
-        self.log_end(completion_id, response, duration)
-
-        return ChatCompletion(role="assistant", content=content, response=response)
+        return ChatCompletion(role="assistant", content=content)
 
     def chat_request(self, messages: List[Message], hparams: dict = None) -> dict:
         merged_hparams = merge_hparams(hparams, self.hparams)
@@ -71,49 +39,9 @@ class Anthropic(LLM):
 
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
         request = self.text_request(prompt, hparams)
-
-        #
-        # Log a request which conforms wiht OpenAI.
-        #
-        # Anthropic prompts have to start with HUMAN_PROMPT <request> AI_PROMPT.
-        # We don't store this, to make it possible to rerun completions with other LLMs.
-        original_prompt = request["prompt"]
-        request["prompt"] = prompt
-        completion_id = self.log_start(request, Kind.text)
-        request["pompt"] = original_prompt
-
-        start_time = time.perf_counter()
-        completion = self.client.completions.create(
-            **request
-        )
-        duration = time.perf_counter() - start_time
-
+        completion = self.client.completions.create(**request)
         text = completion.completion
-
-        #
-        # Imitate OpenAI response format.
-        #
-        reason = "stop"
-        if completion.stop_reason == "stop_sequence":
-            reason = "stop"
-        elif completion.stop_reason == "max_tokens":
-            reason = "length"
-        response = {
-            "id": str(uuid.uuid4()),
-            "object": "text_completion",
-            "model": completion.model,
-            "choices": [
-                {
-                    "index": 0,
-                    "text": text,
-                    "logprobs": None,
-                    "finish_reason": reason,
-                }
-            ],
-        }
-        self.log_end(completion_id, response, duration)
-
-        return TextCompletion(text=text, response=response)
+        return TextCompletion(text=text)
 
     def text_request(self, prompt: str, hparams: dict = None) -> TextCompletion:
         merged_hparams = merge_hparams(hparams, self.hparams)

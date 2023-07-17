@@ -19,21 +19,10 @@ class OpenAI(LLM):
     @backoff.on_exception(backoff.expo, (RateLimitError, APIConnectionError))
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
         request = self.chat_request(messages, hparams)
-        
-        completion_id = self.log_start(request, Kind.chat)
-
-        logging.info(f"Logging completion {completion_id}")
-
-        start_time = time.perf_counter()
         completion = openai.ChatCompletion.create(**request)
-        duration = time.perf_counter() - start_time
-
-        self.log_end(completion_id, completion, duration)
-
         return ChatCompletion(
             role=completion.choices[0]["message"]["role"],
             content=completion.choices[0]["message"]["content"],
-            response=completion,
         )
 
     def chat_request(self, messages: List[Message], hparams: dict = None) -> dict:
@@ -46,16 +35,9 @@ class OpenAI(LLM):
     @backoff.on_exception(backoff.expo, (RateLimitError, APIConnectionError))
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
         request = self.text_request(prompt, hparams)
-
-        completion_id = self.log_start(request, Kind.text)
-
-        start_time = time.perf_counter()
         completion = openai.Completion.create(**request)
-        duration = time.perf_counter() - start_time
 
-        self.log_end(completion_id, completion, duration)
-
-        return TextCompletion(text=completion.choices[0].text, response=completion)
+        return TextCompletion(text=completion.choices[0].text)
 
     def text_request(self, prompt: str, hparams: dict = None) -> dict:
         merged_hparams = merge_hparams(hparams, self.hparams)

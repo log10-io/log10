@@ -1,5 +1,7 @@
+import os
 from log10.anthropic import Anthropic
-from log10.llm import Log10Config, NoopLLM
+from log10.llm import NoopLLM
+from log10.load import log10
 from log10.evals import compile
 from log10.agents.camel import camel_agent
 from log10.openai import OpenAI
@@ -15,17 +17,21 @@ llm = None
 summary_model = None
 extraction_model = None
 if "claude" in model:
+    import anthropic
+    log10(anthropic)
     summary_model = "claude-1-100k"
     extraction_model = "claude-1-100k"
-    llm = Anthropic({"model": model}, log10_config=Log10Config())
+    llm = Anthropic({"model": model})
 elif model == "noop":
     summary_model = model
     extraction_model = model
     llm = NoopLLM()
 else:
+    import openai
+    log10(openai)
     summary_model = "gpt-3.5-turbo-16k"
     extraction_model = "gpt-4"
-    llm = OpenAI({"model": model}, log10_config=Log10Config())
+    llm = OpenAI({"model": model})
 
 
 # example calls from playground (select 1)
