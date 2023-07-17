@@ -40,6 +40,7 @@ Can be run on `OpenAI` or `Anthropic`
 - `langchain_simple_sequential.py` Simplest Langchain example with 2 chains in sequence
 - `langchain_sqlagent.py` Langchain's SQLAgent for NLP2SQL
 - `multiple_sessions.py` Examples illustrating session scoping for Langchain + Log10
+- `langchain_model_logger.py` Example of OpenAI (chat and text completions) and Anthropic calls with a log10 logger.
 
 ### Anthropic
 
