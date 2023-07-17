@@ -18,7 +18,6 @@ class OpenAI(LLM):
 
     @backoff.on_exception(backoff.expo, (RateLimitError, APIConnectionError))
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
-        print("chat!")
         request = self.chat_request(messages, hparams)
         
         completion_id = self.log_start(request, Kind.chat)
