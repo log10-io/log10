@@ -26,8 +26,9 @@ class Anthropic(LLM):
             self.hparams["max_tokens_to_sample"] = 1024
 
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
+        chat_request = self.chat_request(messages, hparams)
         completion = self.client.completions.create(
-            **self.chat_request(messages, hparams)
+            **chat_request
         )
         content = completion.completion
 
@@ -36,6 +37,8 @@ class Anthropic(LLM):
             reason = "stop"
         elif completion.stop_reason == "max_tokens":
             reason = "length"
+
+        tokens_usage = self.create_tokens_usage(chat_request["prompt"], content)
 
         # Imitate OpenAI reponse format.
         response = {
@@ -49,6 +52,7 @@ class Anthropic(LLM):
                     "finish_reason": reason,
                 }
             ],
+            "usage": tokens_usage
         }
 
         return ChatCompletion(role="assistant", content=content, response=response)
@@ -65,8 +69,9 @@ class Anthropic(LLM):
         return {"prompt": prompt, "stop_sequences": [HUMAN_PROMPT], **merged_hparams}
 
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
+        text_request = self.text_request(prompt, hparams)
         completion = self.client.completions.create(
-            **self.text_request(prompt, hparams)
+            **text_request
         )
         text = completion.completion
 
@@ -76,6 +81,8 @@ class Anthropic(LLM):
             reason = "stop"
         elif completion.stop_reason == "max_tokens":
             reason = "length"
+
+        tokens_usage = self.create_tokens_usage(text_request["prompt"], text)
 
         # Imitate OpenAI reponse format.
         response = {
@@ -90,6 +97,7 @@ class Anthropic(LLM):
                     "finish_reason": reason,
                 }
             ],
+            "usage": tokens_usage
         }
         logging.info("Returning text completion")
         return TextCompletion(text=text, response=response)
@@ -119,3 +127,15 @@ class Anthropic(LLM):
 
     def convert_claude_to_messages(prompt: str):
         pass
+
+    def create_tokens_usage(self, prompt: str, completion: str):
+        prompt_tokens = self.client.count_tokens(prompt)
+        completion_tokens = self.client.count_tokens(completion)
+        total_tokens = prompt_tokens + completion_tokens
+
+        # Imitate OpenAI usage format.
+        return {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": total_tokens
+        }
