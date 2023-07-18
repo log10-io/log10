@@ -63,7 +63,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
         if model is None:
             model = kwargs.get("model", None)
         if model is None:
-            raise ("No model found in serialized or kwargs")
+            raise BaseException("No model found in serialized or kwargs")
 
         if len(prompts) != 1:
             raise BaseException("Only support one prompt at a time")
@@ -103,7 +103,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
         if model is None:
             model = kwargs.get("model", None)
         if model is None:
-            raise ("No model found in serialized or kwargs")
+            raise BaseException("No model found in serialized or kwargs")
 
         hparams = kwargs_to_hparams(kwargs)
         hparams["model"] = model
