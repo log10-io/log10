@@ -1,7 +1,7 @@
 import os
 from copy import deepcopy
 from typing import List
-from log10.llm import LLM, ChatCompletion, Kind, Message, TextCompletion, merge_hparams
+from log10.llm import LLM, ChatCompletion, Message, TextCompletion
 
 
 from anthropic import HUMAN_PROMPT, AI_PROMPT
