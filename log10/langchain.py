@@ -11,6 +11,7 @@ from langchain.callbacks.base import BaseCallbackHandler
 from langchain.schema import AgentAction, AgentFinish, LLMResult
 from log10.llm import LLM, Kind, Message
 
+import logging
 
 def kwargs_to_hparams(kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """Convert kwargs to hparams."""
@@ -51,7 +52,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
         **kwargs: Any,
     ) -> None:
         """Print out the prompts."""
-        print(
+        logging.debug(
             f"**\n**on_llm_start**\n**\n: serialized:\n {serialized} \n\n prompts:\n {prompts} \n\n rest: {kwargs}"
         )
 
@@ -69,7 +70,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
 
         request = {"model": model, "prompt": prompts[0], **hparams}
 
-        print(f"request: {request}")
+        logging.debug(f"request: {request}")
 
         completion_id = self.log_start(request, Kind.text)
 
@@ -90,7 +91,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
         tags: Optional[List[str]] = None,
         **kwargs: Any,
     ) -> None:
-        print(
+        logging.debug(
             f"**\n**on_chat_model_start**\n**\n: run_id:{run_id}\nserialized:\n{serialized}\n\nmessages:\n{messages}\n\nkwargs: {kwargs}"
         )
 
@@ -107,7 +108,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
         hparams = kwargs_to_hparams(kwargs)
         hparams["model"] = model
 
-        print(f"hparams: {hparams}")
+        logging.debug(f"hparams: {hparams}")
 
         if len(messages) != 1:
             raise BaseException("Only support one message at a time")
@@ -115,7 +116,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
         # Convert messages to log10 format
         log10_messages = []
         for message in messages[0]:
-            print(f"message: {message}")
+            logging.debug(f"message: {message}")
             if isinstance(message, HumanMessage):
                 log10_messages.append(Message(role="user", content=message.content))
             elif isinstance(message, AIMessage):
@@ -131,7 +132,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
             "messages": [message.to_dict() for message in log10_messages],
             **hparams,
         }
-        print(f"request: {request}")
+        logging.debug(f"request: {request}")
 
         completion_id = self.log_start(
             request,
@@ -145,7 +146,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
             "model": model,
         }
 
-        print(f"logged start with completion_id: {completion_id}")
+        logging.debug(f"logged start with completion_id: {completion_id}")
 
     def on_llm_end(
         self,
@@ -204,27 +205,27 @@ class Log10Callback(BaseCallbackHandler, LLM):
             }
 
         # Determine if we can provide usage metrics (token count).
-        print(f"**** response: {response}")
+        logging.debug(f"**** response: {response}")
         if response.llm_output is not None:
             token_usage = response.llm_output.get("token_usage")
             if token_usage is not None:
                 log10response["usage"] = token_usage
-                print(f"usage: {log10response['usage']}")
+                logging.debug(f"usage: {log10response['usage']}")
 
-        print(
+        logging.debug(
             f"**\n**on_llm_end**\n**\n: response:\n {log10response} \n\n rest: {kwargs}"
         )
         self.log_end(run["completion_id"], log10response, duration)
 
     def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
         """Do nothing."""
-        print(f"token:\n {token} \n\n rest: {kwargs}")
+        logging.debug(f"token:\n {token} \n\n rest: {kwargs}")
 
     def on_llm_error(
         self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any
     ) -> None:
         """Do nothing."""
-        print(f"error:\n {error} \n\n rest: {kwargs}")
+        logging.debug(f"error:\n {error} \n\n rest: {kwargs}")
 
     def on_chain_start(
         self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any

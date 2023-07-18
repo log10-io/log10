@@ -169,7 +169,6 @@ class LLM(ABC):
                 "request": json.dumps(request),
             },
         )
-        print(res.text)
 
         return completion_id
 
