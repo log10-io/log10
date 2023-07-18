@@ -13,7 +13,11 @@ import logging
 
 
 class Anthropic(LLM):
-    def __init__(self, hparams: dict = None, skip_initialization: bool = False):
+    def __init__(
+        self, hparams: dict = None, skip_initialization: bool = False, log10_config=None
+    ):
+        super().__init__(hparams, log10_config)
+
         if not skip_initialization:
             self.client = anthropic.Anthropic()
         self.hparams = hparams

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "log10-io"
-version = "0.1.1"
+version = "0.2.2"
 authors = []
 license = "MIT"
 description = "Unified LLM data management"
