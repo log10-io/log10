@@ -6,8 +6,8 @@ import os
 # todo: add requirements.txt file
 # todo: add instructions for bigquery integration
 
-def initialize_bigquery(debug=False):
 
+def initialize_bigquery(debug=False):
     # Configure the BigQuery client
     project_id = os.environ.get("LOG10_BQ_PROJECT_ID")
     dataset_id = os.environ.get("LOG10_BQ_DATASET_ID")
@@ -56,11 +56,12 @@ def initialize_bigquery(debug=False):
     else:
         if debug:
             print(
-                f"Table {completions_table_id} does not exist in dataset {dataset_id}. Creating...")
+                f"Table {completions_table_id} does not exist in dataset {dataset_id}. Creating..."
+            )
         # Create the table
         table_ref = client_dataset.table(completions_table_id)
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        schema_path = os.path.join(script_dir, 'schemas', 'bigquery.json')
+        schema_path = os.path.join(script_dir, "schemas", "bigquery.json")
         schema = client.schema_from_json(schema_path)
         table = bigquery.Table(table_ref, schema=schema)
         created_table = client.create_table(table)  # API request

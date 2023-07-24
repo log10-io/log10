@@ -15,7 +15,9 @@ messages = [
     HumanMessage(content="Ping?"),
 ]
 
-llm = ChatOpenAI(model_name="gpt-3.5-turbo", callbacks=[log10_callback], temperature=0.5)
+llm = ChatOpenAI(
+    model_name="gpt-3.5-turbo", callbacks=[log10_callback], temperature=0.5
+)
 completion = llm.predict_messages(messages)
 print(completion)
 

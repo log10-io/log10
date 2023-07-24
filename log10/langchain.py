@@ -13,6 +13,7 @@ from log10.llm import LLM, Kind, Message
 
 import logging
 
+
 def kwargs_to_hparams(kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """Convert kwargs to hparams."""
     hparams = {}

@@ -12,7 +12,7 @@ response = anthropicClient.completion(
     temperature=0,
     max_tokens_to_sample=1024,
     top_p=1,
-    top_k=0
+    top_k=0,
 )
 
 print(response)

@@ -21,12 +21,13 @@ log10(openai)
 fake = Faker()
 
 # Create a SQLite database and connect to it
-engine = create_engine('sqlite:///users.db', echo=True)
+engine = create_engine("sqlite:///users.db", echo=True)
 Base = declarative_base()
+
 
 # Define the User class with standard fields and the created_at field
 class User(Base):
-    __tablename__ = 'users'
+    __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
     username = Column(String, unique=True, nullable=False)
@@ -39,6 +40,7 @@ class User(Base):
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}', first_name='{self.first_name}', last_name='{self.last_name}', age={self.age}, created_at={self.created_at})>"
 
+
 # Helper function to generate a random user using Faker
 def generate_random_user():
     username = fake.user_name()
@@ -46,7 +48,13 @@ def generate_random_user():
     first_name = fake.first_name()
     last_name = fake.last_name()
     age = random.randint(18, 100)
-    return User(username=username, email=email, first_name=first_name, last_name=last_name, age=age)
+    return User(
+        username=username,
+        email=email,
+        first_name=first_name,
+        last_name=last_name,
+        age=age,
+    )
 
 
 # Create the 'users' table
@@ -79,7 +87,7 @@ toolkit = SQLDatabaseToolkit(db=db)
 agent_executor = create_sql_agent(
     llm=OpenAI(temperature=0, model_name="text-davinci-003"),
     toolkit=toolkit,
-    verbose=True
+    verbose=True,
 )
 
 print(agent_executor.run("Who is the least recent user?"))
