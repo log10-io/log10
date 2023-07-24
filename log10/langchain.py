@@ -1,17 +1,18 @@
 import time
 import uuid
-
-from langchain.schema import HumanMessage, AIMessage, SystemMessage, BaseMessage
 from uuid import UUID
 
+from langchain.schema import (AIMessage, BaseMessage, HumanMessage,
+                              SystemMessage)
+
 """Callback Handler that prints to std out."""
+import logging
 from typing import Any, Dict, List, Optional, Union
 
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.schema import AgentAction, AgentFinish, LLMResult
-from log10.llm import LLM, Kind, Message
 
-import logging
+from log10.llm import LLM, Kind, Message
 
 
 def kwargs_to_hparams(kwargs: Dict[str, Any]) -> Dict[str, Any]:

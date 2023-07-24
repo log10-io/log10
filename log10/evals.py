@@ -1,9 +1,10 @@
-import subprocess
-import tempfile
-import os
 import csv
 import json
 import logging
+import os
+import subprocess
+import tempfile
+
 from log10.llm import Messages
 from log10.utils import fuzzy_match, parse_field
 

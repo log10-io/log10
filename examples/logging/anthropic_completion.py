@@ -1,7 +1,8 @@
 import os
-from log10.load import log10
+
 import anthropic
-import os
+
+from log10.load import log10
 
 log10(anthropic, DEBUG_=False)
 anthropicClient = anthropic.Client(os.environ['ANTHROPIC_API_KEY'])

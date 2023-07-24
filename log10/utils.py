@@ -1,7 +1,8 @@
+import json
 import re
 import string
-from anthropic import HUMAN_PROMPT, AI_PROMPT
-import json
+
+from anthropic import AI_PROMPT, HUMAN_PROMPT
 
 
 # Ref: https://github.com/openai/evals/blob/a24f20a357ecb3cc5eec8323097aeade9585796c/evals/elsuite/utils.py

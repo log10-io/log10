@@ -1,15 +1,14 @@
-from copy import deepcopy
-import time
-from typing import List
-import openai
-from log10.llm import LLM, ChatCompletion, Message, TextCompletion
-
 import logging
+import time
+from copy import deepcopy
+from typing import List
 
 # for exponential backoff
 import backoff
-from openai.error import RateLimitError, APIConnectionError
 import openai
+from openai.error import APIConnectionError, RateLimitError
+
+from log10.llm import LLM, ChatCompletion, Message, TextCompletion
 
 
 class OpenAI(LLM):

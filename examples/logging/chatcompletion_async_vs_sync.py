@@ -10,8 +10,10 @@ else:
     init_modules = list(sys.modules.keys())
 
 import os
-from log10.load import log10, log10_session
+
 import openai
+
+from log10.load import log10, log10_session
 
 openai.api_key = os.getenv('OPENAI_API_KEY')
 

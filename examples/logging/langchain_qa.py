@@ -1,12 +1,14 @@
-from langchain.chat_models import ChatOpenAI
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import Chroma
-from langchain.indexes import VectorstoreIndexCreator
-from langchain.document_loaders import TextLoader
 import os
-from log10.load import log10
+
 import openai
+from langchain.chat_models import ChatOpenAI
+from langchain.document_loaders import TextLoader
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.indexes import VectorstoreIndexCreator
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.vectorstores import Chroma
+
+from log10.load import log10
 
 log10(openai)
 

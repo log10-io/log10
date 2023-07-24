@@ -1,9 +1,11 @@
-import wikipedia
-from langchain.agents import load_tools, initialize_agent
-from langchain.llms import OpenAI
 import os
-from log10.load import log10
+
 import openai
+import wikipedia
+from langchain.agents import initialize_agent, load_tools
+from langchain.llms import OpenAI
+
+from log10.load import log10
 
 log10(openai)
 

@@ -1,9 +1,11 @@
-from langchain.chains import LLMChain, SimpleSequentialChain
-from langchain.prompts import PromptTemplate
-from langchain.llms import OpenAI
 import os
-from log10.load import log10
+
 import openai
+from langchain.chains import LLMChain, SimpleSequentialChain
+from langchain.llms import OpenAI
+from langchain.prompts import PromptTemplate
+
+from log10.load import log10
 
 log10(openai)
 

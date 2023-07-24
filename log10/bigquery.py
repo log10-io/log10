@@ -1,6 +1,7 @@
-from google.cloud import bigquery
-from google.api_core.exceptions import NotFound
 import os
+
+from google.api_core.exceptions import NotFound
+from google.cloud import bigquery
 
 # todo: add requirements.txt file
 # todo: add instructions for bigquery integration

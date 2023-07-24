@@ -1,13 +1,14 @@
-import requests
-import logging
 import json
-from typing import List
-from abc import ABC, abstractmethod
-from copy import deepcopy
-from enum import Enum
+import logging
 import os
 import sys
 import traceback
+from abc import ABC, abstractmethod
+from copy import deepcopy
+from enum import Enum
+from typing import List
+
+import requests
 
 Role = Enum('Role', ['system', 'assistant', 'user'])
 Kind = Enum('Kind', ['chat', 'text'])

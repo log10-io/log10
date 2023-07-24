@@ -1,9 +1,9 @@
 import logging
+from typing import List, Tuple
+
 from dotenv import load_dotenv
 
 from log10.llm import LLM, Message
-
-from typing import List, Tuple
 
 load_dotenv()
 

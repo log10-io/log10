@@ -1,14 +1,13 @@
+import logging
 import os
+import uuid
 from copy import deepcopy
 from typing import List
-from log10.llm import LLM, ChatCompletion, Message, TextCompletion
 
-from anthropic import HUMAN_PROMPT, AI_PROMPT
 import anthropic
+from anthropic import AI_PROMPT, HUMAN_PROMPT
 
-import uuid
-
-import logging
+from log10.llm import LLM, ChatCompletion, Message, TextCompletion
 
 
 class Anthropic(LLM):

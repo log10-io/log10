@@ -1,7 +1,7 @@
 from langchain import OpenAI
-from langchain.chat_models import ChatAnthropic
-from langchain.chat_models import ChatOpenAI
-from langchain.schema import HumanMessage, AIMessage, SystemMessage, BaseMessage
+from langchain.chat_models import ChatAnthropic, ChatOpenAI
+from langchain.schema import (AIMessage, BaseMessage, HumanMessage,
+                              SystemMessage)
 
 from log10.langchain import Log10Callback
 from log10.llm import Log10Config
