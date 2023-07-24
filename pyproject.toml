@@ -19,3 +19,20 @@ classifiers = [
 [project.urls]
 "Homepage" = "https://github.com/log10-io/log10"
 "Bug Tracker" = "https://github.com/log10-io/log10/issues"
+
+[tool.black]
+line-length = 80
+py36 = true
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+| \.mypy_cache
+| \.tox
+| \.venv
+| _build
+| buck-out
+| build
+| dist
+)/
+'''

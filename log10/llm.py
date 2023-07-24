@@ -1,3 +1,7 @@
+import requests
+import logging
+import json
+from typing import List
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from enum import Enum
@@ -5,35 +9,22 @@ import os
 import sys
 import traceback
 
-Role = Enum("Role", ["system", "assistant", "user"])
-Kind = Enum("Kind", ["chat", "text"])
-
-from typing import List
-
-import json
-
-import logging
-import requests
+Role = Enum('Role', ['system', 'assistant', 'user'])
+Kind = Enum('Kind', ['chat', 'text'])
 
 
 class Log10Config:
     def __init__(
-        self,
-        url: str = None,
-        token: str = None,
-        org_id: str = None,
-        tags: List[str] = None,
+        self, url: str = None, token: str = None, org_id: str = None, tags: List[str] = None,
     ):
-        self.url = url if url else os.getenv("LOG10_URL")
-        self.token = token if token else os.getenv("LOG10_TOKEN")
-        self.org_id = org_id if org_id else os.getenv("LOG10_ORG_ID")
-        self.tags = tags if tags else os.getenv("LOG10_TAGS", "").split(",")
+        self.url = url if url else os.getenv('LOG10_URL')
+        self.token = token if token else os.getenv('LOG10_TOKEN')
+        self.org_id = org_id if org_id else os.getenv('LOG10_ORG_ID')
+        self.tags = tags if tags else os.getenv('LOG10_TAGS', "").split(',')
 
 
 class Message(ABC):
-    def __init__(
-        self, role: Role, content: str, id: str = None, completion: str = None
-    ):
+    def __init__(self, role: Role, content: str, id: str = None, completion: str = None):
         self.id = id
         self.role = role
         self.content = content
@@ -41,16 +32,16 @@ class Message(ABC):
 
     def to_dict(self):
         return {
-            "role": self.role,
-            "content": self.content,
+            'role': self.role,
+            'content': self.content,
         }
 
     def from_dict(message: dict):
         return Message(
-            role=message["role"],
-            content=message["content"],
-            id=message.get("id"),
-            completion=message.get("completion"),
+            role=message['role'],
+            content=message['content'],
+            id=message.get('id'),
+            completion=message.get('completion'),
         )
 
 
@@ -65,7 +56,7 @@ class Completion(ABC):
 
 class ChatCompletion(Completion):
     def __init__(
-        self, role: str, content: str, response: dict = None, completion_id: str = None
+        self, role: str, content: str, response: dict = None, completion_id: str = None,
     ):
         self.role = role
         self.content = content
@@ -74,8 +65,8 @@ class ChatCompletion(Completion):
 
     def to_dict(self) -> dict:
         return {
-            "role": self.role,
-            "content": self.content,
+            'role': self.role,
+            'content': self.content,
         }
 
     def __str__(self) -> str:
@@ -99,19 +90,19 @@ class LLM(ABC):
 
         # Start session
         if self.log10_config:
-            session_url = self.log10_config.url + "/api/sessions"
+            session_url = self.log10_config.url + '/api/sessions'
             try:
                 res = requests.request(
-                    "POST",
+                    'POST',
                     session_url,
                     headers={
-                        "x-log10-token": self.log10_config.token,
-                        "Content-Type": "application/json",
+                        'x-log10-token': self.log10_config.token,
+                        'Content-Type': 'application/json',
                     },
-                    json={"organization_id": self.log10_config.org_id},
+                    json={'organization_id': self.log10_config.org_id},
                 )
                 response = res.json()
-                self.session_id = response["sessionID"]
+                self.session_id = response['sessionID']
             except Exception as e:
                 logging.warning(
                     f"Failed to start session with {session_url} using token {self.log10_config.token}. Won't be able to log. {e}"
@@ -119,24 +110,24 @@ class LLM(ABC):
                 self.log10_config = None
 
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
-        raise Exception("Not implemented")
+        raise Exception('Not implemented')
 
     def text_request(self, prompt: str, hparams: dict = None) -> dict:
-        raise Exception("Not implemented")
+        raise Exception('Not implemented')
 
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
-        raise Exception("Not implemented")
+        raise Exception('Not implemented')
 
     def chat_request(self, messages: List[Message], hparams: dict = None) -> dict:
-        raise Exception("Not implemented")
+        raise Exception('Not implemented')
 
     def api_request(self, rel_url: str, method: str, request: dict):
         return requests.request(
             method,
-            f"{self.log10_config.url}{rel_url}",
+            f'{self.log10_config.url}{rel_url}',
             headers={
-                "x-log10-token": self.log10_config.token,
-                "Content-Type": "application/json",
+                'x-log10-token': self.log10_config.token,
+                'Content-Type': 'application/json',
             },
             json=request,
         )
@@ -147,26 +138,26 @@ class LLM(ABC):
             return None
 
         res = self.api_request(
-            "/api/completions", "POST", {"organization_id": self.log10_config.org_id}
+            '/api/completions', 'POST', {'organization_id': self.log10_config.org_id},
         )
-        completion_id = res.json()["completionID"]
+        completion_id = res.json()['completionID']
 
         res = self.api_request(
-            f"/api/completions/{completion_id}",
-            "POST",
+            f'/api/completions/{completion_id}',
+            'POST',
             {
-                "kind": kind == Kind.text and "completion" or "chat",
-                "organization_id": self.log10_config.org_id,
-                "session_id": self.session_id,
-                "orig_module": "openai.api_resources.completion"
+                'kind': kind == Kind.text and 'completion' or 'chat',
+                'organization_id': self.log10_config.org_id,
+                'session_id': self.session_id,
+                'orig_module': 'openai.api_resources.completion'
                 if kind == Kind.text
-                else "openai.api_resources.chat_completion",
-                "orig_qualname": "Completion.create"
+                else 'openai.api_resources.chat_completion',
+                'orig_qualname': 'Completion.create'
                 if kind == Kind.text
-                else "ChatCompletion.create",
-                "status": "started",
-                "tags": self.log10_config.tags,
-                "request": json.dumps(request),
+                else 'ChatCompletion.create',
+                'status': 'started',
+                'tags': self.log10_config.tags,
+                'request': json.dumps(request),
             },
         )
 
@@ -180,22 +171,22 @@ class LLM(ABC):
         current_stack_frame = traceback.extract_stack()
         stacktrace = [
             {
-                "file": frame.filename,
-                "line": frame.line,
-                "lineno": frame.lineno,
-                "name": frame.name,
+                'file': frame.filename,
+                'line': frame.line,
+                'lineno': frame.lineno,
+                'name': frame.name,
             }
             for frame in current_stack_frame
         ]
 
         self.api_request(
-            f"/api/completions/{completion_id}",
-            "POST",
+            f'/api/completions/{completion_id}',
+            'POST',
             {
-                "response": json.dumps(response),
-                "status": "finished",
-                "duration": int(duration * 1000),
-                "stacktrace": json.dumps(stacktrace),
+                'response': json.dumps(response),
+                'status': 'finished',
+                'duration': int(duration * 1000),
+                'stacktrace': json.dumps(stacktrace),
             },
         )
 
@@ -205,11 +196,11 @@ class NoopLLM(LLM):
         pass
 
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
-        logging.info("Received chat completion requst: " + str(messages))
-        return ChatCompletion(role="assistant", content="I'm not a real LLM")
+        logging.info('Received chat completion requst: ' + str(messages))
+        return ChatCompletion(role='assistant', content="I'm not a real LLM")
 
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
-        logging.info("Received text completion requst: " + prompt)
+        logging.info('Received text completion requst: ' + prompt)
         return TextCompletion(text="I'm not a real LLM")
 
 

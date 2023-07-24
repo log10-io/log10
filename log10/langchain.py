@@ -17,20 +17,20 @@ import logging
 def kwargs_to_hparams(kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """Convert kwargs to hparams."""
     hparams = {}
-    if "temperature" in kwargs:
-        hparams["temperature"] = kwargs["temperature"]
-    if "top_p" in kwargs:
-        hparams["top_p"] = kwargs["top_p"]
-    if "top_k" in kwargs:
-        hparams["top_k"] = kwargs["top_k"]
-    if "max_tokens" in kwargs:
-        hparams["max_tokens"] = kwargs["max_tokens"]
-    if "max_tokens_to_sample" in kwargs:
-        hparams["max_tokens"] = kwargs["max_tokens_to_sample"]
-    if "frequency_penalty" in kwargs:
-        hparams["frequency_penalty"] = kwargs["frequency_penalty"]
-    if "presence_penalty" in kwargs:
-        hparams["presence_penalty"] = kwargs["presence_penalty"]
+    if 'temperature' in kwargs:
+        hparams['temperature'] = kwargs['temperature']
+    if 'top_p' in kwargs:
+        hparams['top_p'] = kwargs['top_p']
+    if 'top_k' in kwargs:
+        hparams['top_k'] = kwargs['top_k']
+    if 'max_tokens' in kwargs:
+        hparams['max_tokens'] = kwargs['max_tokens']
+    if 'max_tokens_to_sample' in kwargs:
+        hparams['max_tokens'] = kwargs['max_tokens_to_sample']
+    if 'frequency_penalty' in kwargs:
+        hparams['frequency_penalty'] = kwargs['frequency_penalty']
+    if 'presence_penalty' in kwargs:
+        hparams['presence_penalty'] = kwargs['presence_penalty']
     return hparams
 
 
@@ -54,32 +54,32 @@ class Log10Callback(BaseCallbackHandler, LLM):
     ) -> None:
         """Print out the prompts."""
         logging.debug(
-            f"**\n**on_llm_start**\n**\n: serialized:\n {serialized} \n\n prompts:\n {prompts} \n\n rest: {kwargs}"
+            f'**\n**on_llm_start**\n**\n: serialized:\n {serialized} \n\n prompts:\n {prompts} \n\n rest: {kwargs}'
         )
 
-        kwargs = serialized.get("kwargs", {})
+        kwargs = serialized.get('kwargs', {})
         hparams = kwargs_to_hparams(kwargs)
 
-        model = kwargs.get("model_name", None)
+        model = kwargs.get('model_name', None)
         if model is None:
-            model = kwargs.get("model", None)
+            model = kwargs.get('model', None)
         if model is None:
-            raise BaseException("No model found in serialized or kwargs")
+            raise BaseException('No model found in serialized or kwargs')
 
         if len(prompts) != 1:
-            raise BaseException("Only support one prompt at a time")
+            raise BaseException('Only support one prompt at a time')
 
-        request = {"model": model, "prompt": prompts[0], **hparams}
+        request = {'model': model, 'prompt': prompts[0], **hparams}
 
-        logging.debug(f"request: {request}")
+        logging.debug(f'request: {request}')
 
         completion_id = self.log_start(request, Kind.text)
 
         self.runs[run_id] = {
-            "kind": Kind.text,
-            "completion_id": completion_id,
-            "start_time": time.perf_counter(),
-            "model": model,
+            'kind': Kind.text,
+            'completion_id': completion_id,
+            'start_time': time.perf_counter(),
+            'model': model,
         }
 
     def on_chat_model_start(
@@ -93,61 +93,56 @@ class Log10Callback(BaseCallbackHandler, LLM):
         **kwargs: Any,
     ) -> None:
         logging.debug(
-            f"**\n**on_chat_model_start**\n**\n: run_id:{run_id}\nserialized:\n{serialized}\n\nmessages:\n{messages}\n\nkwargs: {kwargs}"
+            f'**\n**on_chat_model_start**\n**\n: run_id:{run_id}\nserialized:\n{serialized}\n\nmessages:\n{messages}\n\nkwargs: {kwargs}'
         )
 
         #
         # Find model string
         #
-        kwargs = serialized.get("kwargs", {})
-        model = kwargs.get("model_name", None)
+        kwargs = serialized.get('kwargs', {})
+        model = kwargs.get('model_name', None)
         if model is None:
-            model = kwargs.get("model", None)
+            model = kwargs.get('model', None)
         if model is None:
-            raise BaseException("No model found in serialized or kwargs")
+            raise BaseException('No model found in serialized or kwargs')
 
         hparams = kwargs_to_hparams(kwargs)
-        hparams["model"] = model
+        hparams['model'] = model
 
-        logging.debug(f"hparams: {hparams}")
+        logging.debug(f'hparams: {hparams}')
 
         if len(messages) != 1:
-            raise BaseException("Only support one message at a time")
+            raise BaseException('Only support one message at a time')
 
         # Convert messages to log10 format
         log10_messages = []
         for message in messages[0]:
-            logging.debug(f"message: {message}")
+            logging.debug(f'message: {message}')
             if isinstance(message, HumanMessage):
-                log10_messages.append(Message(role="user", content=message.content))
+                log10_messages.append(Message(role='user', content=message.content))
             elif isinstance(message, AIMessage):
-                log10_messages.append(
-                    Message(role="assistant", content=message.content)
-                )
+                log10_messages.append(Message(role='assistant', content=message.content))
             elif isinstance(message, SystemMessage):
-                log10_messages.append(Message(role="system", content=message.content))
+                log10_messages.append(Message(role='system', content=message.content))
             else:
-                raise BaseException(f"Unknown message type {type(message)}")
+                raise BaseException(f'Unknown message type {type(message)}')
 
         request = {
-            "messages": [message.to_dict() for message in log10_messages],
+            'messages': [message.to_dict() for message in log10_messages],
             **hparams,
         }
-        logging.debug(f"request: {request}")
+        logging.debug(f'request: {request}')
 
-        completion_id = self.log_start(
-            request,
-            Kind.chat,
-        )
+        completion_id = self.log_start(request, Kind.chat,)
 
         self.runs[run_id] = {
-            "kind": Kind.chat,
-            "completion_id": completion_id,
-            "start_time": time.perf_counter(),
-            "model": model,
+            'kind': Kind.chat,
+            'completion_id': completion_id,
+            'start_time': time.perf_counter(),
+            'model': model,
         }
 
-        logging.debug(f"logged start with completion_id: {completion_id}")
+        logging.debug(f'logged start with completion_id: {completion_id}')
 
     def on_llm_end(
         self,
@@ -161,72 +156,65 @@ class Log10Callback(BaseCallbackHandler, LLM):
         # Find run in runs.
         run = self.runs.get(run_id, None)
         if run is None:
-            raise BaseException("Could not find run in runs")
+            raise BaseException('Could not find run in runs')
 
-        if run["kind"] != Kind.chat and run["kind"] != Kind.text:
-            raise BaseException("Only support chat kind")
+        if run['kind'] != Kind.chat and run['kind'] != Kind.text:
+            raise BaseException('Only support chat kind')
 
-        duration = time.perf_counter() - run["start_time"]
+        duration = time.perf_counter() - run['start_time']
 
         # Log end
         if len(response.generations) != 1:
-            raise BaseException("Only support one message at a time")
+            raise BaseException('Only support one message at a time')
         if len(response.generations[0]) != 1:
-            raise BaseException("Only support one message at a time")
+            raise BaseException('Only support one message at a time')
 
         content = response.generations[0][0].text
 
         log10response = {}
-        if run["kind"] == Kind.chat:
+        if run['kind'] == Kind.chat:
             log10response = {
-                "id": str(uuid.uuid4()),
-                "object": "chat.completion",
-                "model": run["model"],
-                "choices": [
+                'id': str(uuid.uuid4()),
+                'object': 'chat.completion',
+                'model': run['model'],
+                'choices': [
                     {
-                        "index": 0,
-                        "message": {"role": "assistant", "content": content},
-                        "finish_reason": "stop",
+                        'index': 0,
+                        'message': {'role': 'assistant', 'content': content},
+                        'finish_reason': 'stop',
                     }
                 ],
             }
-        elif run["kind"] == Kind.text:
+        elif run['kind'] == Kind.text:
             log10response = {
-                "id": str(uuid.uuid4()),
-                "object": "text_completion",
-                "model": run["model"],
-                "choices": [
-                    {
-                        "index": 0,
-                        "text": content,
-                        "logprobs": None,
-                        "finish_reason": "stop",
-                    }
+                'id': str(uuid.uuid4()),
+                'object': 'text_completion',
+                'model': run['model'],
+                'choices': [
+                    {'index': 0, 'text': content, 'logprobs': None, 'finish_reason': 'stop',}
                 ],
             }
 
         # Determine if we can provide usage metrics (token count).
-        logging.debug(f"**** response: {response}")
+        logging.debug(f'**** response: {response}')
         if response.llm_output is not None:
-            token_usage = response.llm_output.get("token_usage")
+            token_usage = response.llm_output.get('token_usage')
             if token_usage is not None:
-                log10response["usage"] = token_usage
+                log10response['usage'] = token_usage
                 logging.debug(f"usage: {log10response['usage']}")
 
         logging.debug(
-            f"**\n**on_llm_end**\n**\n: response:\n {log10response} \n\n rest: {kwargs}"
+            f'**\n**on_llm_end**\n**\n: response:\n {log10response} \n\n rest: {kwargs}'
         )
-        self.log_end(run["completion_id"], log10response, duration)
+        self.log_end(run['completion_id'], log10response, duration)
 
     def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
         """Do nothing."""
-        logging.debug(f"token:\n {token} \n\n rest: {kwargs}")
+        logging.debug(f'token:\n {token} \n\n rest: {kwargs}')
 
-    def on_llm_error(
-        self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any
-    ) -> None:
+    def on_llm_error(self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any) -> None:
         """Do nothing."""
-        logging.debug(f"error:\n {error} \n\n rest: {kwargs}")
+        logging.debug(f'error:\n {error} \n\n rest: {kwargs}')
 
     def on_chain_start(
         self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any
@@ -245,10 +233,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
         pass
 
     def on_tool_start(
-        self,
-        serialized: Dict[str, Any],
-        input_str: str,
-        **kwargs: Any,
+        self, serialized: Dict[str, Any], input_str: str, **kwargs: Any,
     ) -> None:
         """Do nothing."""
         pass
@@ -270,18 +255,12 @@ class Log10Callback(BaseCallbackHandler, LLM):
         """If not the final action, print out observation."""
         pass
 
-    def on_tool_error(
-        self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any
-    ) -> None:
+    def on_tool_error(self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any) -> None:
         """Do nothing."""
         pass
 
     def on_text(
-        self,
-        text: str,
-        color: Optional[str] = None,
-        end: str = "",
-        **kwargs: Any,
+        self, text: str, color: Optional[str] = None, end: str = "", **kwargs: Any,
     ) -> None:
         """Run when agent ends."""
         pass

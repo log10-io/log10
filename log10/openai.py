@@ -18,13 +18,11 @@ class OpenAI(LLM):
 
     @backoff.on_exception(backoff.expo, (RateLimitError, APIConnectionError))
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
-        completion = openai.ChatCompletion.create(
-            **self.chat_request(messages, hparams)
-        )
+        completion = openai.ChatCompletion.create(**self.chat_request(messages, hparams))
 
         return ChatCompletion(
-            role=completion.choices[0]["message"]["role"],
-            content=completion.choices[0]["message"]["content"],
+            role=completion.choices[0]['message']['role'],
+            content=completion.choices[0]['message']['content'],
             response=completion,
         )
 
@@ -35,7 +33,7 @@ class OpenAI(LLM):
                 merged_hparams[hparam] = hparams[hparam]
 
         return {
-            "messages": [message.to_dict() for message in messages],
+            'messages': [message.to_dict() for message in messages],
             **merged_hparams,
         }
 
@@ -50,5 +48,5 @@ class OpenAI(LLM):
         if hparams:
             for hparam in hparams:
                 merged_hparams[hparam] = hparams[hparam]
-        output = {"prompt": prompt, **merged_hparams}
+        output = {'prompt': prompt, **merged_hparams}
         return output

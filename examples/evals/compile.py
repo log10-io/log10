@@ -7,41 +7,39 @@ from log10.tools import code_extractor
 from log10.utils import convert_history_to_claude
 
 # Select one of OpenAI or Anthropic models
-model = "gpt-3.5-turbo"
+model = 'gpt-3.5-turbo'
 # model = "claude-1"
 
-
 llm = None
-if "claude" in model:
-    llm = Anthropic({"model": model})
-elif model == "noop":
+if 'claude' in model:
+    llm = Anthropic({'model': model})
+elif model == 'noop':
     llm = NoopLLM()
 else:
-    llm = OpenAI({"model": model})
-
+    llm = OpenAI({'model': model})
 
 # First, write a hello world program
 messages = [
-    Message(role="system", content="You are an expert C programmer."),
+    Message(role='system', content='You are an expert C programmer.'),
     Message(
-        role="user",
-        content="Write a hello world program. Insert a null character after the hello world",
+        role='user',
+        content='Write a hello world program. Insert a null character after the hello world',
     ),
 ]
 
-completion = llm.chat(messages, {"temperature": 0.2})
+completion = llm.chat(messages, {'temperature': 0.2})
 full_response = completion.content
 
-print(f"Full response\n###\n{full_response}")
+print(f'Full response\n###\n{full_response}')
 
 # Next extract just the C code
-code = code_extractor(full_response, "C", llm)
-print(f"Extracted code\n###\n{code}")
+code = code_extractor(full_response, 'C', llm)
+print(f'Extracted code\n###\n{code}')
 
 # Evaluate if the code compiles
 result = compile(code)
 if result is True:
-    print("Compilation successful")
+    print('Compilation successful')
 else:
-    print("Compilation failed with error:")
+    print('Compilation failed with error:')
     print(result[1])

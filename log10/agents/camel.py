@@ -8,14 +8,20 @@ from typing import List, Tuple
 load_dotenv()
 
 logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - LOG10 - CAMEL - %(message)s",
+    level=logging.DEBUG, format='%(asctime)s - %(levelname)s - LOG10 - CAMEL - %(message)s',
 )
 
 # Repeat word termination conditions
 # https://github.com/lightaime/camel/blob/master/examples/ai_society/role_playing_multiprocess.py#L63
 repeat_word_threshold = 4
-repeat_word_list = ["goodbye", "good bye", "thank", "bye", "welcome", "language model"]
+repeat_word_list = [
+    'goodbye',
+    'good bye',
+    'thank',
+    'bye',
+    'welcome',
+    'language model',
+]
 
 
 def camel_agent(
@@ -105,19 +111,19 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
         if user_prompt is not None:
             user_inception_prompt = user_prompt
 
-        assistant_prompt = f"ASSISTANT PROMPT: \n {assistant_inception_prompt}"
-        user_prompt = f"USER PROMPT: \n {user_inception_prompt}"
+        assistant_prompt = f'ASSISTANT PROMPT: \n {assistant_inception_prompt}'
+        user_prompt = f'USER PROMPT: \n {user_inception_prompt}'
 
         assistant_messages = [
-            Message(role="system", content=assistant_prompt),
-            Message(role="user", content=assistant_prompt),
+            Message(role='system', content=assistant_prompt),
+            Message(role='user', content=assistant_prompt),
         ]
         user_messages = [
-            Message(role="system", content=user_prompt),
+            Message(role='system', content=user_prompt),
             Message(
-                role="user",
+                role='user',
                 content=user_prompt
-                + " Now start to give me instructions one by one. Only reply with Instruction and Input.",
+                + ' Now start to give me instructions one by one. Only reply with Instruction and Input.',
             ),
         ]
         repeat_word_counter = 0
@@ -130,20 +136,16 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
             #
             user_message = llm.chat(user_messages)
             user_messages.append(user_message)
-            assistant_messages.append(
-                Message(role="user", content=user_message.content)
-            )
-            logging.info(f"User turn {i}: {user_message}")
+            assistant_messages.append(Message(role='user', content=user_message.content))
+            logging.info(f'User turn {i}: {user_message}')
 
             #
             # Assistant turn
             #
             assistant_message = llm.chat(assistant_messages)
             assistant_messages.append(assistant_message)
-            user_messages.append(
-                Message(role="user", content=assistant_message.content)
-            )
-            logging.info(f"Assistant turn {i}: {assistant_message}")
+            user_messages.append(Message(role='user', content=assistant_message.content))
+            logging.info(f'Assistant turn {i}: {assistant_message}')
 
             yield (user_messages, assistant_messages)
 
@@ -157,7 +159,7 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
                 ):
                     repeat_word_counter += 1
                     repeated_word_current_turn = True
-                    logging.info(f"Repeat word counter = {repeat_word_counter}")
+                    logging.info(f'Repeat word counter = {repeat_word_counter}')
                     if repeat_word_counter == repeat_word_threshold:
                         repeat_word_threshold_exceeded = True
                     break
@@ -166,22 +168,22 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
                 repeat_word_counter = 0
 
             if (
-                ("CAMEL_TASK_DONE" in user_messages[-2].content)
+                ('CAMEL_TASK_DONE' in user_messages[-2].content)
                 or (i == max_turns - 1)
                 or repeat_word_threshold_exceeded
             ):
                 #
                 # Summary turn
                 #
-                summary_context = "\n".join(
+                summary_context = '\n'.join(
                     [
                         f"{turn.role.capitalize()} ({user_role if turn.role == 'user' else assistant_role}): {turn.content}"
                         for turn in assistant_messages
-                        if turn.role in ["assistant", "user"]
+                        if turn.role in ['assistant', 'user']
                     ]
                 )
 
-                logging.info(f"summary context: {summary_context}")
+                logging.info(f'summary context: {summary_context}')
                 summary_system_prompt = """You are an experienced solution extracting agent.
 Your task is to extract full and complete solutions by looking at the conversation between a user and an assistant with particular specializations.
 You should present me with a final and detailed solution purely based on the conversation.
@@ -196,20 +198,19 @@ Do not attempt to describe the solution, but try to answer in a way such that yo
 Only use the provided context above and no other sources.
 Even if I told you that the task is completed in the context above you should still reply with a complete solution. Never tell me the task is completed or ask for the next request, but instead replay the final solution back to me."""
                 summary_prompt = (
-                    f"Task:{task_prompt}\n" + summary_context + summary_closing_prompt
+                    f'Task:{task_prompt}\n' + summary_context + summary_closing_prompt
                 )
                 summary_messages = [
-                    Message(role="system", content=summary_system_prompt),
+                    Message(role='system', content=summary_system_prompt),
                     Message(
-                        role="user",
-                        content="Here is the conversation: " + summary_prompt,
+                        role='user', content='Here is the conversation: ' + summary_prompt,
                     ),
                 ]
 
-                hparams = {"model": summary_model}
+                hparams = {'model': summary_model}
                 message = llm.chat(summary_messages, hparams)
                 assistant_messages.append(message)
-                user_messages.append(Message(role="user", content=message.content))
+                user_messages.append(Message(role='user', content=message.content))
                 logging.info(message.content)
 
                 # End of conversation
@@ -217,4 +218,4 @@ Even if I told you that the task is completed in the context above you should st
                 break
 
     except Exception as e:
-        logging.error("Error in CAMEL agent: ", e)
+        logging.error('Error in CAMEL agent: ', e)

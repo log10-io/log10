@@ -16,18 +16,17 @@ import openai
 
 log10(openai)
 
-
 # Set up a dummy database
 fake = Faker()
 
 # Create a SQLite database and connect to it
-engine = create_engine("sqlite:///users.db", echo=True)
+engine = create_engine('sqlite:///users.db', echo=True)
 Base = declarative_base()
 
 
 # Define the User class with standard fields and the created_at field
 class User(Base):
-    __tablename__ = "users"
+    __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True)
     username = Column(String, unique=True, nullable=False)
@@ -49,11 +48,7 @@ def generate_random_user():
     last_name = fake.last_name()
     age = random.randint(18, 100)
     return User(
-        username=username,
-        email=email,
-        first_name=first_name,
-        last_name=last_name,
-        age=age,
+        username=username, email=email, first_name=first_name, last_name=last_name, age=age,
     )
 
 
@@ -78,16 +73,14 @@ print(all_users)
 session.close()
 
 # Setup vars for Langchain
-openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.api_key = os.getenv('OPENAI_API_KEY')
 
 # Setup Langchain SQL agent
-db = SQLDatabase.from_uri("sqlite:///users.db")
+db = SQLDatabase.from_uri('sqlite:///users.db')
 toolkit = SQLDatabaseToolkit(db=db)
 
 agent_executor = create_sql_agent(
-    llm=OpenAI(temperature=0, model_name="text-davinci-003"),
-    toolkit=toolkit,
-    verbose=True,
+    llm=OpenAI(temperature=0, model_name='text-davinci-003'), toolkit=toolkit, verbose=True,
 )
 
-print(agent_executor.run("Who is the least recent user?"))
+print(agent_executor.run('Who is the least recent user?'))
