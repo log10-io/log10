@@ -8,7 +8,7 @@ import traceback
 Role = Enum("Role", ["system", "assistant", "user"])
 Kind = Enum("Kind", ["chat", "text"])
 
-from typing import List
+from typing import List, Optional
 
 import json
 
@@ -27,7 +27,14 @@ class Log10Config:
         self.url = url if url else os.getenv("LOG10_URL")
         self.token = token if token else os.getenv("LOG10_TOKEN")
         self.org_id = org_id if org_id else os.getenv("LOG10_ORG_ID")
-        self.tags = tags if tags else os.getenv("LOG10_TAGS", "").split(",")
+
+        # Get tags from env, if not set, use empty list
+        if tags:
+            self.tags = tags
+        elif os.getenv("LOG10_TAGS") is not None:
+            self.tags = os.getenv("LOG10_TAGS").split(",")
+        else:
+            self.tags = []
 
 
 class Message(ABC):
@@ -142,7 +149,7 @@ class LLM(ABC):
         )
 
     # Save the start of a completion in **openai request format**.
-    def log_start(self, request, kind: Kind):
+    def log_start(self, request, kind: Kind, tags: Optional[List[str]] = None):
         if not self.log10_config:
             return None
 
@@ -150,6 +157,12 @@ class LLM(ABC):
             "/api/completions", "POST", {"organization_id": self.log10_config.org_id}
         )
         completion_id = res.json()["completionID"]
+
+        # merge tags
+        if tags:
+            tags = list(set(tags + self.log10_config.tags))
+        else:
+            tags = self.log10_config.tags
 
         res = self.api_request(
             f"/api/completions/{completion_id}",
@@ -165,7 +178,7 @@ class LLM(ABC):
                 if kind == Kind.text
                 else "ChatCompletion.create",
                 "status": "started",
-                "tags": self.log10_config.tags,
+                "tags": tags,
                 "request": json.dumps(request),
             },
         )
