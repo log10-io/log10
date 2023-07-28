@@ -55,7 +55,6 @@ class Log10Callback(BaseCallbackHandler, LLM):
         logging.debug(
             f"**\n**on_llm_start**\n**\n: serialized:\n {serialized} \n\n prompts:\n {prompts} \n\n rest: {kwargs}"
         )
-
         kwargs = serialized.get("kwargs", {})
         hparams = kwargs_to_hparams(kwargs)
 
@@ -72,7 +71,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
 
         logging.debug(f"request: {request}")
 
-        completion_id = self.log_start(request, Kind.text)
+        completion_id = self.log_start(request, Kind.text, tags)
 
         self.runs[run_id] = {
             "kind": Kind.text,
@@ -137,6 +136,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
         completion_id = self.log_start(
             request,
             Kind.chat,
+            tags,
         )
 
         self.runs[run_id] = {
