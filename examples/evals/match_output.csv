@@ -1,0 +1,20 @@
+input,ideal,model_completion,metric
+"[{""role"": ""system"", ""content"": ""Complete the phrase as concisely as possible.""}, {""role"": ""user"", ""content"": ""Once upon a ""}]",time,"{""role"": ""assistant"", ""content"": ""time.""}",True
+"[{""role"": ""system"", ""content"": ""Complete the phrase as concisely as possible.""}, {""role"": ""user"", ""content"": ""The first US president was ""}]",George Washington,"{""role"": ""assistant"", ""content"": ""George Washington.""}",True
+"[{""role"": ""system"", ""content"": ""Complete the phrase as concisely as possible.""}, {""role"": ""user"", ""content"": ""OpenAI was founded in 20""}]",15,"{""role"": ""assistant"", ""content"": ""15.""}",True
+input,ideal,model_completion,metric
+"[{""role"": ""system"", ""content"": ""Complete the phrase as concisely as possible.""}, {""role"": ""user"", ""content"": ""Once upon a ""}]",time,"{""role"": ""assistant"", ""content"": ""time.""}",True
+"[{""role"": ""system"", ""content"": ""Complete the phrase as concisely as possible.""}, {""role"": ""user"", ""content"": ""The first US president was ""}]",George Washington,"{""role"": ""assistant"", ""content"": ""George Washington.""}",True
+"[{""role"": ""system"", ""content"": ""Complete the phrase as concisely as possible.""}, {""role"": ""user"", ""content"": ""OpenAI was founded in 20""}]",15,"{""role"": ""assistant"", ""content"": ""15.""}",True
+input,ideal,model_completion,metric
+"[{""role"": ""system"", ""content"": ""Complete the phrase as concisely as possible.""}, {""role"": ""user"", ""content"": ""Once upon a ""}]",time,"{""role"": ""assistant"", ""content"": ""time.""}",True
+"[{""role"": ""system"", ""content"": ""Complete the phrase as concisely as possible.""}, {""role"": ""user"", ""content"": ""The first US president was ""}]",George Washington,"{""role"": ""assistant"", ""content"": ""George Washington.""}",True
+"[{""role"": ""system"", ""content"": ""Complete the phrase as concisely as possible.""}, {""role"": ""user"", ""content"": ""OpenAI was founded in 20""}]",15,"{""role"": ""assistant"", ""content"": ""15.""}",True
+input,ideal,model_completion,metric
+"[{""role"": ""system"", ""content"": ""Complete the phrase as concisely as possible.""}, {""role"": ""user"", ""content"": ""Once upon a ""}]",time,"{""role"": ""assistant"", ""content"": ""time.""}",True
+"[{""role"": ""system"", ""content"": ""Complete the phrase as concisely as possible.""}, {""role"": ""user"", ""content"": ""The first US president was ""}]",George Washington,"{""role"": ""assistant"", ""content"": ""George Washington.""}",True
+"[{""role"": ""system"", ""content"": ""Complete the phrase as concisely as possible.""}, {""role"": ""user"", ""content"": ""OpenAI was founded in 20""}]",15,"{""role"": ""assistant"", ""content"": ""15.""}",True
+input,ideal,model_completion,metric
+"[{""role"": ""system"", ""content"": ""Complete the phrase as concisely as possible.""}, {""role"": ""user"", ""content"": ""Once upon a ""}]",time,"{""role"": ""assistant"", ""content"": ""time.""}",True
+"[{""role"": ""system"", ""content"": ""Complete the phrase as concisely as possible.""}, {""role"": ""user"", ""content"": ""The first US president was ""}]",George Washington,"{""role"": ""assistant"", ""content"": ""George Washington.""}",True
+"[{""role"": ""system"", ""content"": ""Complete the phrase as concisely as possible.""}, {""role"": ""user"", ""content"": ""OpenAI was founded in 20""}]",15,"{""role"": ""assistant"", ""content"": ""15.""}",True

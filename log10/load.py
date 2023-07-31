@@ -63,8 +63,9 @@ global_tags = []
 
 class log10_session:
     def __init__(self, tags=None):
+         self.tags = tags
+
          if tags is not None:
-            self.tags = tags
             global global_tags
             global_tags = tags
 

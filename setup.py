@@ -15,6 +15,9 @@ setup(
         "openai",
         "python-dotenv",
     ],
+    dev_requires=[
+        "chromadb"
+    ],
     extras_require={
         "bigquery": ["google-cloud-bigquery"],
     },

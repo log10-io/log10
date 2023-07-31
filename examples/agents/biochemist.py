@@ -10,9 +10,7 @@ from log10.load import log10
 load_dotenv()
 
 # Select one of OpenAI or Anthropic models
-# model = "noop"
-model = "gpt-3.5-turbo-16k"
-# model = "claude-1"
+model = os.environ.get("LOG10_EXAMPLES_MODEL", "gpt-3.5-turbo-16k")
 max_turns = 30
 
 llm = None

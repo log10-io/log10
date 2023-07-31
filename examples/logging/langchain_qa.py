@@ -12,7 +12,7 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Load Your Documents
 from langchain.document_loaders import TextLoader
-loader = TextLoader('../state_of_the_union.txt')
+loader = TextLoader('./examples/logging/state_of_the_union.txt')
 
 # Create Your Index
 from langchain.indexes import VectorstoreIndexCreator

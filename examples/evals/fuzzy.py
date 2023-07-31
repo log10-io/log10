@@ -1,6 +1,6 @@
 import os
-from log10.llm import Anthropic, OpenAI
-from log10.load import log10
+from log10.openai import OpenAI
+from log10.anthropic import Anthropic
 from log10.evals import eval
 
 # Choose provider
