@@ -23,7 +23,7 @@ token = os.environ.get("LOG10_TOKEN")
 org_id = os.environ.get("LOG10_ORG_ID")
 
 # log10, bigquery
-target_service = os.environ.get("LOG10_DATA_STORE")
+target_service = os.environ.get("LOG10_DATA_STORE", "log10")
 
 if target_service == "bigquery":
     from log10.bigquery import initialize_bigquery
@@ -59,9 +59,16 @@ def get_session_id():
 # Global variable to store the current sessionID.
 sessionID = get_session_id()
 last_completion_response = None
-
+global_tags = []
 
 class log10_session:
+    def __init__(self, tags=None):
+         self.tags = tags
+
+         if tags is not None:
+            global global_tags
+            global_tags = tags
+
     def __enter__(self):
         global sessionID
         global last_completion_response
@@ -76,6 +83,9 @@ class log10_session:
         return url + '/app/' + last_completion_response['organizationSlug'] + '/completions/' + last_completion_response['completionID']
 
     def __exit__(self, exc_type, exc_value, traceback):
+        if self.tags is not None:
+            global global_tags
+            global_tags = None
         return
 
 
@@ -121,7 +131,8 @@ async def log_async(completion_url, func, **kwargs):
             "orig_qualname": func.__qualname__,
             "request": json.dumps(kwargs),
             "session_id": sessionID,
-            "organization_id": org_id
+            "organization_id": org_id,
+            "tags": global_tags
         }
         if target_service == "log10":
             res = requests.request("POST",
@@ -164,7 +175,8 @@ def log_sync(completion_url, func, **kwargs):
                                "orig_qualname": func.__qualname__,
                                "request": json.dumps(kwargs),
                                "session_id": sessionID,
-                               "organization_id": org_id
+                               "organization_id": org_id,
+                               "tags": global_tags
                            })
     return completionID
 

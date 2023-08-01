@@ -17,5 +17,6 @@ setup(
     ],
     extras_require={
         "bigquery": ["google-cloud-bigquery"],
+        "dev": ["chromadb"],
     },
 )

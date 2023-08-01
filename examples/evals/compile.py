@@ -4,7 +4,6 @@ from log10.load import log10
 from log10.evals import compile
 from log10.openai import OpenAI
 from log10.tools import code_extractor
-from log10.utils import convert_history_to_claude
 
 # Select one of OpenAI or Anthropic models
 model = "gpt-3.5-turbo"
@@ -14,10 +13,13 @@ model = "gpt-3.5-turbo"
 llm = None
 if "claude" in model:
     llm = Anthropic({"model": model})
+    extraction_model = "claude-1-100k"
 elif model == "noop":
     llm = NoopLLM()
+    extraction_model = "noop"
 else:
     llm = OpenAI({"model": model})
+    extraction_model = "gpt-4"
 
 
 # First, write a hello world program
@@ -35,7 +37,7 @@ full_response = completion.content
 print(f"Full response\n###\n{full_response}")
 
 # Next extract just the C code
-code = code_extractor(full_response, "C", llm)
+code = code_extractor(full_response, "C", extraction_model, llm)
 print(f"Extracted code\n###\n{code}")
 
 # Evaluate if the code compiles
