@@ -1,0 +1,16 @@
+name: "Unit tests"
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main, staging]
+
+jobs:
+  jest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run examples
+        run: make examples
