@@ -26,6 +26,7 @@ jobs:
         with:
           python-version: ${{env.PYTHON_VERSION}}
           cache: 'poetry'
+          architecture: 'x64'
       - name: Install
         run: poetry install
       - name: Build
