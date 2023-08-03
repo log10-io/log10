@@ -100,6 +100,8 @@ class TextCompletion(Completion):
 
 
 class LLM(ABC):
+    last_completion_response = None
+
     def __init__(self, hparams: dict = None, log10_config: Log10Config = None):
         self.log10_config = log10_config
         self.hparams = hparams
@@ -124,6 +126,12 @@ class LLM(ABC):
                     f"Failed to start session with {session_url} using token {self.log10_config.token}. Won't be able to log. {e}"
                 )
                 self.log10_config = None
+
+    def last_completion_url(self):
+        if self.last_completion_response is None:
+            return None
+
+        return self.log10_config.url + '/app/' + self.last_completion_response['organizationSlug'] + '/completions/' + self.last_completion_response['completionID']
 
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
         raise Exception("Not implemented")
@@ -156,6 +164,7 @@ class LLM(ABC):
         res = self.api_request(
             "/api/completions", "POST", {"organization_id": self.log10_config.org_id}
         )
+        self.last_completion_response = res.json()
         completion_id = res.json()["completionID"]
 
         # merge tags
