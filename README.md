@@ -34,6 +34,42 @@ Prompt chains such as those in [Langchain](https://github.com/hwchase17/langchai
 
 Log all your OpenAI calls to compare and find the best prompts, store feedback, collect latency and usage metrics, and perform analytics and compliance monitoring of LLM powered features.
 
+You can log any openai (as [shown above](#🤔-what-is-this)) or anthropic based application using the library wrappers from log10:
+
+```python
+import os
+from log10.load import log10
+import anthropic
+import os
+
+log10(anthropic)
+anthropicClient = anthropic.Client()
+# anthropic calls are now logged
+```
+
+This will log any LLM call through the process execution.
+
+If you want to log other LLMs, you can use LangChain's LLM abstraction with the log10 logger:
+
+```python
+from langchain.chat_models import ChatOpenAI
+from langchain.schema import HumanMessage
+
+from log10.langchain import Log10Callback
+from log10.llm import Log10Config
+
+log10_callback = Log10Callback(log10_config=Log10Config())
+
+messages = [
+    HumanMessage(content="You are a ping pong machine"),
+    HumanMessage(content="Ping?"),
+]
+
+llm = ChatOpenAI(model_name="gpt-3.5-turbo", callbacks=[log10_callback])
+```
+
+Read more here for options for logging using library wrapper, langhchain callback logger and how to apply log10 tags [here](./logging.md).
+
 **💿🧩 Flexible data store**
 
 log10 provides a managed data store, but if you'd prefer to manage data in your own environment, you can use data stores like google big query.
@@ -69,6 +105,7 @@ Create flexible groups to share and collaborate over all of the above features
 - `LOG10_TOKEN`: From the Settings tab in log10.io
 - `LOG10_ORG_ID`: From the Organization tab in log10.io
 - `OPENAI_API_KEY`: OpenAI API key
+- `ANTHROPIC_API_KEY`: Anthropic API key
 
 ## 💬 Community
 
