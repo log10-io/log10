@@ -23,10 +23,12 @@ class Log10Config:
         token: str = None,
         org_id: str = None,
         tags: List[str] = None,
+        DEBUG: bool = False,
     ):
         self.url = url if url else os.getenv("LOG10_URL")
         self.token = token if token else os.getenv("LOG10_TOKEN")
         self.org_id = org_id if org_id else os.getenv("LOG10_ORG_ID")
+        self.DEBUG = DEBUG
 
         # Get tags from env, if not set, use empty list
         if tags:

@@ -13,6 +13,8 @@ from log10.llm import LLM, Kind, Message
 
 import logging
 
+logger = logging.getLogger("log10")
+
 def kwargs_to_hparams(kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """Convert kwargs to hparams."""
     hparams = {}
@@ -41,6 +43,11 @@ class Log10Callback(BaseCallbackHandler, LLM):
         super().__init__(log10_config=log10_config, hparams=None)
         self.runs = {}
 
+        if log10_config.DEBUG:
+            logger.setLevel(logging.DEBUG)
+        else:
+            logger.setLevel(logging.INFO)
+
     def on_llm_start(
         self,
         serialized: Dict[str, Any],
@@ -52,7 +59,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
         **kwargs: Any,
     ) -> None:
         """Print out the prompts."""
-        logging.debug(
+        logger.debug(
             f"**\n**on_llm_start**\n**\n: serialized:\n {serialized} \n\n prompts:\n {prompts} \n\n rest: {kwargs}"
         )
         kwargs = serialized.get("kwargs", {})
@@ -69,7 +76,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
 
         request = {"model": model, "prompt": prompts[0], **hparams}
 
-        logging.debug(f"request: {request}")
+        logger.debug(f"request: {request}")
 
         completion_id = self.log_start(request, Kind.text, tags)
 
@@ -90,7 +97,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
         tags: Optional[List[str]] = None,
         **kwargs: Any,
     ) -> None:
-        logging.debug(
+        logger.debug(
             f"**\n**on_chat_model_start**\n**\n: run_id:{run_id}\nserialized:\n{serialized}\n\nmessages:\n{messages}\n\nkwargs: {kwargs}"
         )
 
@@ -107,7 +114,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
         hparams = kwargs_to_hparams(kwargs)
         hparams["model"] = model
 
-        logging.debug(f"hparams: {hparams}")
+        logger.debug(f"hparams: {hparams}")
 
         if len(messages) != 1:
             raise BaseException("Only support one message at a time")
@@ -115,7 +122,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
         # Convert messages to log10 format
         log10_messages = []
         for message in messages[0]:
-            logging.debug(f"message: {message}")
+            logger.debug(f"message: {message}")
             if isinstance(message, HumanMessage):
                 log10_messages.append(Message(role="user", content=message.content))
             elif isinstance(message, AIMessage):
@@ -131,7 +138,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
             "messages": [message.to_dict() for message in log10_messages],
             **hparams,
         }
-        logging.debug(f"request: {request}")
+        logger.debug(f"request: {request}")
 
         completion_id = self.log_start(
             request,
@@ -146,7 +153,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
             "model": model,
         }
 
-        logging.debug(f"logged start with completion_id: {completion_id}")
+        logger.debug(f"logged start with completion_id: {completion_id}")
 
     def on_llm_end(
         self,
@@ -205,27 +212,27 @@ class Log10Callback(BaseCallbackHandler, LLM):
             }
 
         # Determine if we can provide usage metrics (token count).
-        logging.debug(f"**** response: {response}")
+        logger.debug(f"**** response: {response}")
         if response.llm_output is not None:
             token_usage = response.llm_output.get("token_usage")
             if token_usage is not None:
                 log10response["usage"] = token_usage
-                logging.debug(f"usage: {log10response['usage']}")
+                logger.debug(f"usage: {log10response['usage']}")
 
-        logging.debug(
+        logger.debug(
             f"**\n**on_llm_end**\n**\n: response:\n {log10response} \n\n rest: {kwargs}"
         )
         self.log_end(run["completion_id"], log10response, duration)
 
     def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
         """Do nothing."""
-        logging.debug(f"token:\n {token} \n\n rest: {kwargs}")
+        logger.debug(f"token:\n {token} \n\n rest: {kwargs}")
 
     def on_llm_error(
         self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any
     ) -> None:
         """Do nothing."""
-        logging.debug(f"error:\n {error} \n\n rest: {kwargs}")
+        logger.debug(f"error:\n {error} \n\n rest: {kwargs}")
 
     def on_chain_start(
         self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any
