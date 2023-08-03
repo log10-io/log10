@@ -59,7 +59,7 @@ with log10_session():
 
 ### Tags
 
-One useful way to organize your LLM logs is using tags. Tags are strings which can be used to filter and select logs in [log10.io](https://log10.io).
+One useful way to organize your LLM logs is using tags. Tags are strings which can be used to filter and select logs in [log10.io](https://log10.io). See [here](https://log10.io/docs/logs) for more information about tags.
 
 You can add tags using the session scope:
 
