@@ -68,7 +68,7 @@ messages = [
 llm = ChatOpenAI(model_name="gpt-3.5-turbo", callbacks=[log10_callback])
 ```
 
-Read more here for options for logging using library wrapper, langhchain callback logger and how to apply log10 tags [here](./logging.md).
+Read more here for options for logging using library wrapper, langchain callback logger and how to apply log10 tags [here](./logging.md).
 
 **💿🧩 Flexible data store**
 
