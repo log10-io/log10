@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="Log10",
-    version="0.2.7",
+    version="0.2.8",
     description="Log10 LLM data management",
     author="Log10 team",
     author_email="team@log10.io",
