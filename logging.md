@@ -42,7 +42,7 @@ anthropicClient = anthropic.Client()
 ### Sessions
 
 To aid debugging across chains and tools, log10 creates a session id when the library is loaded.
-To create several sessions within the same process, you can use the `log10_session`` context like this:
+To create several sessions within the same process, you can use the `log10_session` context like this:
 
 ```python
 from log10.load import log10, log10_session
