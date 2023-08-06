@@ -10,6 +10,7 @@ import logging
 import backoff
 from openai.error import RateLimitError, APIConnectionError
 import openai
+import litellm
 
 
 class OpenAI(LLM):
@@ -18,7 +19,8 @@ class OpenAI(LLM):
 
     @backoff.on_exception(backoff.expo, (RateLimitError, APIConnectionError))
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
-        completion = openai.ChatCompletion.create(
+        # pass in any model listed here: https://litellm.readthedocs.io/en/latest/supported/
+        completion = litellm.completion(
             **self.chat_request(messages, hparams)
         )
 
