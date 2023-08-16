@@ -15,13 +15,23 @@ messages = [
     HumanMessage(content="Ping?"),
 ]
 
-llm = ChatOpenAI(model_name="gpt-3.5-turbo", callbacks=[log10_callback], temperature=0.5, tags=["test"])
+llm = ChatOpenAI(
+    model_name="gpt-3.5-turbo",
+    callbacks=[log10_callback],
+    temperature=0.5,
+    tags=["test"],
+)
 completion = llm.predict_messages(messages, tags=["foobar"])
 print(completion)
 
 print(log10_callback.last_completion_url())
 
-llm = ChatOpenAI(model_name="gpt-3.5-turbo", callbacks=[log10_callback], temperature=0.5, tags=["test"])
+llm = ChatOpenAI(
+    model_name="gpt-3.5-turbo",
+    callbacks=[log10_callback],
+    temperature=0.5,
+    tags=["test"],
+)
 messages.append(HumanMessage(content="Pong!"))
 completion = llm.predict_messages(messages, tags=["foobar"])
 print(completion)

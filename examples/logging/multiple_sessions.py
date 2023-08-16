@@ -23,8 +23,7 @@ with log10_session():
         template="Write a catchphrase for the following company: {company_name}",
     )
     chain_two = LLMChain(llm=llm, prompt=second_prompt)
-    overall_chain = SimpleSequentialChain(
-        chains=[chain, chain_two], verbose=True)
+    overall_chain = SimpleSequentialChain(chains=[chain, chain_two], verbose=True)
     # Run the chain specifying only the input variable for the first chain.
     catchphrase = overall_chain.run("colorful socks")
     print(catchphrase)
@@ -44,7 +43,8 @@ with log10_session():
     chain_four = LLMChain(llm=llm, prompt=fourth_prompt)
 
     overall_chain_two = SimpleSequentialChain(
-        chains=[chain_three, chain_four], verbose=True)
+        chains=[chain_three, chain_four], verbose=True
+    )
 
     # Run the chain specifying only the input variable for the first chain.
     catchphrase_two = overall_chain_two.run("April")
