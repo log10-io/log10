@@ -100,6 +100,9 @@ class TextCompletion(Completion):
     def text(self) -> str:
         return self._text
 
+    def __str__(self) -> str:
+        return self._text
+
 
 class LLM(ABC):
     last_completion_response = None
@@ -133,7 +136,13 @@ class LLM(ABC):
         if self.last_completion_response is None:
             return None
 
-        return self.log10_config.url + '/app/' + self.last_completion_response['organizationSlug'] + '/completions/' + self.last_completion_response['completionID']
+        return (
+            self.log10_config.url
+            + "/app/"
+            + self.last_completion_response["organizationSlug"]
+            + "/completions/"
+            + self.last_completion_response["completionID"]
+        )
 
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
         raise Exception("Not implemented")
