@@ -1,7 +1,7 @@
-import os
+import time
 from copy import deepcopy
 from typing import List
-from log10.llm import LLM, ChatCompletion, Message, TextCompletion
+from log10.llm import LLM, ChatCompletion, Kind, Message, TextCompletion
 
 
 from anthropic import HUMAN_PROMPT, AI_PROMPT
@@ -27,9 +27,16 @@ class Anthropic(LLM):
 
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
         chat_request = self.chat_request(messages, hparams)
-        completion = self.client.completions.create(
-            **chat_request
-        )
+
+        openai_request = {
+            "messages": [message.to_dict() for message in messages],
+            **chat_request,
+        }
+
+        completion_id = self.log_start(openai_request, Kind.chat)
+
+        start_time = time.perf_counter()
+        completion = self.client.completions.create(**chat_request)
         content = completion.completion
 
         reason = "stop"
@@ -52,8 +59,14 @@ class Anthropic(LLM):
                     "finish_reason": reason,
                 }
             ],
-            "usage": tokens_usage
+            "usage": tokens_usage,
         }
+
+        self.log_end(
+            completion_id,
+            response,
+            time.perf_counter() - start_time,
+        )
 
         return ChatCompletion(role="assistant", content=content, response=response)
 
@@ -70,9 +83,15 @@ class Anthropic(LLM):
 
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
         text_request = self.text_request(prompt, hparams)
-        completion = self.client.completions.create(
-            **text_request
-        )
+
+        openai_request = {
+            **text_request,
+            "prompt": prompt,
+        }
+
+        start_time = time.perf_counter()
+        completion_id = self.log_start(openai_request, Kind.text)
+        completion = self.client.completions.create(**text_request)
         text = completion.completion
 
         # Imitate OpenAI reponse format.
@@ -97,8 +116,15 @@ class Anthropic(LLM):
                     "finish_reason": reason,
                 }
             ],
-            "usage": tokens_usage
+            "usage": tokens_usage,
         }
+
+        self.log_end(
+            completion_id,
+            response,
+            time.perf_counter() - start_time,
+        )
+
         logging.info("Returning text completion")
         return TextCompletion(text=text, response=response)
 
@@ -137,5 +163,5 @@ class Anthropic(LLM):
         return {
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
-            "total_tokens": total_tokens
+            "total_tokens": total_tokens,
         }
