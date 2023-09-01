@@ -2,7 +2,7 @@ from copy import deepcopy
 import time
 from typing import List
 import openai
-from log10.llm import LLM, ChatCompletion, Message, TextCompletion
+from log10.llm import LLM, ChatCompletion, Kind, Message, TextCompletion
 
 import logging
 
@@ -18,15 +18,26 @@ class OpenAI(LLM):
 
     @backoff.on_exception(backoff.expo, (RateLimitError, APIConnectionError))
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
-        completion = openai.ChatCompletion.create(
-            **self.chat_request(messages, hparams)
-        )
+        request = self.chat_request(messages, hparams)
 
-        return ChatCompletion(
+        start_time = time.perf_counter()
+        completion = openai.ChatCompletion.create(**request)
+
+        self.completion_id = self.log_start(request, Kind.chat)
+
+        response = ChatCompletion(
             role=completion.choices[0]["message"]["role"],
             content=completion.choices[0]["message"]["content"],
             response=completion,
         )
+
+        self.log_end(
+            self.completion_id,
+            completion,
+            time.perf_counter() - start_time,
+        )
+
+        return response
 
     def chat_request(self, messages: List[Message], hparams: dict = None) -> dict:
         merged_hparams = deepcopy(self.hparams)
@@ -42,8 +53,20 @@ class OpenAI(LLM):
     @backoff.on_exception(backoff.expo, (RateLimitError, APIConnectionError))
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
         request = self.text_request(prompt, hparams)
+
+        start_time = time.perf_counter()
+        completion_id = self.log_start(request, Kind.text)
+
         completion = openai.Completion.create(**request)
-        return TextCompletion(text=completion.choices[0].text, response=completion)
+        response = TextCompletion(text=completion.choices[0].text, response=completion)
+
+        self.log_end(
+            completion_id,
+            completion,
+            time.perf_counter() - start_time,
+        )
+
+        return response
 
     def text_request(self, prompt: str, hparams: dict = None) -> dict:
         merged_hparams = deepcopy(self.hparams)
