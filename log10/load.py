@@ -27,6 +27,7 @@ target_service = os.environ.get("LOG10_DATA_STORE", "log10")
 
 if target_service == "bigquery":
     from log10.bigquery import initialize_bigquery
+
     bigquery_client, bigquery_table = initialize_bigquery()
     import uuid
     from datetime import datetime, timezone
@@ -45,15 +46,21 @@ def get_session_id():
 
     try:
         session_url = url + "/api/sessions"
-        res = requests.request("POST",
-                               session_url, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
-                                   "organization_id": org_id
-                               })
+        res = requests.request(
+            "POST",
+            session_url,
+            headers={"x-log10-token": token, "Content-Type": "application/json"},
+            json={"organization_id": org_id},
+        )
 
-        return res.json()['sessionID']
+        return res.json()["sessionID"]
     except Exception as e:
-        raise Exception("Failed to create LOG10 session: " + str(e) + "\nLikely cause: LOG10 env vars missing or not picked up correctly!" +
-                        "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details")
+        raise Exception(
+            "Failed to create LOG10 session: "
+            + str(e)
+            + "\nLikely cause: LOG10 env vars missing or not picked up correctly!"
+            + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
+        )
 
 
 # Global variable to store the current sessionID.
@@ -61,11 +68,12 @@ sessionID = get_session_id()
 last_completion_response = None
 global_tags = []
 
+
 class log10_session:
     def __init__(self, tags=None):
-         self.tags = tags
+        self.tags = tags
 
-         if tags is not None:
+        if tags is not None:
             global global_tags
             global_tags = tags
 
@@ -80,7 +88,13 @@ class log10_session:
         if last_completion_response is None:
             return None
 
-        return url + '/app/' + last_completion_response['organizationSlug'] + '/completions/' + last_completion_response['completionID']
+        return (
+            url
+            + "/app/"
+            + last_completion_response["organizationSlug"]
+            + "/completions/"
+            + last_completion_response["completionID"]
+        )
 
     def __exit__(self, exc_type, exc_value, traceback):
         if self.tags is not None:
@@ -98,15 +112,16 @@ def timed_block(block_name):
         finally:
             elapsed_time = time.perf_counter() - start_time
             logging.debug(
-                f"TIMED BLOCK - {block_name} took {elapsed_time:.6f} seconds to execute.")
+                f"TIMED BLOCK - {block_name} took {elapsed_time:.6f} seconds to execute."
+            )
     else:
         yield
 
 
 def log_url(res, completionID):
     output = res.json()
-    organizationSlug = output['organizationSlug']
-    full_url = url + '/app/' + organizationSlug + '/completions/' + completionID
+    organizationSlug = output["organizationSlug"]
+    full_url = url + "/app/" + organizationSlug + "/completions/" + completionID
     logging.debug(f"LOG10: Completion URL: {full_url}")
 
 
@@ -114,13 +129,15 @@ async def log_async(completion_url, func, **kwargs):
     async with ClientSession() as session:
         global last_completion_response
 
-        res = requests.request("POST",
-                               completion_url, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
-                                   "organization_id": org_id
-                               })
+        res = requests.request(
+            "POST",
+            completion_url,
+            headers={"x-log10-token": token, "Content-Type": "application/json"},
+            json={"organization_id": org_id},
+        )
         # todo: handle session id for bigquery scenario
         last_completion_response = res.json()
-        completionID = res.json()['completionID']
+        completionID = res.json()["completionID"]
 
         if DEBUG:
             log_url(res, completionID)
@@ -132,14 +149,15 @@ async def log_async(completion_url, func, **kwargs):
             "request": json.dumps(kwargs),
             "session_id": sessionID,
             "organization_id": org_id,
-            "tags": global_tags
+            "tags": global_tags,
         }
         if target_service == "log10":
-            res = requests.request("POST",
-                                   completion_url + "/" + completionID,
-                                   headers={"x-log10-token": token,
-                                            "Content-Type": "application/json"},
-                                   json=log_row)
+            res = requests.request(
+                "POST",
+                completion_url + "/" + completionID,
+                headers={"x-log10-token": token, "Content-Type": "application/json"},
+                json=log_row,
+            )
         elif target_service == "bigquery":
             pass
             # NOTE: We only save on request finalization.
@@ -148,36 +166,38 @@ async def log_async(completion_url, func, **kwargs):
 
 
 def run_async_in_thread(completion_url, func, result_queue, **kwargs):
-    result = asyncio.run(
-        log_async(completion_url=completion_url, func=func, **kwargs))
+    result = asyncio.run(log_async(completion_url=completion_url, func=func, **kwargs))
     result_queue.put(result)
 
 
 def log_sync(completion_url, func, **kwargs):
     global last_completion_response
-    res = requests.request("POST",
-                           completion_url, headers={"x-log10-token": token, "Content-Type": "application/json"}, json={
-                               "organization_id": org_id
-                           })
+    res = requests.request(
+        "POST",
+        completion_url,
+        headers={"x-log10-token": token, "Content-Type": "application/json"},
+        json={"organization_id": org_id},
+    )
 
     last_completion_response = res.json()
-    completionID = res.json()['completionID']
+    completionID = res.json()["completionID"]
     if DEBUG:
         log_url(res, completionID)
-    res = requests.request("POST",
-                           completion_url + "/" + completionID,
-                           headers={"x-log10-token": token,
-                                    "Content-Type": "application/json"},
-                           json={
-                               # do we want to also store args?
-                               "status": "started",
-                               "orig_module": func.__module__,
-                               "orig_qualname": func.__qualname__,
-                               "request": json.dumps(kwargs),
-                               "session_id": sessionID,
-                               "organization_id": org_id,
-                               "tags": global_tags
-                           })
+    res = requests.request(
+        "POST",
+        completion_url + "/" + completionID,
+        headers={"x-log10-token": token, "Content-Type": "application/json"},
+        json={
+            # do we want to also store args?
+            "status": "started",
+            "orig_module": func.__module__,
+            "orig_qualname": func.__qualname__,
+            "request": json.dumps(kwargs),
+            "session_id": sessionID,
+            "organization_id": org_id,
+            "tags": global_tags,
+        },
+    )
     return completionID
 
 
@@ -191,23 +211,35 @@ def intercepting_decorator(func):
         try:
             with timed_block(sync_log_text + " call duration"):
                 if USE_ASYNC:
-                    threading.Thread(target=run_async_in_thread, kwargs={
-                        "completion_url": completion_url, "func": func, "result_queue": result_queue, **kwargs}).start()
+                    threading.Thread(
+                        target=run_async_in_thread,
+                        kwargs={
+                            "completion_url": completion_url,
+                            "func": func,
+                            "result_queue": result_queue,
+                            **kwargs,
+                        },
+                    ).start()
                 else:
                     completionID = log_sync(
-                        completion_url=completion_url, func=func, **kwargs)
+                        completion_url=completion_url, func=func, **kwargs
+                    )
 
             current_stack_frame = traceback.extract_stack()
-            stacktrace = ([{"file": frame.filename,
-                          "line": frame.line,
-                           "lineno": frame.lineno,
-                            "name": frame.name} for frame in current_stack_frame])
+            stacktrace = [
+                {
+                    "file": frame.filename,
+                    "line": frame.line,
+                    "lineno": frame.lineno,
+                    "name": frame.name,
+                }
+                for frame in current_stack_frame
+            ]
 
             start_time = time.perf_counter()
             output = func_with_backoff(func, *args, **kwargs)
             duration = time.perf_counter() - start_time
-            logging.debug(
-                f"LOG10: TIMED BLOCK - LLM call duration: {duration}")
+            logging.debug(f"LOG10: TIMED BLOCK - LLM call duration: {duration}")
 
             if USE_ASYNC:
                 with timed_block("extra time spent waiting for log10 call"):
@@ -218,36 +250,41 @@ def intercepting_decorator(func):
             with timed_block("result call duration (sync)"):
                 # Adjust the Anthropic output to match OAI completion output
                 if func.__qualname__ == "Client.completion":
-                    output['choices'] = [{
-                        'text': output['completion'],
-                        'index': 0,
-                    }]
+                    output["choices"] = [
+                        {
+                            "text": output["completion"],
+                            "index": 0,
+                        }
+                    ]
                     log_row = {
                         "response": json.dumps(output),
                         "status": "finished",
-                        "duration": int(duration*1000),
+                        "duration": int(duration * 1000),
                         "stacktrace": json.dumps(stacktrace),
-                        "kind": "completion"
+                        "kind": "completion",
                     }
                 else:
                     log_row = {
                         "response": json.dumps(output),
                         "status": "finished",
-                        "duration": int(duration*1000),
-                        "stacktrace": json.dumps(stacktrace)
+                        "duration": int(duration * 1000),
+                        "stacktrace": json.dumps(stacktrace),
                     }
 
                 if target_service == "log10":
-                    res = requests.request("POST",
-                                           completion_url + "/" + completionID,
-                                           headers={
-                                               "x-log10-token": token, "Content-Type": "application/json"},
-                                           json=log_row)
+                    res = requests.request(
+                        "POST",
+                        completion_url + "/" + completionID,
+                        headers={
+                            "x-log10-token": token,
+                            "Content-Type": "application/json",
+                        },
+                        json=log_row,
+                    )
                 elif target_service == "bigquery":
                     try:
                         log_row["id"] = str(uuid.uuid4())
-                        log_row["created_at"] = datetime.now(
-                            timezone.utc).isoformat()
+                        log_row["created_at"] = datetime.now(timezone.utc).isoformat()
                         log_row["request"] = json.dumps(kwargs)
 
                         if func.__qualname__ == "Completion.create":
@@ -259,12 +296,12 @@ def intercepting_decorator(func):
                         log_row["orig_qualname"] = func.__qualname__
                         log_row["session_id"] = sessionID
 
-                        bigquery_client.insert_rows_json(
-                            bigquery_table, [log_row])
+                        bigquery_client.insert_rows_json(bigquery_table, [log_row])
 
                     except Exception as e:
                         logging.error(
-                            f"LOG10: failed to insert in Bigquery: {log_row} with error {e}")
+                            f"LOG10: failed to insert in Bigquery: {log_row} with error {e}"
+                        )
         except Exception as e:
             logging.debug("LOG10: failed", e)
             raise e
@@ -290,8 +327,10 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
     DEBUG = DEBUG_
     USE_ASYNC = USE_ASYNC_
     sync_log_text = set_sync_log_text(USE_ASYNC=USE_ASYNC)
-    logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO,
-                        format='%(asctime)s - %(levelname)s - LOG10 - %(message)s')
+    logging.basicConfig(
+        level=logging.DEBUG if DEBUG else logging.INFO,
+        format="%(asctime)s - %(levelname)s - LOG10 - %(message)s",
+    )
 
     # def intercept_nested_functions(obj):
     #     for name, attr in vars(obj).items():
@@ -319,17 +358,20 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
                 for method_name, method in vars(attr).items():
                     if isinstance(method, classmethod):
                         original_method = method.__func__
-                        if original_method.__qualname__ in ["ChatCompletion.create", "Completion.create"]:
-                            decorated_method = intercepting_decorator(
-                                original_method)
-                            setattr(attr, method_name,
-                                    classmethod(decorated_method))
+                        if original_method.__qualname__ in [
+                            "ChatCompletion.create",
+                            "Completion.create",
+                        ]:
+                            decorated_method = intercepting_decorator(original_method)
+                            setattr(attr, method_name, classmethod(decorated_method))
             # Anthropic
             elif module.__name__ == "anthropic" and name == "Client":
                 for method_name, method in vars(attr).items():
-                    if isinstance(method, (types.FunctionType, types.MethodType)) and method_name == "completion":
-                        setattr(attr, method_name,
-                                intercepting_decorator(method))
+                    if (
+                        isinstance(method, (types.FunctionType, types.MethodType))
+                        and method_name == "completion"
+                    ):
+                        setattr(attr, method_name, intercepting_decorator(method))
 
             # For future reference:
             # if callable(attr) and isinstance(attr, types.FunctionType):

@@ -1,10 +1,10 @@
 import sys
 
-if 'init_modules' in globals():
+if "init_modules" in globals():
     # second or subsequent run: remove all but initially loaded modules
     for m in list(sys.modules.keys()):
         if m not in init_modules:
-            del (sys.modules[m])
+            del sys.modules[m]
 else:
     # first run: find out which modules were initially loaded
     init_modules = list(sys.modules.keys())
@@ -21,18 +21,24 @@ with log10_session():
     completion = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
-            {'role': "system", "content": "You are the most knowledgable Star Wars guru on the planet"},
-            {"role": "user", "content": "Write the time period of all the Star Wars movies and spinoffs?"}
-        ]
+            {
+                "role": "system",
+                "content": "You are the most knowledgable Star Wars guru on the planet",
+            },
+            {
+                "role": "user",
+                "content": "Write the time period of all the Star Wars movies and spinoffs?",
+            },
+        ],
     )
     print(completion.choices[0].message)
 
 # reload modules to prevent double calling openAI
-if 'init_modules' in globals():
+if "init_modules" in globals():
     # second or subsequent run: remove all but initially loaded modules
     for m in list(sys.modules.keys()):
         if m not in init_modules:
-            del (sys.modules[m])
+            del sys.modules[m]
 else:
     # first run: find out which modules were initially loaded
     init_modules = list(sys.modules.keys())
@@ -47,8 +53,14 @@ with log10_session():
     completion = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
-            {'role': "system", "content": "You are the most knowledgable Star Wars guru on the planet"},
-            {"role": "user", "content": "Write the time period of all the Star Wars movies and spinoffs?"}
-        ]
+            {
+                "role": "system",
+                "content": "You are the most knowledgable Star Wars guru on the planet",
+            },
+            {
+                "role": "user",
+                "content": "Write the time period of all the Star Wars movies and spinoffs?",
+            },
+        ],
     )
     print(completion.choices[0].message)

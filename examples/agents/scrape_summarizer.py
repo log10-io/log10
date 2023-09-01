@@ -12,12 +12,14 @@ model = os.environ.get("LOG10_EXAMPLES_MODEL", "gpt-3.5-turbo-16k")
 llm = None
 if "claude" in model:
     import anthropic
+
     log10(anthropic)
     llm = Anthropic({"model": model})
 elif model == "noop":
     llm = NoopLLM()
 else:
     import openai
+
     log10(openai)
     llm = OpenAI({"model": model})
 

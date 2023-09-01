@@ -6,7 +6,7 @@ log10(openai)
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 MAX_TOKENS = 512
-TOOLS_DEFAULT_LIST =  ['llm-math', 'wikipedia']
+TOOLS_DEFAULT_LIST = ["llm-math", "wikipedia"]
 
 from langchain.llms import OpenAI
 from langchain.agents import load_tools, initialize_agent

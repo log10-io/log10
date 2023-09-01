@@ -12,8 +12,10 @@ from langchain.schema import AgentAction, AgentFinish, LLMResult
 from log10.llm import LLM, Kind, Message
 
 import logging
+
 logging.basicConfig()
 logger = logging.getLogger("log10")
+
 
 def kwargs_to_hparams(kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """Convert kwargs to hparams."""

@@ -48,12 +48,16 @@ def eval(llm, dataset, metric, out_file_path):
             messages = Messages.from_dict(json.loads(example["input"]))
             model_completion = llm.chat(messages)
 
-            example_metric = run_metric(metric, example["ideal"], model_completion.content)
+            example_metric = run_metric(
+                metric, example["ideal"], model_completion.content
+            )
             write_to_csv(
                 out_file_path,
                 [example["input"], example["ideal"], model_completion, example_metric],
             )
-            print(f"\n\nIdeal:{example['ideal']}\nModel output:{model_completion.content}")
+            print(
+                f"\n\nIdeal:{example['ideal']}\nModel output:{model_completion.content}"
+            )
             print(f"Correct:{example_metric}")
     return
 

@@ -3,6 +3,7 @@ import string
 from anthropic import HUMAN_PROMPT, AI_PROMPT
 import json
 
+
 # Ref: https://github.com/openai/evals/blob/a24f20a357ecb3cc5eec8323097aeade9585796c/evals/elsuite/utils.py
 def normalize(s: str) -> str:
     """Lower text and remove punctuation, articles and extra whitespace."""
