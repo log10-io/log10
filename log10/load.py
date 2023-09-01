@@ -266,7 +266,8 @@ def intercepting_decorator(func):
                         logging.error(
                             f"LOG10: failed to insert in Bigquery: {log_row} with error {e}")
         except Exception as e:
-            logging.error("LOG10: failed", e)
+            logging.debug("LOG10: failed", e)
+            raise e
 
         return output
 
