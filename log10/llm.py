@@ -1,3 +1,7 @@
+import requests
+import logging
+import json
+from typing import List, Optional
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from enum import Enum
@@ -7,13 +11,6 @@ import traceback
 
 Role = Enum("Role", ["system", "assistant", "user"])
 Kind = Enum("Kind", ["chat", "text"])
-
-from typing import List, Optional
-
-import json
-
-import logging
-import requests
 
 
 class Log10Config:
@@ -106,6 +103,7 @@ class TextCompletion(Completion):
 
 class LLM(ABC):
     last_completion_response = None
+    duration = None
 
     def __init__(self, hparams: dict = None, log10_config: Log10Config = None):
         self.log10_config = log10_config
@@ -144,6 +142,12 @@ class LLM(ABC):
             + self.last_completion_response["completionID"]
         )
 
+    def last_duration(self):
+        if self.duration is None:
+            return None
+
+        return self.duration
+
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
         raise Exception("Not implemented")
 
@@ -173,7 +177,8 @@ class LLM(ABC):
             return None
 
         res = self.api_request(
-            "/api/completions", "POST", {"organization_id": self.log10_config.org_id}
+            "/api/completions", "POST", {
+                "organization_id": self.log10_config.org_id}
         )
         self.last_completion_response = res.json()
         completion_id = res.json()["completionID"]
@@ -221,13 +226,16 @@ class LLM(ABC):
             for frame in current_stack_frame
         ]
 
+        duration_sec = int(duration * 1000)
+        self.duration = duration_sec
+
         self.api_request(
             f"/api/completions/{completion_id}",
             "POST",
             {
                 "response": json.dumps(response),
                 "status": "finished",
-                "duration": int(duration * 1000),
+                "duration": duration_sec,
                 "stacktrace": json.dumps(stacktrace),
             },
         )
