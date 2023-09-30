@@ -43,7 +43,9 @@ def get_log10_messages(langchain_messages: List[BaseMessage]) -> List[Message]:
     for m in langchain_messages:
         logger.debug(f"message: {m}")
         if type(m) not in role_map:
-            raise BaseException(f"Unknown message type {type(m)}")
+            raise BaseException(
+                f"Unsupported message type {type(m)}. Supported types: {list(role_map.values())}"
+            )
 
     return [
         Message(role=role_map[type(m)], content=m.content) for m in langchain_messages
