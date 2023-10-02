@@ -37,6 +37,21 @@ def kwargs_to_hparams(kwargs: Dict[str, Any]) -> Dict[str, Any]:
     return hparams
 
 
+def get_log10_messages(langchain_messages: List[BaseMessage]) -> List[Message]:
+    role_map = {AIMessage: "assistant", HumanMessage: "user", SystemMessage: "system"}
+
+    for m in langchain_messages:
+        logger.debug(f"message: {m}")
+        if type(m) not in role_map:
+            raise BaseException(
+                f"Unsupported message type {type(m)}. Supported types: {list(role_map.values())}"
+            )
+
+    return [
+        Message(role=role_map[type(m)], content=m.content) for m in langchain_messages
+    ]
+
+
 class Log10Callback(BaseCallbackHandler, LLM):
     """Callback Handler that prints to std out."""
 
@@ -122,19 +137,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
             raise BaseException("Only support one message at a time")
 
         # Convert messages to log10 format
-        log10_messages = []
-        for message in messages[0]:
-            logger.debug(f"message: {message}")
-            if isinstance(message, HumanMessage):
-                log10_messages.append(Message(role="user", content=message.content))
-            elif isinstance(message, AIMessage):
-                log10_messages.append(
-                    Message(role="assistant", content=message.content)
-                )
-            elif isinstance(message, SystemMessage):
-                log10_messages.append(Message(role="system", content=message.content))
-            else:
-                raise BaseException(f"Unknown message type {type(message)}")
+        log10_messages = get_log10_messages(messages[0])
 
         request = {
             "messages": [message.to_dict() for message in log10_messages],

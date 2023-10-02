@@ -1,7 +1,7 @@
 from langchain import OpenAI
 from langchain.chat_models import ChatAnthropic
 from langchain.chat_models import ChatOpenAI
-from langchain.schema import HumanMessage
+from langchain.schema import AIMessage, HumanMessage, SystemMessage
 
 from log10.langchain import Log10Callback
 from log10.llm import Log10Config
@@ -11,8 +11,10 @@ log10_callback = Log10Callback(log10_config=Log10Config())
 
 
 messages = [
-    HumanMessage(content="You are a ping pong machine"),
+    SystemMessage(content="You are a ping pong machine"),
     HumanMessage(content="Ping?"),
+    AIMessage(content="Pong"),
+    HumanMessage(content="Ping ping"),
 ]
 
 llm = ChatOpenAI(
