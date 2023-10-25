@@ -256,20 +256,20 @@ def intercepting_decorator(func):
                             "index": 0,
                         }
                     ]
-                    log_row = {
-                        "response": json.dumps(output),
-                        "status": "finished",
-                        "duration": int(duration * 1000),
-                        "stacktrace": json.dumps(stacktrace),
-                        "kind": "completion",
-                    }
-                else:
-                    log_row = {
-                        "response": json.dumps(output),
-                        "status": "finished",
-                        "duration": int(duration * 1000),
-                        "stacktrace": json.dumps(stacktrace),
-                    }
+
+                log_row = {
+                    "response": json.dumps(output),
+                    "status": "finished",
+                    "duration": int(duration * 1000),
+                    "stacktrace": json.dumps(stacktrace),
+                    "kind": "completion",
+                    "orig_module": func.__module__,
+                    "orig_qualname": func.__qualname__,
+                    "request": json.dumps(kwargs),
+                    "session_id": sessionID,
+                    "organization_id": org_id,
+                    "tags": global_tags,
+                }
 
                 if target_service == "log10":
                     res = requests.request(
