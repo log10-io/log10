@@ -14,7 +14,7 @@ from contextlib import contextmanager
 import logging
 from dotenv import load_dotenv
 import backoff  # for exponential backoff
-from openai.error import RateLimitError, APIConnectionError
+from openai import error
 
 load_dotenv()
 
@@ -34,8 +34,16 @@ if target_service == "bigquery":
 elif target_service is None:
     target_service = "log10"  # default to log10
 
+errors = (
+    error.APIConnectionError,
+    error.APIError,
+    error.RateLimitError,
+    error.ServiceUnavailableError,
+    error.Timeout,
+)
 
-@backoff.on_exception(backoff.expo, (RateLimitError, APIConnectionError))
+
+@backoff.on_exception(backoff.expo, errors)
 def func_with_backoff(func, *args, **kwargs):
     return func(*args, **kwargs)
 
