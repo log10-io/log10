@@ -168,6 +168,11 @@ async def log_async(completion_url, func, **kwargs):
 
         if DEBUG:
             log_url(res, completionID)
+        
+        # in case the usage of load(openai) and langchain.ChatOpenAI
+        if "api_key" in kwargs:
+            kwargs.pop("api_key")
+
         log_row = {
             # do we want to also store args?
             "status": "started",
@@ -199,6 +204,9 @@ def log_sync(completion_url, func, **kwargs):
     completionID = res.json()["completionID"]
     if DEBUG:
         log_url(res, completionID)
+    # in case the usage of load(openai) and langchain.ChatOpenAI
+    if "api_key" in kwargs:
+        kwargs.pop("api_key")
     log_row = {
         # do we want to also store args?
         "status": "started",
@@ -267,6 +275,10 @@ def intercepting_decorator(func):
                             "index": 0,
                         }
                     ]
+
+                # in case the usage of load(openai) and langchain.ChatOpenAI
+                if "api_key" in kwargs:
+                    kwargs.pop("api_key")
 
                 log_row = {
                     "response": json.dumps(output),
