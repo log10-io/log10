@@ -40,18 +40,42 @@ def func_with_backoff(func, *args, **kwargs):
     return func(*args, **kwargs)
 
 
+# todo: should we do backoff as well?
+def post_request(url: str, json: dict = {}) -> requests.Response:
+    headers = {"x-log10-token": token, "Content-Type": "application/json"}
+    json["organization_id"] = org_id
+    try:
+        # todo: set timeout
+        res = requests.post(url, headers=headers, json=json)
+        # raise_for_status() will raise an exception if the status is 4xx, 5xxx
+        res.raise_for_status()
+        logging.debug(
+            f"LOG10: Post request successful with status code {res.status_code}"
+        )
+        return res
+    except requests.Timeout:
+        logging.error("LOG10: Post request Timeout")
+        raise
+    except requests.ConnectionError:
+        logging.error("LOG10: Connection Error")
+        raise
+    except requests.HTTPError as e:
+        logging.error(f"LOG10: HTTP Error: {e}")
+        raise
+    except requests.RequestException as e:
+        logging.error(f"LOG10: Request Exception: {e}")
+        raise
+
+
+post_session_request = functools.partial(post_request, url + "/api/sessions", {})
+
+
 def get_session_id():
     if target_service == "bigquery":
         return str(uuid.uuid4())
 
     try:
-        session_url = url + "/api/sessions"
-        res = requests.request(
-            "POST",
-            session_url,
-            headers={"x-log10-token": token, "Content-Type": "application/json"},
-            json={"organization_id": org_id},
-        )
+        res = post_session_request()
 
         return res.json()["sessionID"]
     except Exception as e:
@@ -129,12 +153,7 @@ async def log_async(completion_url, func, **kwargs):
     async with ClientSession() as session:
         global last_completion_response
 
-        res = requests.request(
-            "POST",
-            completion_url,
-            headers={"x-log10-token": token, "Content-Type": "application/json"},
-            json={"organization_id": org_id},
-        )
+        res = post_request(completion_url)
         # todo: handle session id for bigquery scenario
         last_completion_response = res.json()
         completionID = res.json()["completionID"]
@@ -148,16 +167,10 @@ async def log_async(completion_url, func, **kwargs):
             "orig_qualname": func.__qualname__,
             "request": json.dumps(kwargs),
             "session_id": sessionID,
-            "organization_id": org_id,
             "tags": global_tags,
         }
         if target_service == "log10":
-            res = requests.request(
-                "POST",
-                completion_url + "/" + completionID,
-                headers={"x-log10-token": token, "Content-Type": "application/json"},
-                json=log_row,
-            )
+            res = post_request(completion_url + "/" + completionID, log_row)
         elif target_service == "bigquery":
             pass
             # NOTE: We only save on request finalization.
@@ -172,32 +185,22 @@ def run_async_in_thread(completion_url, func, result_queue, **kwargs):
 
 def log_sync(completion_url, func, **kwargs):
     global last_completion_response
-    res = requests.request(
-        "POST",
-        completion_url,
-        headers={"x-log10-token": token, "Content-Type": "application/json"},
-        json={"organization_id": org_id},
-    )
+    res = post_request(completion_url)
 
     last_completion_response = res.json()
     completionID = res.json()["completionID"]
     if DEBUG:
         log_url(res, completionID)
-    res = requests.request(
-        "POST",
-        completion_url + "/" + completionID,
-        headers={"x-log10-token": token, "Content-Type": "application/json"},
-        json={
-            # do we want to also store args?
-            "status": "started",
-            "orig_module": func.__module__,
-            "orig_qualname": func.__qualname__,
-            "request": json.dumps(kwargs),
-            "session_id": sessionID,
-            "organization_id": org_id,
-            "tags": global_tags,
-        },
-    )
+    log_row = {
+        # do we want to also store args?
+        "status": "started",
+        "orig_module": func.__module__,
+        "orig_qualname": func.__qualname__,
+        "request": json.dumps(kwargs),
+        "session_id": sessionID,
+        "tags": global_tags,
+    }
+    res = post_request(completion_url + "/" + completionID, log_row)
     return completionID
 
 
@@ -267,20 +270,11 @@ def intercepting_decorator(func):
                     "orig_qualname": func.__qualname__,
                     "request": json.dumps(kwargs),
                     "session_id": sessionID,
-                    "organization_id": org_id,
                     "tags": global_tags,
                 }
 
                 if target_service == "log10":
-                    res = requests.request(
-                        "POST",
-                        completion_url + "/" + completionID,
-                        headers={
-                            "x-log10-token": token,
-                            "Content-Type": "application/json",
-                        },
-                        json=log_row,
-                    )
+                    res = post_request(completion_url + "/" + completionID, log_row)
                 elif target_service == "bigquery":
                     try:
                         log_row["id"] = str(uuid.uuid4())
