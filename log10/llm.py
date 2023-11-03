@@ -177,8 +177,7 @@ class LLM(ABC):
             return None
 
         res = self.api_request(
-            "/api/completions", "POST", {
-                "organization_id": self.log10_config.org_id}
+            "/api/completions", "POST", {"organization_id": self.log10_config.org_id}
         )
         self.last_completion_response = res.json()
         completion_id = res.json()["completionID"]
