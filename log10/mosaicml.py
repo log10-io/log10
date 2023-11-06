@@ -6,15 +6,29 @@ from log10.llm import LLM, Kind, Log10Config, TextCompletion
 from mcli import predict
 
 
+def llama_2_70b_chat(
+    prompt: str, hparams: dict = None, log10_config: Log10Config = None
+) -> str:
+    """
+    Example:
+        >>> from log10.llm import Log10Config
+        >>> from log10.mosaicml import llama_2_70b_chat
+        >>> response = llama_2_70b_chat("Hello, how are you?", {"temperature": 0.3, "max_new_tokens": 10}, log10_config=Log10Config())
+        >>> print(response)
+    """
+    return MosaicML({"model": "llama2-70b-chat/v1"}, log10_config).text(prompt, hparams)
+
+
 class MosaicML(LLM):
     """
-    MosaicML models list: https://docs.mosaicml.com/en/latest/inference.html#text-completion-request-endpoint
     Example:
         >>> from log10.llm import Log10Config
         >>> from log10.mosaicml import MosaicML
         >>> llm = MosaicML({"model": "llama2-70b-chat/v1"}, log10_config=Log10Config())
         >>> response = llm.text("Hello, how are you?", {"temperature": 0.3, "max_new_tokens": 10})
         >>> print(response)
+
+    For more information on MosaicML Complete, see https://docs.mosaicml.com/en/latest/inference.html#text-completion-request-endpoint 
     """
 
     mosaicml_host_url = "https://models.hosted-on.mosaicml.hosting/"
@@ -41,21 +55,7 @@ class MosaicML(LLM):
             },
         )
 
-        # Imitate OpenAI reponse format.
-        response = {
-            "id": str(uuid.uuid4()),
-            "object": "text_completion",
-            "model": f"mosaicml/{self.model}",
-            "choices": [
-                {
-                    "index": 0,
-                    "text": completion["outputs"][0],
-                    "logprobs": None,
-                    "finish_reason": None,
-                }
-            ],
-            "usage": None,
-        }
+        response = self._prepare_response(completion)
 
         self.log_end(
             self.completion_id,
@@ -72,5 +72,19 @@ class MosaicML(LLM):
                 merged_hparams[hparam] = hparams[hparam]
         return {"prompt": prompt, **merged_hparams}
 
-    def _prepare_response(self, completion) -> dict:
-        return completion["outputs"][0]
+    def _prepare_response(self, completion: dict) -> dict:
+        response = {
+            "id": str(uuid.uuid4()),
+            "object": "text_completion",
+            "model": f"mosaicml/{self.model}",
+            "choices": [
+                {
+                    "index": 0,
+                    "text": completion["outputs"][0],
+                    "logprobs": None,
+                    "finish_reason": None,
+                }
+            ],
+            "usage": None,
+        }
+        return response

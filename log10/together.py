@@ -8,6 +8,21 @@ from log10.llm import LLM, Kind, Log10Config, TextCompletion
 together.api_key = os.environ.get("TOGETHER_API_KEY")
 
 
+def llama_2_70b_chat(
+    prompt: str, hparams: dict = None, log10_config: Log10Config = None
+) -> str:
+    """
+    Example:
+        >>> from log10.llm import Log10Config
+        >>> from log10.together import llama_2_70b_chat
+        >>> response = llama_2_70b_chat("Hello, how are you?", {"temperature": 0.3, "max_tokens": 10}, log10_config=Log10Config())
+        >>> print(response)
+    """
+    return Together({"model": "togethercomputer/llama-2-70b-chat"}, log10_config).text(
+        prompt, hparams
+    )
+
+
 class Together(LLM):
     """
     Example:
@@ -16,6 +31,8 @@ class Together(LLM):
         >>> llm = Together({"model": "togethercomputer/llama-2-70b-chat"}, log10_config=Log10Config())
         >>> response = llm.text("Hello, how are you?", {"temperature": 0.3, "max_tokens": 10})
         >>> print(response)
+
+    For more information on Together Complete, see https://docs.together.ai/reference/complete-1
     """
 
     def __init__(self, hparams: dict = None, log10_config: Log10Config = None):
@@ -27,7 +44,6 @@ class Together(LLM):
             "prompt": prompt,
             **request,
         }
-        print(f"DEBUG openai_request: {openai_request}")
 
         start_time = time.perf_counter()
         self.completion_id = self.log_start(openai_request, Kind.text)
@@ -35,21 +51,7 @@ class Together(LLM):
         if completion["status"] != "finished":
             raise Exception("Completion failed.")
 
-        # Imitate OpenAI reponse format.
-        response = {
-            "id": completion["output"]["request_id"],
-            "object": "text_completion",
-            "model": completion["model"],
-            "choices": [
-                {
-                    "index": 0,
-                    "text": completion["output"]["choices"][0]["text"],
-                    "logprobs": completion["args"]["logprobs"],
-                    "finish_reason": None,
-                }
-            ],
-            "usage": None,
-        }
+        response = self._prepare_response(completion)
 
         self.log_end(
             self.completion_id,
@@ -65,3 +67,20 @@ class Together(LLM):
             for hparam in hparams:
                 merged_hparams[hparam] = hparams[hparam]
         return {"prompt": prompt, **merged_hparams}
+
+    def _prepare_response(self, completion: dict) -> dict:
+        response = {
+            "id": completion["output"]["request_id"],
+            "object": "text_completion",
+            "model": completion["model"],
+            "choices": [
+                {
+                    "index": 0,
+                    "text": completion["output"]["choices"][0]["text"],
+                    "logprobs": completion["args"]["logprobs"],
+                    "finish_reason": None,
+                }
+            ],
+            "usage": None,
+        }
+        return response
