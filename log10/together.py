@@ -48,8 +48,6 @@ class Together(LLM):
         start_time = time.perf_counter()
         self.completion_id = self.log_start(openai_request, Kind.text)
         completion = together.Complete.create(**request)
-        if completion["status"] != "finished":
-            raise Exception("Completion failed.")
 
         response = self._prepare_response(completion)
 
