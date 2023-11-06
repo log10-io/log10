@@ -2,6 +2,7 @@ import time
 from copy import deepcopy
 from typing import List
 from log10.llm import LLM, ChatCompletion, Kind, Message, TextCompletion
+from log10.utils import merge_hparams
 
 
 from anthropic import HUMAN_PROMPT, AI_PROMPT
@@ -71,10 +72,7 @@ class Anthropic(LLM):
         return ChatCompletion(role="assistant", content=content, response=response)
 
     def chat_request(self, messages: List[Message], hparams: dict = None) -> dict:
-        merged_hparams = deepcopy(self.hparams)
-        if hparams:
-            for hparam in hparams:
-                merged_hparams[hparam] = hparams[hparam]
+        merged_hparams = merged_hparams(hparams, self.hparams)
 
         # NOTE: That we may have to convert this to openai messages, if we want
         #       to use the same log viewer for all chat based models.
@@ -129,10 +127,7 @@ class Anthropic(LLM):
         return TextCompletion(text=text, response=response)
 
     def text_request(self, prompt: str, hparams: dict = None) -> TextCompletion:
-        merged_hparams = deepcopy(self.hparams)
-        if hparams:
-            for hparam in hparams:
-                merged_hparams[hparam] = hparams[hparam]
+        merged_hparams = merged_hparams(hparams, self.hparams)
         return {
             "prompt": HUMAN_PROMPT + prompt + "\n" + AI_PROMPT,
             "stop_sequences": [HUMAN_PROMPT],

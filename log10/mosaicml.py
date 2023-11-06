@@ -3,6 +3,7 @@ import uuid
 
 from copy import deepcopy
 from log10.llm import LLM, Kind, Log10Config, TextCompletion
+from log10.utils import merge_hparams
 from mcli import predict
 
 
@@ -28,7 +29,7 @@ class MosaicML(LLM):
         >>> response = llm.text("Hello, how are you?", {"temperature": 0.3, "max_new_tokens": 10})
         >>> print(response)
 
-    For more information on MosaicML Complete, see https://docs.mosaicml.com/en/latest/inference.html#text-completion-request-endpoint 
+    For more information on MosaicML Complete, see https://docs.mosaicml.com/en/latest/inference.html#text-completion-request-endpoint
     """
 
     mosaicml_host_url = "https://models.hosted-on.mosaicml.hosting/"
@@ -40,7 +41,6 @@ class MosaicML(LLM):
         request = self.text_request(prompt, hparams)
         self.model = request.get("model")
         openai_request = {
-            "prompt": prompt,
             **request,
             "model": f"mosaicml/{self.model}",
         }
@@ -66,10 +66,7 @@ class MosaicML(LLM):
         return TextCompletion(text=response["choices"][0]["text"], response=response)
 
     def text_request(self, prompt: str, hparams: dict = None) -> dict:
-        merged_hparams = deepcopy(self.hparams)
-        if hparams:
-            for hparam in hparams:
-                merged_hparams[hparam] = hparams[hparam]
+        merged_hparams = merge_hparams(hparams, self.hparams)
         return {"prompt": prompt, **merged_hparams}
 
     def _prepare_response(self, completion: dict) -> dict:

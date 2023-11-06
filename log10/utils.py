@@ -1,7 +1,17 @@
+import json
 import re
 import string
 from anthropic import HUMAN_PROMPT, AI_PROMPT
-import json
+from copy import deepcopy
+
+
+def merge_hparams(override, base):
+    merged = deepcopy(base)
+    if override:
+        for hparam in override:
+            merged[hparam] = override[hparam]
+
+    return merged
 
 
 # Ref: https://github.com/openai/evals/blob/a24f20a357ecb3cc5eec8323097aeade9585796c/evals/elsuite/utils.py
