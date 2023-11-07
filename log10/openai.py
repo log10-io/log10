@@ -12,7 +12,7 @@ from openai import error
 import openai
 
 
-errors = (
+RETRY_ERROR_TYPES = (
     error.APIConnectionError,
     error.APIError,
     error.RateLimitError,
@@ -25,7 +25,7 @@ class OpenAI(LLM):
     def __init__(self, hparams: dict = None, log10_config=None):
         super().__init__(hparams, log10_config)
 
-    @backoff.on_exception(backoff.expo, errors)
+    @backoff.on_exception(backoff.expo, RETRY_ERROR_TYPES)
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
         request = self.chat_request(messages, hparams)
 
@@ -59,7 +59,7 @@ class OpenAI(LLM):
             **merged_hparams,
         }
 
-    @backoff.on_exception(backoff.expo, errors)
+    @backoff.on_exception(backoff.expo, RETRY_ERROR_TYPES)
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
         request = self.text_request(prompt, hparams)
 
