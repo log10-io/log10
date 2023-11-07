@@ -3,7 +3,6 @@ import logging
 import json
 from typing import List, Optional
 from abc import ABC, abstractmethod
-from copy import deepcopy
 from enum import Enum
 import os
 import sys
@@ -177,8 +176,7 @@ class LLM(ABC):
             return None
 
         res = self.api_request(
-            "/api/completions", "POST", {
-                "organization_id": self.log10_config.org_id}
+            "/api/completions", "POST", {"organization_id": self.log10_config.org_id}
         )
         self.last_completion_response = res.json()
         completion_id = res.json()["completionID"]
@@ -252,12 +250,3 @@ class NoopLLM(LLM):
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
         logging.info("Received text completion requst: " + prompt)
         return TextCompletion(text="I'm not a real LLM")
-
-
-def merge_hparams(override, base):
-    merged = deepcopy(base)
-    if override:
-        for hparam in override:
-            merged[hparam] = override[hparam]
-
-    return merged
