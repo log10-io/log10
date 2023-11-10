@@ -160,7 +160,7 @@ async def log_async(completion_url, func, **kwargs):
 
         if DEBUG:
             log_url(res, completionID)
-        
+
         # in case the usage of load(openai) and langchain.ChatOpenAI
         if "api_key" in kwargs:
             kwargs.pop("api_key")
@@ -260,20 +260,21 @@ def intercepting_decorator(func):
 
             with timed_block("result call duration (sync)"):
                 # Adjust the Anthropic output to match OAI completion output
-                if func.__qualname__ == "Client.completion":
-                    output["choices"] = [
-                        {
-                            "text": output["completion"],
-                            "index": 0,
-                        }
-                    ]
+                if "anthropic" in func.__globals__["__name__"]:
+                    from log10.anthropic import Anthropic
+
+                    response = Anthropic.prepare_response(
+                        kwargs["prompt"], output, "text"
+                    )
+                else:
+                    response = output
 
                 # in case the usage of load(openai) and langchain.ChatOpenAI
                 if "api_key" in kwargs:
                     kwargs.pop("api_key")
 
                 log_row = {
-                    "response": json.dumps(output),
+                    "response": json.dumps(response),
                     "status": "finished",
                     "duration": int(duration * 1000),
                     "stacktrace": json.dumps(stacktrace),
@@ -328,6 +329,50 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
     module -- the module to be intercepted (e.g. openai)
     DEBUG_ -- whether to show log10 related debug statements via python logging (default False)
     USE_ASYNC_ -- whether to run in async mode (default True)
+
+    Example:
+        >>> from log10.load import log10
+        >>> import openai
+        >>> log10(openai)
+        >>> response = openai.Completion.create(
+        >>>     model="text-davinci-003",
+        >>>     prompt="Once upon a time",
+        >>>     max_tokens=32,
+        >>> )
+        >>> print(response)
+
+    Example:
+        >>> from log10.load import log10
+        >>> import openai
+        >>> log10(openai)
+        >>> response = openai.ChatCompletion.create(
+        >>>     model="gpt-3.5-turbo",
+        >>>     messages=[
+        >>>         {
+        >>>             "role": "system",
+        >>>             "content": "You are a Pingpong machine.",
+        >>>         },
+        >>>         {
+        >>>             "role": "user",
+        >>>             "content": "Ping",
+        >>>         },
+        >>>     ],
+        >>>     max_tokens=8,
+        >>> )
+        >>> print(response)
+
+    Example:
+        >>> from log10.load import log10
+        >>> import anthropic
+        >>> log10(anthropic)
+        >>> from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
+        >>> anthropic = Anthropic()
+        >>> completion = anthropic.completions.create(
+        >>>     model="claude-1",
+        >>>     max_tokens_to_sample=32,
+        >>>     prompt=f"{HUMAN_PROMPT} Hi, how are you? {AI_PROMPT}",
+        >>> )
+        >>> print(completion.completion)
     """
     global DEBUG, USE_ASYNC, sync_log_text
     DEBUG = DEBUG_
@@ -370,20 +415,17 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
                         ]:
                             decorated_method = intercepting_decorator(original_method)
                             setattr(attr, method_name, classmethod(decorated_method))
-            # Anthropic
-            elif module.__name__ == "anthropic" and name == "Client":
-                for method_name, method in vars(attr).items():
-                    if (
-                        isinstance(method, (types.FunctionType, types.MethodType))
-                        and method_name == "completion"
-                    ):
-                        setattr(attr, method_name, intercepting_decorator(method))
+    # Anthropic
+    if module.__name__ == "anthropic":
+        method = getattr(module.resources.completions.Completions, "create")
+        attr = module.resources.completions.Completions
+        setattr(attr, "create", intercepting_decorator(method))
 
-            # For future reference:
-            # if callable(attr) and isinstance(attr, types.FunctionType):
-            #     print(f"attr:{attr}")
-            #     setattr(module, name, intercepting_decorator(attr))
-            # elif inspect.isclass(attr):  # Check if attribute is a class
-            #     intercept_class_methods(attr)
-            # # else: # uncomment if we want to include nested function support
-            # #     intercept_nested_functions(attr)
+        # For future reference:
+        # if callable(attr) and isinstance(attr, types.FunctionType):
+        #     print(f"attr:{attr}")
+        #     setattr(module, name, intercepting_decorator(attr))
+        # elif inspect.isclass(attr):  # Check if attribute is a class
+        #     intercept_class_methods(attr)
+        # # else: # uncomment if we want to include nested function support
+        # #     intercept_nested_functions(attr)
