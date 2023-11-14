@@ -4,9 +4,9 @@ import anthropic
 import os
 
 log10(anthropic, DEBUG_=False)
-anthropicClient = anthropic.Client(api_key=os.environ["ANTHROPIC_API_KEY"])
+client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
-response = anthropicClient.completions.create(
+response = client.completions.create(
     model="claude-1",
     prompt=f"\n\nHuman:Write the names of all Star Wars movies and spinoffs along with the time periods in which they were set?{anthropic.AI_PROMPT}",
     temperature=0,

@@ -27,6 +27,15 @@ class Anthropic(LLM):
             self.hparams["max_tokens_to_sample"] = 1024
 
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
+        """
+        Example:
+            >>> from log10.llm import Log10Config, Message
+            >>> from log10.anthropic import Anthropic
+            >>> llm = Anthropic({"model": "claude-1"}, log10_config=Log10Config())
+            >>> response = llm.chat([Message(role="user", content="Hello, how are you?")])
+            >>> print(response)
+            >>> print(f"Duration: {llm.last_duration()}")
+        """
         chat_request = self.chat_request(messages, hparams)
 
         openai_request = {
@@ -46,22 +55,9 @@ class Anthropic(LLM):
         elif completion.stop_reason == "max_tokens":
             reason = "length"
 
-        tokens_usage = self.create_tokens_usage(chat_request["prompt"], content)
-
-        # Imitate OpenAI reponse format.
-        response = {
-            "id": str(uuid.uuid4()),
-            "object": "chat.completion",
-            "model": completion.model,
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": content},
-                    "finish_reason": reason,
-                }
-            ],
-            "usage": tokens_usage,
-        }
+        response = Anthropic.prepare_response(
+            chat_request["prompt"], completion, "chat"
+        )
 
         self.log_end(
             completion_id,
@@ -72,7 +68,7 @@ class Anthropic(LLM):
         return ChatCompletion(role="assistant", content=content, response=response)
 
     def chat_request(self, messages: List[Message], hparams: dict = None) -> dict:
-        merged_hparams = merged_hparams(hparams, self.hparams)
+        merged_hparams = merge_hparams(hparams, self.hparams)
 
         # NOTE: That we may have to convert this to openai messages, if we want
         #       to use the same log viewer for all chat based models.
@@ -80,6 +76,15 @@ class Anthropic(LLM):
         return {"prompt": prompt, "stop_sequences": [HUMAN_PROMPT], **merged_hparams}
 
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
+        """
+        Example:
+            >>> from log10.llm import Log10Config
+            >>> from log10.anthropic import Anthropic
+            >>> llm = Anthropic({"model": "claude-1"}, log10_config=Log10Config())
+            >>> response = llm.text("Foobarbaz")
+            >>> print(response)
+            >>> print(f"Duration: {llm.last_duration()}")
+        """
         text_request = self.text_request(prompt, hparams)
 
         openai_request = {
@@ -99,23 +104,9 @@ class Anthropic(LLM):
         elif completion.stop_reason == "max_tokens":
             reason = "length"
 
-        tokens_usage = self.create_tokens_usage(text_request["prompt"], text)
-
-        # Imitate OpenAI reponse format.
-        response = {
-            "id": str(uuid.uuid4()),
-            "object": "text_completion",
-            "model": completion.model,
-            "choices": [
-                {
-                    "index": 0,
-                    "text": text,
-                    "logprobs": None,
-                    "finish_reason": reason,
-                }
-            ],
-            "usage": tokens_usage,
-        }
+        response = Anthropic.prepare_response(
+            text_request["prompt"], completion, "text"
+        )
 
         self.log_end(
             completion_id,
@@ -127,7 +118,7 @@ class Anthropic(LLM):
         return TextCompletion(text=text, response=response)
 
     def text_request(self, prompt: str, hparams: dict = None) -> TextCompletion:
-        merged_hparams = merged_hparams(hparams, self.hparams)
+        merged_hparams = merge_hparams(hparams, self.hparams)
         return {
             "prompt": HUMAN_PROMPT + prompt + "\n" + AI_PROMPT,
             "stop_sequences": [HUMAN_PROMPT],
@@ -149,9 +140,11 @@ class Anthropic(LLM):
     def convert_claude_to_messages(prompt: str):
         pass
 
-    def create_tokens_usage(self, prompt: str, completion: str):
-        prompt_tokens = self.client.count_tokens(prompt)
-        completion_tokens = self.client.count_tokens(completion)
+    @staticmethod
+    def create_tokens_usage(prompt: str, completion: str):
+        client = anthropic.Anthropic()
+        prompt_tokens = client.count_tokens(prompt)
+        completion_tokens = client.count_tokens(completion)
         total_tokens = prompt_tokens + completion_tokens
 
         # Imitate OpenAI usage format.
@@ -160,3 +153,29 @@ class Anthropic(LLM):
             "completion_tokens": completion_tokens,
             "total_tokens": total_tokens,
         }
+
+    @staticmethod
+    def prepare_response(
+        prompt: str, completion: anthropic.types.Completion, type: str = "text"
+    ) -> dict:
+        tokens_usage = Anthropic.create_tokens_usage(prompt, completion.completion)
+        response = {
+            "id": completion.model_extra["log_id"],
+            "object": "completion",
+            "model": completion.model,
+            "choices": [
+                {
+                    "index": 0,
+                    "finish_reason": completion.stop_reason,
+                }
+            ],
+            "usage": tokens_usage,
+        }
+        if type == "text":
+            response["choices"][0]["text"] = completion.completion
+        elif type == "chat":
+            response["choices"][0]["message"] = {
+                "role": "assistant",
+                "content": completion.completion,
+            }
+        return response

@@ -65,7 +65,7 @@ class Together(LLM):
 
     def _prepare_response(self, completion: dict) -> dict:
         response = {
-            "id": completion["output"]["request_id"],
+            "id": completion["id"],
             "object": "text_completion",
             "model": completion["model"],
             "choices": [
