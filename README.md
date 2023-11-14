@@ -107,6 +107,26 @@ Create flexible groups to share and collaborate over all of the above features
 - `OPENAI_API_KEY`: OpenAI API key
 - `ANTHROPIC_API_KEY`: Anthropic API key
 
+### ✅ Run examples and tests
+
+You can find and run examples under folder `examples`, e.g. run a logging example:
+```
+python examples/logging/chatcompletion.py
+``` 
+
+Also you can run some end-to-end tests with [`xdocttest`](https://github.com/Erotemic/xdoctest) installed (`pip install xdoctest`).
+
+```
+# list all tests
+python -m xdoctest log10 list
+
+# run all tests
+python -m xdoctest log10 all
+
+# run a single test, e.g.
+python -m xdoctest /Users/wenzhe/dev/log10/log10/load.py log10:0
+```
+
 ## 💬 Community
 
 We welcome community participation and feedback. Please leave an issue, submit a PR or join our [Discord](https://discord.gg/CZQvnuRV94).

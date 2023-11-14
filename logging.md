@@ -36,7 +36,7 @@ import anthropic
 import os
 
 log10(anthropic)
-anthropicClient = anthropic.Client()
+anthropicClient = anthropic.Anthropic()
 ```
 
 ### Sessions
