@@ -246,7 +246,9 @@ def intercepting_decorator(func):
                 }
                 for frame in current_stack_frame
             ]
-            assert kwargs is not None, "Request is empty"
+            assert (
+                kwargs is not None
+            ), "Get empty request. Please check the input parameters and try again."
 
             start_time = time.perf_counter()
             output = func_with_backoff(func, *args, **kwargs)
@@ -260,7 +262,7 @@ def intercepting_decorator(func):
                     completionID = result_queue.get()
             logging.debug("LOG10: failed", e)
             log_row = {
-                "status": "failure",
+                "status": "failed",
                 "failure_reason": str(e),
                 "stacktrace": json.dumps(stacktrace),
                 "kind": "completion",
