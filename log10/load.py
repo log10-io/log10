@@ -246,12 +246,33 @@ def intercepting_decorator(func):
                 }
                 for frame in current_stack_frame
             ]
+            assert kwargs is not None, "Request is empty"
 
             start_time = time.perf_counter()
             output = func_with_backoff(func, *args, **kwargs)
             duration = time.perf_counter() - start_time
             logging.debug(f"LOG10: TIMED BLOCK - LLM call duration: {duration}")
-
+        except Exception as e:
+            if USE_ASYNC:
+                with timed_block("extra time spent waiting for log10 call"):
+                    while result_queue.empty():
+                        pass
+                    completionID = result_queue.get()
+            logging.debug("LOG10: failed", e)
+            log_row = {
+                "status": "failure",
+                "failure_reason": str(e),
+                "stacktrace": json.dumps(stacktrace),
+                "kind": "completion",
+                "orig_module": func.__module__,
+                "orig_qualname": func.__qualname__,
+                "session_id": sessionID,
+                "tags": global_tags,
+            }
+            res = post_request(completion_url + "/" + completionID, log_row)
+            raise e
+        else:
+            # finished with no exceptions
             if USE_ASYNC:
                 with timed_block("extra time spent waiting for log10 call"):
                     while result_queue.empty():
@@ -259,15 +280,14 @@ def intercepting_decorator(func):
                     completionID = result_queue.get()
 
             with timed_block("result call duration (sync)"):
+                response = output
                 # Adjust the Anthropic output to match OAI completion output
-                if "anthropic" in func.__globals__["__name__"]:
+                if "anthropic" in type(output).__module__:
                     from log10.anthropic import Anthropic
 
                     response = Anthropic.prepare_response(
                         kwargs["prompt"], output, "text"
                     )
-                else:
-                    response = output
 
                 # in case the usage of load(openai) and langchain.ChatOpenAI
                 if "api_key" in kwargs:
@@ -309,9 +329,6 @@ def intercepting_decorator(func):
                         logging.error(
                             f"LOG10: failed to insert in Bigquery: {log_row} with error {e}"
                         )
-        except Exception as e:
-            logging.debug("LOG10: failed", e)
-            raise e
 
         return output
 
