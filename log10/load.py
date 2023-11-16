@@ -363,6 +363,23 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
 
     Example:
         >>> from log10.load import log10
+        >>> from langchain.chat_models import ChatOpenAI
+        >>> from langchain.schema import HumanMessage, SystemMessage
+        >>> import openai
+        >>> log10(openai)
+        >>> llm = ChatOpenAI(
+        >>>     model_name="gpt-3.5-turbo",
+        >>>     temperature=0.5,
+        >>> )
+        >>> messages = [
+        >>>     SystemMessage(content="You are a ping pong machine"),
+        >>>     HumanMessage(content="Ping?")
+        >>> ]
+        >>> completion = llm.predict_messages(messages)
+        >>> print(completion)
+
+    Example:
+        >>> from log10.load import log10
         >>> import anthropic
         >>> log10(anthropic)
         >>> from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
@@ -373,6 +390,20 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         >>>     prompt=f"{HUMAN_PROMPT} Hi, how are you? {AI_PROMPT}",
         >>> )
         >>> print(completion.completion)
+
+    Example:
+        >>> from log10.load import log10
+        >>> import anthropic
+        >>> from langchain.chat_models import ChatAnthropic
+        >>> from langchain.schema import HumanMessage, SystemMessage
+        >>> log10(anthropic)
+        >>> llm = ChatAnthropic(model="claude-1", temperature=0.7)
+        >>> messages = [
+        >>>     SystemMessage(content="You are a ping pong machine"),
+        >>>     HumanMessage(content="Ping?")
+        >>> ]
+        >>> completion = llm.predict_messages(messages)
+        >>> print(completion)
     """
     global DEBUG, USE_ASYNC, sync_log_text
     DEBUG = DEBUG_
