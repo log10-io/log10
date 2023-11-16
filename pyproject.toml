@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 name = "log10-io"
 
-version = "0.4.4"
+version = "0.4.5"
 authors = ["log10 team"]
 license = "MIT"
 description = "Unified LLM data management"
@@ -41,3 +41,5 @@ wikipedia = "^1.4.0"
 faker = "^19.2.0"
 backoff = "^2.2.1"
 anthropic = "^0.3.11"
+mosaicml-cli = "^0.5.30"
+together = "^0.2.7"
