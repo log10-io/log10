@@ -246,9 +246,6 @@ def intercepting_decorator(func):
                 }
                 for frame in current_stack_frame
             ]
-            assert (
-                kwargs is not None
-            ), "Get empty request. Please check the input parameters and try again."
 
             start_time = time.perf_counter()
             output = func_with_backoff(func, *args, **kwargs)
