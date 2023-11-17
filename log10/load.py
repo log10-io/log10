@@ -263,6 +263,7 @@ def intercepting_decorator(func):
             logging.debug("LOG10: failed", e)
             log_row = {
                 "status": "failed",
+                "failure_kind": type(e).__name__,
                 "failure_reason": str(e),
                 "stacktrace": json.dumps(stacktrace),
                 "kind": "completion",
