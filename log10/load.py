@@ -258,10 +258,16 @@ def intercepting_decorator(func):
                         pass
                     completionID = result_queue.get()
             logging.debug("LOG10: failed", e)
+            # todo: change with openai v1 update
+            if type(e).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(e):
+                failure_kind = "ContextWindowExceedError"
+            else:
+                failure_kind = type(e).__name__
+            failure_reason = str(e)
             log_row = {
                 "status": "failed",
-                "failure_kind": type(e).__name__,
-                "failure_reason": str(e),
+                "failure_kind": failure_kind,
+                "failure_reason": failure_reason,
                 "stacktrace": json.dumps(stacktrace),
                 "kind": "completion",
                 "orig_module": func.__module__,
