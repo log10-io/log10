@@ -1,9 +1,9 @@
-import subprocess
-import tempfile
-import os
 import csv
 import json
-import logging
+import os
+import subprocess
+import tempfile
+
 from log10.llm import Messages
 from log10.utils import fuzzy_match, parse_field
 
@@ -19,9 +19,8 @@ def run_metric(metric, ideal, model_output):
             # Ref: https://github.com/openai/evals/blob/a24f20a357ecb3cc5eec8323097aeade9585796c/evals/elsuite/basic/includes.py
             if ideal_candidate.lower() in model_output.lower():
                 return True
-        elif metric == "fuzzy_match":
-            if fuzzy_match(ideal_candidate, model_output):
-                return True
+        elif metric == "fuzzy_match" and fuzzy_match(ideal_candidate, model_output):
+            return True
     return False
 
 
@@ -33,8 +32,8 @@ def write_to_csv(file_name, row_data):
 
 def eval(llm, dataset, metric, out_file_path):
     csv_file_name, mapping = dataset
-    with open(csv_file_name, "r") as csv_file:
-        reader = csv.DictReader(csv_file)
+    with open(csv_file_name) as csv_file:
+        reader = csv.dictReader(csv_file)
         examples = []
         for example in reader:
             mapped_example = {}
@@ -66,8 +65,10 @@ def compile(code):
     with tempfile.NamedTemporaryFile(suffix=".c", delete=False) as temp:
         temp.write(code.encode())
         temp.close()
-        process = subprocess.run(
-            ["gcc", temp.name], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        process = subprocess.run(  # noqa: UP022
+            ["gcc", temp.name],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
         os.remove(temp.name)  # remove the temp file
         if process.returncode == 0:

@@ -1,18 +1,18 @@
-import faker
-import sqlalchemy
-from langchain.sql_database import SQLDatabase
-from langchain.agents.agent_toolkits import SQLDatabaseToolkit
-from langchain.agents import create_sql_agent
-from langchain.llms import OpenAI
-from faker import Faker
-import random
 import datetime
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import create_engine, Column, Integer, String, DateTime
 import os
-from log10.load import log10
+import random
+
 import openai
+from faker import Faker
+from langchain.agents import create_sql_agent
+from langchain.agents.agent_toolkits import SQLDatabaseToolkit
+from langchain.llms import OpenAI
+from langchain.sql_database import SQLDatabase
+from sqlalchemy import Column, DateTime, Integer, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+from log10.load import log10
 
 log10(openai)
 
@@ -38,7 +38,10 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     def __repr__(self):
-        return f"<User(id={self.id}, username='{self.username}', email='{self.email}', first_name='{self.first_name}', last_name='{self.last_name}', age={self.age}, created_at={self.created_at})>"
+        return (
+            f"<User(id={self.id}, username='{self.username}', email='{self.email}', first_name='{self.first_name}', "
+            + f"last_name='{self.last_name}', age={self.age}, created_at={self.created_at})>"
+        )
 
 
 # Helper function to generate a random user using Faker
@@ -65,7 +68,7 @@ Session = sessionmaker(bind=engine)
 session = Session()
 
 # Add some example users
-for n_users in range(10):
+for _ in range(10):
     user = generate_random_user()
     session.add(user)
 

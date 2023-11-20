@@ -1,4 +1,10 @@
-.PHONY: examples agents evals logging
+POETRY := poetry
+FOLDERS=log10 examples
+BLUE=\033[0;34m
+NC=\033[0m # No Color
+
+.PHONY: examples agents evals logging  lint lint-ci-cd lint-flake8 lint-mypy check-lock lint-ci-cd
+
 
 agents:
 	LOG10_EXAMPLES_MODEL=noop python examples/agents/biochemist.py
@@ -48,3 +54,23 @@ evals:
 	(cd examples/evals && python fuzzy.py)
 
 examples: agents evals logging
+
+autolint:
+	${POETRY} run black .
+	${POETRY} run ruff --fix .
+	${POETRY} run isort ${FOLDERS}
+
+lint-ci-cd: check-lock lint-ruff lint-mypy
+
+lint: autolint check-lock lint-ruff lint-mypy
+
+lint-mypy:
+	@echo "\n${BLUE}Running mypy...${NC}\n"
+	${POETRY} run mypy ${FOLDERS}
+
+lint-ruff: ## Run the flake8 linter
+	@echo "\n${BLUE}Running ruff...${NC}\n"
+	${POETRY} run ruff .
+
+check-lock:
+	${POETRY} lock --check

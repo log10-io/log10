@@ -1,0 +1,26 @@
+name: Continuous Integration
+
+on:
+  push:
+    
+
+env:
+  PYTHON_VERSION: 3.11.4
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{env.PYTHON_VERSION}}
+          cache: 'poetry'
+          architecture: 'x64'
+      - name: Install
+        run: poetry install
+      - name: Lint
+        run: make lint-ci-cd
+      

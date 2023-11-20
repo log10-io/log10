@@ -1,43 +1,55 @@
-import requests
-import logging
 import json
-from typing import List, Optional
-from abc import ABC, abstractmethod
-from enum import Enum
+import logging
 import os
-import sys
 import traceback
+from abc import ABC
+from enum import Enum
+from typing import Optional
+
+import requests
 
 Role = Enum("Role", ["system", "assistant", "user"])
 Kind = Enum("Kind", ["chat", "text"])
+
+def _get_or_throw(arg:Optional[str], arg_name: str, env_name: str) -> str:
+    if arg is not None:
+        return arg
+    if os.getenv(env_name) is not None:
+        return os.getenv(env_name)  # type: ignore[return-value]
+    raise Exception(f"Missing {arg_name} argument and {env_name} environment variable")
 
 
 class Log10Config:
     def __init__(
         self,
-        url: str = None,
-        token: str = None,
-        org_id: str = None,
-        tags: List[str] = None,
+        url: Optional[str] = None,
+        token: Optional[str] = None,
+        org_id: Optional[str] = None,
+        tags: Optional[list[str]] = None,
         DEBUG: bool = False,
     ):
-        self.url = url if url else os.getenv("LOG10_URL")
-        self.token = token if token else os.getenv("LOG10_TOKEN")
-        self.org_id = org_id if org_id else os.getenv("LOG10_ORG_ID")
+        self.url = _get_or_throw(url,"Log 10 URL", "LOG10_URL")
+        self.token = _get_or_throw(token, "Log 10 Token", "LOG10_TOKEN")
+        self.org_id = _get_or_throw(org_id, "Log10 Organization Id", "LOG10_ORG_ID")
         self.DEBUG = DEBUG
 
         # Get tags from env, if not set, use empty list
-        if tags:
+        if tags is not None and len(tags) > 0:
             self.tags = tags
         elif os.getenv("LOG10_TAGS") is not None:
-            self.tags = os.getenv("LOG10_TAGS").split(",")
+            self.tags = os.getenv("LOG10_TAGS").split(",")  # type: ignore[union-attr]
         else:
             self.tags = []
+   
 
 
-class Message(ABC):
+class Message:
     def __init__(
-        self, role: Role, content: str, id: str = None, completion: str = None
+        self,
+        role: Role,
+        content: str,
+        id: Optional[str] = None,
+        completion: Optional[str] = None,
     ):
         self.id = id
         self.role = role
@@ -50,8 +62,9 @@ class Message(ABC):
             "content": self.content,
         }
 
-    def from_dict(message: dict):
-        return Message(
+    @classmethod
+    def from_dict(cls, message: dict):
+        return cls(
             role=message["role"],
             content=message["content"],
             id=message.get("id"),
@@ -59,18 +72,23 @@ class Message(ABC):
         )
 
 
-class Messages(ABC):
+class Messages:
+    @staticmethod
     def from_dict(messages: dict):
         return [Message.from_dict(message) for message in messages]
 
 
-class Completion(ABC):
+class Completion:
     pass
 
 
 class ChatCompletion(Completion):
     def __init__(
-        self, role: str, content: str, response: dict = None, completion_id: str = None
+        self,
+        role: str,
+        content: str,
+        response: dict,
+        completion_id: Optional[str] = None,
     ):
         self.role = role
         self.content = content
@@ -88,7 +106,7 @@ class ChatCompletion(Completion):
 
 
 class TextCompletion(Completion):
-    def __init__(self, text: str, response: dict = None, completion_id=None):
+    def __init__(self, text: str, response: dict, completion_id: Optional[str] = None):
         self._text = text
         self.response = response
         self.completion_id = completion_id
@@ -104,7 +122,7 @@ class LLM(ABC):
     last_completion_response = None
     duration = None
 
-    def __init__(self, hparams: dict = None, log10_config: Log10Config = None):
+    def __init__(self, hparams: dict, log10_config: Log10Config):
         self.log10_config = log10_config
         self.hparams = hparams
 
@@ -125,7 +143,8 @@ class LLM(ABC):
                 self.session_id = response["sessionID"]
             except Exception as e:
                 logging.warning(
-                    f"Failed to start session with {session_url} using token {self.log10_config.token}. Won't be able to log. {e}"
+                    f"Failed to start session with {session_url} using token {self.log10_config.token}."
+                    + f"Won't be able to log. {e}"
                 )
                 self.log10_config = None
 
@@ -147,16 +166,16 @@ class LLM(ABC):
 
         return self.duration
 
-    def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
+    def text(self, prompt: str, hparams: dict) -> TextCompletion:
         raise Exception("Not implemented")
 
-    def text_request(self, prompt: str, hparams: dict = None) -> dict:
+    def text_request(self, prompt: str, hparams: dict) -> dict:
         raise Exception("Not implemented")
 
-    def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
+    def chat(self, messages: list[Message], hparams: dict) -> ChatCompletion:
         raise Exception("Not implemented")
 
-    def chat_request(self, messages: List[Message], hparams: dict = None) -> dict:
+    def chat_request(self, messages: list[Message], hparams: dict) -> dict:
         raise Exception("Not implemented")
 
     def api_request(self, rel_url: str, method: str, request: dict):
@@ -171,7 +190,7 @@ class LLM(ABC):
         )
 
     # Save the start of a completion in **openai request format**.
-    def log_start(self, request, kind: Kind, tags: Optional[List[str]] = None):
+    def log_start(self, request, kind: Kind, tags: Optional[list[str]] = None):
         if not self.log10_config:
             return None
 
@@ -182,10 +201,9 @@ class LLM(ABC):
         completion_id = res.json()["completionID"]
 
         # merge tags
-        if tags:
-            tags = list(set(tags + self.log10_config.tags))
-        else:
-            tags = self.log10_config.tags
+        tags = (
+            list(set(tags + self.log10_config.tags)) if tags else self.log10_config.tags
+        )
 
         res = self.api_request(
             f"/api/completions/{completion_id}",
@@ -240,13 +258,13 @@ class LLM(ABC):
 
 
 class NoopLLM(LLM):
-    def __init__(self, hparams: dict = None, log10_config=None):
+    def __init__(self, hparams: dict, log10_config=None):
         pass
 
-    def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
+    def chat(self, messages: list[Message], hparams: dict) -> ChatCompletion:
         logging.info("Received chat completion requst: " + str(messages))
         return ChatCompletion(role="assistant", content="I'm not a real LLM")
 
-    def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
+    def text(self, prompt: str, hparams: dict) -> TextCompletion:
         logging.info("Received text completion requst: " + prompt)
         return TextCompletion(text="I'm not a real LLM")

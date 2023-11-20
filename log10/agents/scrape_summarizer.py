@@ -1,10 +1,11 @@
 from log10.llm import LLM, Message
-from anthropic import HUMAN_PROMPT
 from log10.tools import browser
 
-
 # Set up Summarizer agent
-system_prompt = "You are an expert at extracting the main points from a website. Only look at the provided website content by the user to extract the main points."
+system_prompt = (
+    "You are an expert at extracting the main points from a website. "
+    + "Only look at the provided website content by the user to extract the main points."
+)
 summarize_prompt = (
     "Extract the main points from the following website:\n {website_text}"
 )

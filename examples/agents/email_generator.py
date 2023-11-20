@@ -1,10 +1,12 @@
 import os
+from typing import Any, Optional
+
+from dotenv import load_dotenv
+
+from log10.agents.camel import camel_agent
 from log10.anthropic import Anthropic
 from log10.llm import NoopLLM
 from log10.load import log10
-from log10.agents.camel import camel_agent
-from dotenv import load_dotenv
-
 from log10.openai import OpenAI
 
 load_dotenv()
@@ -13,7 +15,7 @@ load_dotenv()
 model = os.environ.get("LOG10_EXAMPLES_MODEL", "gpt-3.5-turbo-16k")
 max_turns = 30
 
-llm = None
+llm: Optional[Any] = None
 summary_model = None
 if "claude" in model:
     import anthropic

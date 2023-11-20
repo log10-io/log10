@@ -1,7 +1,6 @@
 import json
 import re
 import string
-from anthropic import HUMAN_PROMPT, AI_PROMPT
 from copy import deepcopy
 
 

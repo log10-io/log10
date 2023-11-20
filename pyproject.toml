@@ -1,10 +1,10 @@
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "log10-io"
-
 version = "0.4.5"
 authors = ["log10 team"]
 license = "MIT"
@@ -19,8 +19,12 @@ packages = [
     { include = "log10" },
 ]
 
+
 [tool.poetry.group.dev.dependencies]
 build = "^0.10.0"
+ruff = "^0.1.6"
+black = "^23.11.0"
+mypy = "^1.7.0"
 
 [project.urls]
 "Homepage" = "https://github.com/log10-io/log10"
@@ -43,3 +47,34 @@ backoff = "^2.2.1"
 anthropic = "^0.3.11"
 mosaicml-cli = "^0.5.30"
 together = "^0.2.7"
+types-requests = "^2.31.0.10"
+
+[tool.isort]
+profile = "black"
+length_sort = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+unfixable = [
+  # disable auto fix for print statements
+  "T201",
+  "T203",
+]
+ignore-init-module-imports = true
+[tool.ruff.per-file-ignores]
+"log10/agents/camel.py" = ["E501"]

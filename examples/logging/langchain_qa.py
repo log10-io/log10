@@ -1,26 +1,22 @@
+# Example from: https://python.langchain.com/en/latest/use_cases/question_answering.html
+# Download the state_of_the_union.txt here: https://raw.githubusercontent.com/hwchase17/langchain/master/docs/modules/state_of_the_union.txt
+# This example requires: pip install chromadb
 import os
-from log10.load import log10
+
 import openai
+from langchain.chat_models import ChatOpenAI
+from langchain.document_loaders import TextLoader
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.indexes import VectorstoreIndexCreator
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.vectorstores import Chroma
+
+from log10.load import log10
 
 log10(openai)
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
-
-# Example from: https://python.langchain.com/en/latest/use_cases/question_answering.html
-# Download the state_of_the_union.txt here: https://raw.githubusercontent.com/hwchase17/langchain/master/docs/modules/state_of_the_union.txt
-# This example requires: pip install chromadb
-
-# Load Your Documents
-from langchain.document_loaders import TextLoader
-
 loader = TextLoader("./examples/logging/state_of_the_union.txt")
-
-# Create Your Index
-from langchain.indexes import VectorstoreIndexCreator
-from langchain.vectorstores import Chroma
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.chat_models import ChatOpenAI
 
 index = VectorstoreIndexCreator(
     vectorstore_cls=Chroma,

@@ -1,8 +1,9 @@
 import os
 import time
+from typing import Optional
+
 import together
 
-from copy import deepcopy
 from log10.llm import LLM, Kind, Log10Config, TextCompletion
 from log10.utils import merge_hparams
 
@@ -10,7 +11,7 @@ together.api_key = os.environ.get("TOGETHER_API_KEY")
 
 
 def llama_2_70b_chat(
-    prompt: str, hparams: dict = None, log10_config: Log10Config = None
+    prompt: str, hparams: dict, log10_config: Optional[Log10Config] = None
 ) -> str:
     """
     Example:
@@ -18,7 +19,7 @@ def llama_2_70b_chat(
         >>> from log10.together import llama_2_70b_chat
         >>> response = llama_2_70b_chat("Hello, how are you?", {"temperature": 0.3, "max_tokens": 10}, log10_config=Log10Config())
         >>> print(response)
-    """
+    """  # noqa: E501
     return Together({"model": "togethercomputer/llama-2-70b-chat"}, log10_config).text(
         prompt, hparams
     )
@@ -36,10 +37,10 @@ class Together(LLM):
     For more information on Together Complete, see https://docs.together.ai/reference/complete-1
     """
 
-    def __init__(self, hparams: dict = None, log10_config: Log10Config = None):
+    def __init__(self, hparams: dict, log10_config: Optional[Log10Config] = None):
         super().__init__(hparams, log10_config)
 
-    def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
+    def text(self, prompt: str, hparams: dict) -> TextCompletion:
         request = self.text_request(prompt, hparams)
         openai_request = {
             **request,

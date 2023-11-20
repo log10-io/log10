@@ -1,21 +1,16 @@
+import logging
 import time
-from copy import deepcopy
-from typing import List
+
+import anthropic
+from anthropic import AI_PROMPT, HUMAN_PROMPT
+
 from log10.llm import LLM, ChatCompletion, Kind, Message, TextCompletion
 from log10.utils import merge_hparams
 
 
-from anthropic import HUMAN_PROMPT, AI_PROMPT
-import anthropic
-
-import uuid
-
-import logging
-
-
 class Anthropic(LLM):
     def __init__(
-        self, hparams: dict = None, skip_initialization: bool = False, log10_config=None
+        self, hparams: dict, skip_initialization: bool = False, log10_config=None
     ):
         super().__init__(hparams, log10_config)
 
@@ -26,7 +21,7 @@ class Anthropic(LLM):
         if "max_tokens_to_sample" not in self.hparams:
             self.hparams["max_tokens_to_sample"] = 1024
 
-    def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
+    def chat(self, messages: list[Message], hparams: dict) -> ChatCompletion:
         """
         Example:
             >>> from log10.llm import Log10Config, Message
@@ -49,12 +44,6 @@ class Anthropic(LLM):
         completion = self.client.completions.create(**chat_request)
         content = completion.completion
 
-        reason = "stop"
-        if completion.stop_reason == "stop_sequence":
-            reason = "stop"
-        elif completion.stop_reason == "max_tokens":
-            reason = "length"
-
         response = Anthropic.prepare_response(
             chat_request["prompt"], completion, "chat"
         )
@@ -67,7 +56,7 @@ class Anthropic(LLM):
 
         return ChatCompletion(role="assistant", content=content, response=response)
 
-    def chat_request(self, messages: List[Message], hparams: dict = None) -> dict:
+    def chat_request(self, messages: list[Message], hparams: dict) -> dict:
         merged_hparams = merge_hparams(hparams, self.hparams)
 
         # NOTE: That we may have to convert this to openai messages, if we want
@@ -75,7 +64,7 @@ class Anthropic(LLM):
         prompt = Anthropic.convert_history_to_claude(messages)
         return {"prompt": prompt, "stop_sequences": [HUMAN_PROMPT], **merged_hparams}
 
-    def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
+    def text(self, prompt: str, hparams: dict) -> TextCompletion:
         """
         Example:
             >>> from log10.llm import Log10Config
@@ -97,13 +86,6 @@ class Anthropic(LLM):
         completion = self.client.completions.create(**text_request)
         text = completion.completion
 
-        # Imitate OpenAI reponse format.
-        reason = "stop"
-        if completion.stop_reason == "stop_sequence":
-            reason = "stop"
-        elif completion.stop_reason == "max_tokens":
-            reason = "length"
-
         response = Anthropic.prepare_response(
             text_request["prompt"], completion, "text"
         )
@@ -117,7 +99,7 @@ class Anthropic(LLM):
         logging.info("Returning text completion")
         return TextCompletion(text=text, response=response)
 
-    def text_request(self, prompt: str, hparams: dict = None) -> TextCompletion:
+    def text_request(self, prompt: str, hparams: dict) -> TextCompletion:
         merged_hparams = merge_hparams(hparams, self.hparams)
         return {
             "prompt": HUMAN_PROMPT + prompt + "\n" + AI_PROMPT,
@@ -125,7 +107,8 @@ class Anthropic(LLM):
             **merged_hparams,
         }
 
-    def convert_history_to_claude(messages: List[Message]):
+    @staticmethod
+    def convert_history_to_claude(messages: list[Message]):
         text = ""
         for message in messages:
             # Anthropic doesn't support a system prompt OOB
@@ -160,7 +143,6 @@ class Anthropic(LLM):
     ) -> dict:
         tokens_usage = Anthropic.create_tokens_usage(prompt, completion.completion)
         response = {
-            "id": completion.model_extra["log_id"],
             "object": "completion",
             "model": completion.model,
             "choices": [
@@ -171,6 +153,8 @@ class Anthropic(LLM):
             ],
             "usage": tokens_usage,
         }
+        if completion.model_extra and "log_id" in completion.model_extra:
+            response["id"] = (completion.model_extra["log_id"],)
         if type == "text":
             response["choices"][0]["text"] = completion.completion
         elif type == "chat":

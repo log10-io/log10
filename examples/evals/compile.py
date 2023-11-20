@@ -1,7 +1,8 @@
+from typing import Any, Optional
+
 from log10.anthropic import Anthropic
-from log10.llm import Message, NoopLLM
-from log10.load import log10
 from log10.evals import compile
+from log10.llm import Message, NoopLLM
 from log10.openai import OpenAI
 from log10.tools import code_extractor
 
@@ -10,7 +11,7 @@ model = "gpt-3.5-turbo"
 # model = "claude-1"
 
 
-llm = None
+llm: Optional[Any] = None
 if "claude" in model:
     llm = Anthropic({"model": model})
     extraction_model = "claude-1-100k"

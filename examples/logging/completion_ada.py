@@ -1,6 +1,8 @@
 import os
-from log10.load import log10
+
 import openai
+
+from log10.load import log10
 
 log10(openai, DEBUG_=True, USE_ASYNC_=False)
 

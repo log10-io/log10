@@ -1,10 +1,11 @@
 import time
 import uuid
+from typing import Optional
 
-from copy import deepcopy
+from mcli import predict
+
 from log10.llm import LLM, Kind, Log10Config, TextCompletion
 from log10.utils import merge_hparams
-from mcli import predict
 
 
 def llama_2_70b_chat(
@@ -16,7 +17,7 @@ def llama_2_70b_chat(
         >>> from log10.mosaicml import llama_2_70b_chat
         >>> response = llama_2_70b_chat("Hello, how are you?", {"temperature": 0.3, "max_new_tokens": 10}, log10_config=Log10Config())
         >>> print(response)
-    """
+    """  # noqa: E501
     return MosaicML({"model": "llama2-70b-chat/v1"}, log10_config).text(prompt, hparams)
 
 
@@ -34,10 +35,10 @@ class MosaicML(LLM):
 
     mosaicml_host_url = "https://models.hosted-on.mosaicml.hosting/"
 
-    def __init__(self, hparams: dict = None, log10_config: Log10Config = None):
+    def __init__(self, hparams: dict, log10_config: Optional[Log10Config] = None):
         super().__init__(hparams, log10_config)
 
-    def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
+    def text(self, prompt: str, hparams: dict) -> TextCompletion:
         request = self.text_request(prompt, hparams)
         self.model = request.get("model")
         openai_request = {
@@ -60,12 +61,12 @@ class MosaicML(LLM):
         self.log_end(
             self.completion_id,
             response,
-            time.perf_counter() - start_time,
+            int(time.perf_counter() - start_time),
         )
 
         return TextCompletion(text=response["choices"][0]["text"], response=response)
 
-    def text_request(self, prompt: str, hparams: dict = None) -> dict:
+    def text_request(self, prompt: str, hparams: dict) -> dict:
         merged_hparams = merge_hparams(hparams, self.hparams)
         return {"prompt": prompt, **merged_hparams}
 

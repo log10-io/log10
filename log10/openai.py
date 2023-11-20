@@ -1,16 +1,12 @@
-from copy import deepcopy
 import time
-from typing import List
-import openai
-from log10.llm import LLM, ChatCompletion, Kind, Message, TextCompletion
-
-import logging
+from copy import deepcopy
 
 # for exponential backoff
 import backoff
-from openai import error
 import openai
+from openai import error
 
+from log10.llm import LLM, ChatCompletion, Kind, Message, TextCompletion
 
 RETRY_ERROR_TYPES = (
     error.APIConnectionError,
@@ -22,11 +18,11 @@ RETRY_ERROR_TYPES = (
 
 
 class OpenAI(LLM):
-    def __init__(self, hparams: dict = None, log10_config=None):
+    def __init__(self, hparams: dict, log10_config=None):
         super().__init__(hparams, log10_config)
 
     @backoff.on_exception(backoff.expo, RETRY_ERROR_TYPES)
-    def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
+    def chat(self, messages: list[Message], hparams: dict) -> ChatCompletion:
         request = self.chat_request(messages, hparams)
 
         start_time = time.perf_counter()
@@ -48,7 +44,7 @@ class OpenAI(LLM):
 
         return response
 
-    def chat_request(self, messages: List[Message], hparams: dict = None) -> dict:
+    def chat_request(self, messages: list[Message], hparams: dict) -> dict:
         merged_hparams = deepcopy(self.hparams)
         if hparams:
             for hparam in hparams:
@@ -72,12 +68,12 @@ class OpenAI(LLM):
         self.log_end(
             completion_id,
             completion,
-            time.perf_counter() - start_time,
+            int(time.perf_counter() - start_time),
         )
 
         return response
 
-    def text_request(self, prompt: str, hparams: dict = None) -> dict:
+    def text_request(self, prompt: str, hparams: dict) -> dict:
         merged_hparams = deepcopy(self.hparams)
         if hparams:
             for hparam in hparams:

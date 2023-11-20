@@ -1,11 +1,12 @@
-import os
-from log10.openai import OpenAI
+from typing import Any, Optional
+
 from log10.anthropic import Anthropic
 from log10.evals import eval
+from log10.openai import OpenAI
 
 # Choose provider
 provider = "anthropic"  # "anthropic"
-llm = None
+llm: Optional[Any] = None
 if provider == "openai":
     llm = OpenAI(
         {

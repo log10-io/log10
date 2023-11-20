@@ -3,15 +3,17 @@ import sys
 if "init_modules" in globals():
     # second or subsequent run: remove all but initially loaded modules
     for m in list(sys.modules.keys()):
-        if m not in init_modules:
+        if m not in init_modules:  # noqa: F821
             del sys.modules[m]
 else:
     # first run: find out which modules were initially loaded
     init_modules = list(sys.modules.keys())
 
 import os
-from log10.load import log10, log10_session
+
 import openai
+
+from log10.load import log10, log10_session
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 

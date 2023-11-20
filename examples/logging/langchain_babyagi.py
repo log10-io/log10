@@ -1,23 +1,19 @@
-import os
 from collections import deque
-from typing import Dict, List, Optional, Any
+from typing import Any, Optional
 
+import faiss
+import openai
+from langchain import LLMChain, PromptTemplate, SerpAPIWrapper
+from langchain.agents import AgentExecutor, Tool, ZeroShotAgent
+from langchain.chains.base import Chain
 from langchain.chat_models import ChatOpenAI
-from langchain import LLMChain, PromptTemplate
+from langchain.docstore import InMemoryDocstore
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.llms import BaseLLM
+from langchain.vectorstores import FAISS
 from langchain.vectorstores.base import VectorStore
 from pydantic import BaseModel, Field
-from langchain.chains.base import Chain
 
-from langchain.vectorstores import FAISS
-from langchain.docstore import InMemoryDocstore
-
-from langchain.agents import ZeroShotAgent, Tool, AgentExecutor
-from langchain import OpenAI, SerpAPIWrapper, LLMChain
-
-import openai
-import log10
 from log10.load import log10
 
 log10(openai)
@@ -27,7 +23,7 @@ log10(openai)
 # Define your embedding model
 embeddings_model = OpenAIEmbeddings()
 # Initialize the vectorstore as empty
-import faiss
+
 
 embedding_size = 1536
 index = faiss.IndexFlatL2(embedding_size)
@@ -85,7 +81,8 @@ class TaskPrioritizationChain(LLMChain):
 
 
 todo_prompt = PromptTemplate.from_template(
-    "You are a planner who is an expert at coming up with a todo list for a given objective. Come up with a todo list for this objective: {objective}"
+    "You are a planner who is an expert at coming up with a todo list for a given objective. "
+    + "Come up with a todo list for this objective: {objective}"
 )
 todo_chain = LLMChain(llm=ChatOpenAI(temperature=0), prompt=todo_prompt)
 search = SerpAPIWrapper()
@@ -98,12 +95,20 @@ tools = [
     Tool(
         name="TODO",
         func=todo_chain.run,
-        description="useful for when you need to come up with todo lists. Input: an objective to create a todo list for. Output: a todo list for that objective. Please be very clear what the objective is!",
+        description=(
+            "useful for when you need to come up with todo lists. "
+            + "Input: an objective to create a todo list for. "
+            + "Output: a todo list for that objective. "
+            + "Please be very clear what the objective is!"
+        ),
     ),
 ]
 
 
-prefix = """You are an AI who performs one task based on the following objective: {objective}. Take into account these previously completed tasks: {context}."""
+prefix = (
+    "You are an AI who performs one task based on the following objective: {objective}. "
+    + "Take into account these previously completed tasks: {context}."
+)
 suffix = """Question: {task}
 {agent_scratchpad}"""
 prompt = ZeroShotAgent.create_prompt(
@@ -116,11 +121,11 @@ prompt = ZeroShotAgent.create_prompt(
 
 def get_next_task(
     task_creation_chain: LLMChain,
-    result: Dict,
+    result: dict,
     task_description: str,
-    task_list: List[str],
+    task_list: list[str],
     objective: str,
-) -> List[Dict]:
+) -> list[dict]:
     """Get the next task."""
     incomplete_tasks = ", ".join(task_list)
     response = task_creation_chain.run(
@@ -136,9 +141,9 @@ def get_next_task(
 def prioritize_tasks(
     task_prioritization_chain: LLMChain,
     this_task_id: int,
-    task_list: List[Dict],
+    task_list: list[dict],
     objective: str,
-) -> List[Dict]:
+) -> list[dict]:
     """Prioritize tasks."""
     task_names = [t["task_name"] for t in task_list]
     next_task_id = int(this_task_id) + 1
@@ -158,7 +163,7 @@ def prioritize_tasks(
     return prioritized_task_list
 
 
-def _get_top_tasks(vectorstore, query: str, k: int) -> List[str]:
+def _get_top_tasks(vectorstore, query: str, k: int) -> list[str]:
     """Get the top k tasks based on the query."""
     results = vectorstore.similarity_search_with_score(query, k=k)
     if not results:
@@ -191,7 +196,7 @@ class BabyAGI(Chain, BaseModel):
 
         arbitrary_types_allowed = True
 
-    def add_task(self, task: Dict):
+    def add_task(self, task: dict):
         self.task_list.append(task)
 
     def print_task_list(self):
@@ -199,7 +204,7 @@ class BabyAGI(Chain, BaseModel):
         for t in self.task_list:
             print(str(t["task_id"]) + ": " + t["task_name"])
 
-    def print_next_task(self, task: Dict):
+    def print_next_task(self, task: dict):
         print("\033[92m\033[1m" + "\n*****NEXT TASK*****\n" + "\033[0m\033[0m")
         print(str(task["task_id"]) + ": " + task["task_name"])
 
@@ -208,14 +213,14 @@ class BabyAGI(Chain, BaseModel):
         print(result)
 
     @property
-    def input_keys(self) -> List[str]:
+    def input_keys(self) -> list[str]:
         return ["objective"]
 
     @property
-    def output_keys(self) -> List[str]:
+    def output_keys(self) -> list[str]:
         return []
 
-    def _call(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
+    def _call(self, inputs: dict[str, Any]) -> dict[str, Any]:
         """Run the agent."""
         objective = inputs["objective"]
         first_task = inputs.get("first_task", "Make a todo list")

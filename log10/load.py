@@ -1,19 +1,20 @@
-import types
+import asyncio
 import functools
 import inspect
-import requests
-import os
 import json
+import logging
+import os
+import queue
+import threading
 import time
 import traceback
-from aiohttp import ClientSession
-import asyncio
-import threading
-import queue
 from contextlib import contextmanager
-import logging
-from dotenv import load_dotenv
+
 import backoff  # for exponential backoff
+import requests
+from aiohttp import ClientSession
+from dotenv import load_dotenv
+
 from log10.openai import RETRY_ERROR_TYPES as OPENAI_RETRY_ERROR_TYPES
 
 load_dotenv()
@@ -41,7 +42,7 @@ def func_with_backoff(func, *args, **kwargs):
 
 
 # todo: should we do backoff as well?
-def post_request(url: str, json: dict = {}) -> requests.Response:
+def post_request(url: str, json: dict) -> requests.Response:
     headers = {"x-log10-token": token, "Content-Type": "application/json"}
     json["organization_id"] = org_id
     try:
@@ -84,7 +85,7 @@ def get_session_id():
             + str(e)
             + "\nLikely cause: LOG10 env vars missing or not picked up correctly!"
             + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
-        )
+        ) from e
 
 
 # Global variable to store the current sessionID.
@@ -150,16 +151,14 @@ def log_url(res, completionID):
 
 
 async def log_async(completion_url, func, **kwargs):
-    async with ClientSession() as session:
+    async with ClientSession():
         global last_completion_response
 
         res = post_request(completion_url)
         # todo: handle session id for bigquery scenario
         last_completion_response = res.json()
         completionID = res.json()["completionID"]
-
-        if DEBUG:
-            log_url(res, completionID)
+        log_url(res, completionID)
 
         # in case the usage of load(openai) and langchain.ChatOpenAI
         if "api_key" in kwargs:
@@ -287,7 +286,7 @@ def intercepting_decorator(func):
                 }
 
                 if target_service == "log10":
-                    res = post_request(completion_url + "/" + completionID, log_row)
+                    post_request(completion_url + "/" + completionID, log_row)
                 elif target_service == "bigquery":
                     try:
                         log_row["id"] = str(uuid.uuid4())
@@ -434,23 +433,25 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
     #             intercept_class_methods(method)
 
     for name, attr in vars(module).items():
-        if inspect.isclass(attr):
-            # OpenAI
-            if module.__name__ == "openai" and name in ["ChatCompletion", "Completion"]:
-                for method_name, method in vars(attr).items():
-                    if isinstance(method, classmethod):
-                        original_method = method.__func__
-                        if original_method.__qualname__ in [
-                            "ChatCompletion.create",
-                            "Completion.create",
-                        ]:
-                            decorated_method = intercepting_decorator(original_method)
-                            setattr(attr, method_name, classmethod(decorated_method))
+        if (
+            inspect.isclass(attr)
+            and module.__name__ == "openai"
+            and name in ["ChatCompletion", "Completion"]
+        ):
+            for method_name, method in vars(attr).items():
+                if isinstance(method, classmethod):
+                    original_method = method.__func__
+                    if original_method.__qualname__ in [
+                        "ChatCompletion.create",
+                        "Completion.create",
+                    ]:
+                        decorated_method = intercepting_decorator(original_method)
+                        setattr(attr, method_name, classmethod(decorated_method))
     # Anthropic
     if module.__name__ == "anthropic":
-        method = getattr(module.resources.completions.Completions, "create")
+        method = module.resources.completions.Completions.create
         attr = module.resources.completions.Completions
-        setattr(attr, "create", intercepting_decorator(method))
+        attr.create = intercepting_decorator(method)
 
         # For future reference:
         # if callable(attr) and isinstance(attr, types.FunctionType):

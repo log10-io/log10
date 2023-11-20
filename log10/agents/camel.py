@@ -1,9 +1,9 @@
 import logging
+from typing import Optional
+
 from dotenv import load_dotenv
 
 from log10.llm import LLM, Message
-
-from typing import List, Tuple
 
 load_dotenv()
 
@@ -23,11 +23,11 @@ def camel_agent(
     assistant_role: str,
     task_prompt: str,
     max_turns: int,
-    user_prompt: str = None,
-    assistant_prompt: str = None,
-    summary_model: str = None,
-    llm: LLM = None,
-) -> Tuple[List[Message], List[Message]]:
+    user_prompt: Optional[str] = None,
+    assistant_prompt: Optional[str] = None,
+    summary_model: Optional[str] = None,
+    llm: Optional[LLM] = None,
+) -> tuple[list[Message], list[Message]]:
     generator = camel_agent_generator(
         user_role,
         assistant_role,

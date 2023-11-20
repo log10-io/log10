@@ -1,14 +1,16 @@
 import os
-from log10.load import log10
+
 import openai
+from langchain.chains import LLMChain, SimpleSequentialChain
+from langchain.llms import OpenAI
+from langchain.prompts import PromptTemplate
+
+from log10.load import log10
 
 log10(openai)
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-from langchain.llms import OpenAI
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain, SimpleSequentialChain
 
 llm = OpenAI(temperature=0.9, model_name="text-babbage-001")
 prompt = PromptTemplate(

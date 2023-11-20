@@ -1,5 +1,5 @@
-from log10.together import llama_2_70b_chat, Together
 from log10.llm import Log10Config
+from log10.together import Together, llama_2_70b_chat
 
 config = Log10Config()
 llm = Together({"model": "togethercomputer/llama-2-70b-chat"}, log10_config=config)

@@ -1,15 +1,16 @@
 import os
+from typing import Any, Optional
+
 from log10.agents.scrape_summarizer import scrape_summarizer
 from log10.anthropic import Anthropic
 from log10.llm import NoopLLM
 from log10.load import log10
 from log10.openai import OpenAI
 
-
 # Select one of OpenAI or Anthropic models
 model = os.environ.get("LOG10_EXAMPLES_MODEL", "gpt-3.5-turbo-16k")
 
-llm = None
+llm: Optional[Any] = None
 if "claude" in model:
     import anthropic
 

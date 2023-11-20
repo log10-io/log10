@@ -1,23 +1,28 @@
+"""Callback Handler that prints to std out."""
+import logging
 import time
 import uuid
-
-from langchain.schema import HumanMessage, AIMessage, SystemMessage, BaseMessage
+from typing import Any, Optional, Union
 from uuid import UUID
 
-"""Callback Handler that prints to std out."""
-from typing import Any, Dict, List, Optional, Union
-
 from langchain.callbacks.base import BaseCallbackHandler
-from langchain.schema import AgentAction, AgentFinish, LLMResult
-from log10.llm import LLM, Kind, Message
+from langchain.schema import (
+    AgentAction,
+    AgentFinish,
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    LLMResult,
+    SystemMessage,
+)
 
-import logging
+from log10.llm import LLM, Kind, Message
 
 logging.basicConfig()
 logger = logging.getLogger("log10")
 
 
-def kwargs_to_hparams(kwargs: Dict[str, Any]) -> Dict[str, Any]:
+def kwargs_to_hparams(kwargs: dict[str, Any]) -> dict[str, Any]:
     """Convert kwargs to hparams."""
     hparams = {}
     if "temperature" in kwargs:
@@ -37,7 +42,7 @@ def kwargs_to_hparams(kwargs: Dict[str, Any]) -> Dict[str, Any]:
     return hparams
 
 
-def get_log10_messages(langchain_messages: List[BaseMessage]) -> List[Message]:
+def get_log10_messages(langchain_messages: list[BaseMessage]) -> list[Message]:
     role_map = {AIMessage: "assistant", HumanMessage: "user", SystemMessage: "system"}
 
     for m in langchain_messages:
@@ -60,19 +65,19 @@ class Log10Callback(BaseCallbackHandler, LLM):
         super().__init__(log10_config=log10_config, hparams=None)
         self.runs = {}
 
-        if log10_config.DEBUG:
+        if "DEBUG" in log10_config and log10_config["DEBUG"]:
             logger.setLevel(logging.DEBUG)
         else:
             logger.setLevel(logging.INFO)
 
     def on_llm_start(
         self,
-        serialized: Dict[str, Any],
-        prompts: List[str],
+        serialized: dict[str, Any],
+        prompts: list[str],
         *,
         run_id: UUID,
         parent_run_id: Optional[UUID] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         **kwargs: Any,
     ) -> None:
         """Print out the prompts."""
@@ -106,16 +111,27 @@ class Log10Callback(BaseCallbackHandler, LLM):
 
     def on_chat_model_start(
         self,
-        serialized: Dict[str, Any],
-        messages: List[List[BaseMessage]],
+        serialized: dict[str, Any],
+        messages: list[list[BaseMessage]],
         *,
         run_id: UUID,
         parent_run_id: Optional[UUID] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         **kwargs: Any,
     ) -> None:
         logger.debug(
-            f"**\n**on_chat_model_start**\n**\n: run_id:{run_id}\nserialized:\n{serialized}\n\nmessages:\n{messages}\n\nkwargs: {kwargs}"
+            f"""**
+            **on_chat_model_start**
+            **
+            : run_id:
+            {run_id}
+            serialized:
+            {serialized}
+            
+            messages:
+            {messages}
+            
+            kwargs: {kwargs}"""
         )
 
         #
@@ -240,12 +256,12 @@ class Log10Callback(BaseCallbackHandler, LLM):
         logger.debug(f"error:\n {error} \n\n rest: {kwargs}")
 
     def on_chain_start(
-        self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any
+        self, serialized: dict[str, Any], inputs: dict[str, Any], **kwargs: Any
     ) -> None:
         """Print out that we are entering a chain."""
         pass
 
-    def on_chain_end(self, outputs: Dict[str, Any], **kwargs: Any) -> None:
+    def on_chain_end(self, outputs: dict[str, Any], **kwargs: Any) -> None:
         """Print out that we finished a chain."""
         pass
 
@@ -257,7 +273,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
 
     def on_tool_start(
         self,
-        serialized: Dict[str, Any],
+        serialized: dict[str, Any],
         input_str: str,
         **kwargs: Any,
     ) -> None:

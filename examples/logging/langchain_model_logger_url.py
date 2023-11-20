@@ -1,11 +1,8 @@
-from langchain import OpenAI
-from langchain.chat_models import ChatAnthropic
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import HumanMessage
 
 from log10.langchain import Log10Callback
 from log10.llm import Log10Config
-
 
 log10_callback = Log10Callback(log10_config=Log10Config())
 

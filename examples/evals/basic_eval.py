@@ -1,4 +1,5 @@
-import os
+from typing import Any, Optional
+
 from log10.anthropic import Anthropic
 from log10.evals import eval
 from log10.openai import OpenAI
@@ -7,7 +8,7 @@ from log10.openai import OpenAI
 provider = "openai"  # "anthropic"
 
 # TODO: Replace with LLM abstraction.
-llm = None
+llm: Optional[Any] = None
 if provider == "openai":
     llm = OpenAI(
         {
