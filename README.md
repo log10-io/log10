@@ -88,7 +88,7 @@ from log10.mosaicml import MosaicML
 llm = MosaicML({"model": "llama2-70b-chat/v1"}, log10_config=Log10Config())
 ```
 
-**TogetherAI** with LLM abstraction. Full script [here](/examples/logging/together_completion.py).
+**Together** with LLM abstraction. Full script [here](/examples/logging/together_completion.py).
 ```python
 from log10.together import Together
 llm = Together({"model": "togethercomputer/llama-2-70b-chat"}, log10_config=Log10Config())
