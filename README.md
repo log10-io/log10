@@ -32,60 +32,67 @@ Prompt chains such as those in [Langchain](https://github.com/hwchase17/langchai
 
 ### 📝📊 Logging
 
-Log your LLM calls (private and open-source) to compare and find the best model and prompts, store feedback, collect latency and usage metrics, and perform analytics and compliance monitoring of LLM powered features.
-Log10 provides multiple entry points (library wrapper, Log10 LLM abstraction, or callbacks), making it easy to use either with existing production code or start from scratch.
-Pick the one works best for you.
+Use Log10 to log both closed and open-source LLM calls. It helps you:
+- Compare and identify the best models and prompts
+- Store feedback for fine-tuning
+- Collect performance metrics such as latency and usage
+- Perform analytics and monitor compliance for LLM powered applications
+
+Log10 offers various integration methods, including a python LLM library wrapper, the Log10 LLM abstraction, and callbacks, to facilitate its use in both existing production environments and new projects.
+Pick the one that works best for you.
 
 #### OpenAI
-* Library wrapper `log10(openai)` as [shown above](#🤔-what-is-this).
+Use library wrapper `log10(openai)` as shown [above](#-what-is-this).
 Full script [here](examples/logging/chatcompletion.py).
-    ```python
-    import openai
-    from log10.load import log10
+```python
+import openai
+from log10.load import log10
 
-    log10(openai)
-    # openai calls are now logged
-    ```
+log10(openai)
+# openai calls are now logged
+```
 
-* Log10 LLM abstraction.
+Use Log10 LLM abstraction.
 Full script [here](examples/logging/llm_abstraction.py#6-#14).
-    ```python
-    from log10.openai import OpenAI
-    llm = OpenAI({"model": "gpt-3.5-turbo"}, log10_config=Log10Config())
-    ```
+```python
+from log10.openai import OpenAI
+llm = OpenAI({"model": "gpt-3.5-turbo"}, log10_config=Log10Config())
+```
 
 #### Anthropic
-* Library wrapper `log10(anthropic)`.
+Use library wrapper `log10(anthropic)`.
 Full script [here](/examples/logging/anthropic_completion.py).
-    ```python
-    import anthropic
-    from log10.load import log10
+```python
+import anthropic
+from log10.load import log10
 
-    log10(anthropic)
-    # anthropic calls are now logged
-    ```
-* Log10 LLM abstraction
+log10(anthropic)
+# anthropic calls are now logged
+```
+
+Use Log10 LLM abstraction.
 Full script [here](examples/logging/llm_abstraction.py#16-#19).
-    ```python
-    from log10.anthropic import Anthropic
-    llm = Anthropic({"model": "claude-2"}, log10_config=Log10Config())
-    ```
+```python
+from log10.anthropic import Anthropic
+llm = Anthropic({"model": "claude-2"}, log10_config=Log10Config())
+```
 
 #### Open-source LLMs
 Log open-source LLM calls, e.g. Llama-2, Mistral, etc from providers.
 Currently we support inference endpoints on Together.AI and MosaicML (ranked on the top based on our [benchmarking](https://arjunbansal.substack.com/p/which-llama-2-inference-api-should-i-use) on Llama-2 inference providers).
 Adding other providers is on the roadmap.
-* **MosaicML** with LLM abstraction. Full script [here](/examples/logging/mosaicml_completion.py).
-    ```python
-    from log10.mosaicml import llama_2_70b_chat, MosaicML
-    llm = MosaicML({"model": "llama2-70b-chat/v1"}, log10_config=Log10Config())
-    ```
 
-* **TogetherAI** with LLM abstraction. Full script [here](/examples/logging/together_completion.py).
-    ```python
-    from log10.together import llama_2_70b_chat, Together
-    llm = Together({"model": "togethercomputer/llama-2-70b-chat"}, log10_config=Log10Config())
-    ```
+**MosaicML** with LLM abstraction. Full script [here](/examples/logging/mosaicml_completion.py).
+```python
+from log10.mosaicml import llama_2_70b_chat, MosaicML
+llm = MosaicML({"model": "llama2-70b-chat/v1"}, log10_config=Log10Config())
+```
+
+**TogetherAI** with LLM abstraction. Full script [here](/examples/logging/together_completion.py).
+```python
+from log10.together import llama_2_70b_chat, Together
+llm = Together({"model": "togethercomputer/llama-2-70b-chat"}, log10_config=Log10Config())
+```
 
 #### Other LLM frameworks
 Use Log10 callbacks if you use LangChain's LLM abstraction. Full script [here](/examples/logging/langchain_model_logger.py).
