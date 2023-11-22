@@ -26,30 +26,69 @@ Access your LLM data at [log10.io](https://log10.io)
 
 ## 🚀 What can this help with?
 
-**🔍🐞 Prompt chain debugging**
+### 🔍🐞 Prompt chain debugging
 
 Prompt chains such as those in [Langchain](https://github.com/hwchase17/langchain) can be difficult to debug. Log10 provides prompt provenance, session tracking and call stack functionality to help debug chains.
 
-**📝📊 Logging**
+### 📝📊 Logging
 
-Log all your OpenAI calls to compare and find the best prompts, store feedback, collect latency and usage metrics, and perform analytics and compliance monitoring of LLM powered features.
+Log your LLM calls (private and open-source) to compare and find the best model and prompts, store feedback, collect latency and usage metrics, and perform analytics and compliance monitoring of LLM powered features.
+Log10 provides multiple entry points (library wrapper, Log10 LLM abstraction, or callbacks), making it easy to use either with existing production code or start from scratch.
+Pick the one works best for you.
 
-You can log any openai (as [shown above](#🤔-what-is-this)) or anthropic based application using the library wrappers from log10:
+#### OpenAI
+* Library wrapper `log10(openai)` as [shown above](#🤔-what-is-this).
+Full script [here](examples/logging/chatcompletion.py).
+    ```python
+    import openai
+    from log10.load import log10
 
-```python
-import os
-from log10.load import log10
-import anthropic
-import os
+    log10(openai)
+    # openai calls are now logged
+    ```
 
-log10(anthropic)
-anthropicClient = anthropic.Client()
-# anthropic calls are now logged
-```
+* Log10 LLM abstraction.
+Full script [here](examples/logging/llm_abstraction.py#6-#14).
+    ```python
+    from log10.openai import OpenAI
+    llm = OpenAI({"model": "gpt-3.5-turbo"}, log10_config=Log10Config())
+    ```
 
-This will log any LLM call through the process execution.
+#### Anthropic
+* Library wrapper `log10(anthropic)`.
+Full script [here](/examples/logging/anthropic_completion.py).
+    ```python
+    import anthropic
+    from log10.load import log10
 
-If you want to log other LLMs, you can use LangChain's LLM abstraction with the log10 logger:
+    log10(anthropic)
+    # anthropic calls are now logged
+    ```
+* Log10 LLM abstraction
+Full script [here](examples/logging/llm_abstraction.py#16-#19).
+    ```python
+    from log10.anthropic import Anthropic
+    llm = Anthropic({"model": "claude-2"}, log10_config=Log10Config())
+    ```
+
+#### Open-source LLMs
+Log open-source LLM calls, e.g. Llama-2, Mistral, etc from providers.
+Currently we support inference endpoints on Together.AI and MosaicML (ranked on the top based on our [benchmarking](https://arjunbansal.substack.com/p/which-llama-2-inference-api-should-i-use) on Llama-2 inference providers).
+Adding other providers is on the roadmap.
+* **MosaicML** with LLM abstraction. Full script [here](/examples/logging/mosaicml_completion.py).
+    ```python
+    from log10.mosaicml import llama_2_70b_chat, MosaicML
+    llm = MosaicML({"model": "llama2-70b-chat/v1"}, log10_config=Log10Config())
+    ```
+
+* **TogetherAI** with LLM abstraction. Full script [here](/examples/logging/together_completion.py).
+    ```python
+    from log10.together import llama_2_70b_chat, Together
+    llm = Together({"model": "togethercomputer/llama-2-70b-chat"}, log10_config=Log10Config())
+    ```
+
+#### Other LLM frameworks
+Use Log10 callbacks if you use LangChain's LLM abstraction. Full script [here](/examples/logging/langchain_model_logger.py).
 
 ```python
 from langchain.chat_models import ChatOpenAI
@@ -70,7 +109,7 @@ llm = ChatOpenAI(model_name="gpt-3.5-turbo", callbacks=[log10_callback])
 
 Read more here for options for logging using library wrapper, langchain callback logger and how to apply log10 tags [here](./logging.md).
 
-**💿🧩 Flexible data store**
+### 💿🧩 Flexible data store
 
 log10 provides a managed data store, but if you'd prefer to manage data in your own environment, you can use data stores like google big query.
 
@@ -89,11 +128,11 @@ And provide the following configuration in either a `.env` file, or as environme
 
 **Note** that your environment should have been setup with google cloud credentials. Read more [here](https://cloud.google.com/sdk/gcloud/reference/auth/login) about authenticating.
 
-**🧠🔁 Readiness for RLHF & self hosting**
+### 🧠🔁 Readiness for RLHF & self hosting
 
 Use your data and feedback from users to fine-tune custom models with RLHF with the option of building and deploying more reliable, accurate and efficient self-hosted models. 
 
-**👥🤝 Collaboration**
+### 👥🤝 Collaboration
 
 Create flexible groups to share and collaborate over all of the above features
 
