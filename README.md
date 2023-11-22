@@ -84,13 +84,13 @@ Adding other providers is on the roadmap.
 
 **MosaicML** with LLM abstraction. Full script [here](/examples/logging/mosaicml_completion.py).
 ```python
-from log10.mosaicml import llama_2_70b_chat, MosaicML
+from log10.mosaicml import MosaicML
 llm = MosaicML({"model": "llama2-70b-chat/v1"}, log10_config=Log10Config())
 ```
 
 **TogetherAI** with LLM abstraction. Full script [here](/examples/logging/together_completion.py).
 ```python
-from log10.together import llama_2_70b_chat, Together
+from log10.together import Together
 llm = Together({"model": "togethercomputer/llama-2-70b-chat"}, log10_config=Log10Config())
 ```
 
