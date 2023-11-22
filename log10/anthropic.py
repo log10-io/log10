@@ -1,16 +1,17 @@
 import logging
 import time
+from typing import Optional
 
 import anthropic
 from anthropic import AI_PROMPT, HUMAN_PROMPT
 
-from log10.llm import LLM, ChatCompletion, Kind, Message, TextCompletion
+from log10.llm import LLM, ChatCompletion, Kind, Log10Config, Message, TextCompletion
 from log10.utils import merge_hparams
 
 
 class Anthropic(LLM):
     def __init__(
-        self, hparams: dict, skip_initialization: bool = False, log10_config=None
+        self, hparams: dict, skip_initialization: bool = False, log10_config:Optional[Log10Config]=None
     ):
         super().__init__(hparams, log10_config)
 

@@ -2,7 +2,7 @@ from typing import Any, Optional
 
 from log10.anthropic import Anthropic
 from log10.evals import compile
-from log10.llm import Message, NoopLLM
+from log10.llm import Message, NoopLLM, Role
 from log10.openai import OpenAI
 from log10.tools import code_extractor
 
@@ -25,7 +25,7 @@ else:
 
 # First, write a hello world program
 messages = [
-    Message(role="system", content="You are an expert C programmer."),
+    Message(role=Role.system, content="You are an expert C programmer."),
     Message(
         role="user",
         content="Write a hello world program. Insert a null character after the hello world",

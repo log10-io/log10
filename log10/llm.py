@@ -7,6 +7,7 @@ from enum import Enum
 from typing import Optional
 
 import requests
+from requests import Response
 
 Role = Enum("Role", ["system", "assistant", "user"])
 Kind = Enum("Kind", ["chat", "text"])
@@ -122,7 +123,7 @@ class LLM(ABC):
     last_completion_response = None
     duration = None
 
-    def __init__(self, hparams: dict, log10_config: Log10Config):
+    def __init__(self, hparams: dict, log10_config: Optional[Log10Config]):
         self.log10_config = log10_config
         self.hparams = hparams
 
@@ -178,53 +179,54 @@ class LLM(ABC):
     def chat_request(self, messages: list[Message], hparams: dict) -> dict:
         raise Exception("Not implemented")
 
-    def api_request(self, rel_url: str, method: str, request: dict):
-        return requests.request(
-            method,
-            f"{self.log10_config.url}{rel_url}",
-            headers={
-                "x-log10-token": self.log10_config.token,
-                "Content-Type": "application/json",
-            },
-            json=request,
-        )
+    def api_request(self, rel_url: str, method: str, request: dict) -> Optional[Response]:
+        if self.log10_config:
+            return requests.request(
+                method,
+                f"{self.log10_config.url}{rel_url}",
+                headers={
+                    "x-log10-token": self.log10_config.token,
+                    "Content-Type": "application/json",
+                },
+                json=request,
+            )
+        return None
 
     # Save the start of a completion in **openai request format**.
     def log_start(self, request, kind: Kind, tags: Optional[list[str]] = None):
-        if not self.log10_config:
-            return None
-
         res = self.api_request(
             "/api/completions", "POST", {"organization_id": self.log10_config.org_id}
         )
-        self.last_completion_response = res.json()
-        completion_id = res.json()["completionID"]
+        if res:
+            self.last_completion_response = res.json()
+            completion_id = res.json()["completionID"]
 
-        # merge tags
-        tags = (
-            list(set(tags + self.log10_config.tags)) if tags else self.log10_config.tags
-        )
+            # merge tags
+            tags = (
+                list(set(tags + self.log10_config.tags)) if tags else self.log10_config.tags
+            )
 
-        res = self.api_request(
-            f"/api/completions/{completion_id}",
-            "POST",
-            {
-                "kind": kind == Kind.text and "completion" or "chat",
-                "organization_id": self.log10_config.org_id,
-                "session_id": self.session_id,
-                "orig_module": "openai.api_resources.completion"
-                if kind == Kind.text
-                else "openai.api_resources.chat_completion",
-                "orig_qualname": "Completion.create"
-                if kind == Kind.text
-                else "ChatCompletion.create",
-                "status": "started",
-                "tags": tags,
-                "request": json.dumps(request),
-            },
-        )
+            res = self.api_request(
+                f"/api/completions/{completion_id}",
+                "POST",
+                {
+                    "kind": kind == Kind.text and "completion" or "chat",
+                    "organization_id": self.log10_config.org_id,
+                    "session_id": self.session_id,
+                    "orig_module": "openai.api_resources.completion"
+                    if kind == Kind.text
+                    else "openai.api_resources.chat_completion",
+                    "orig_qualname": "Completion.create"
+                    if kind == Kind.text
+                    else "ChatCompletion.create",
+                    "status": "started",
+                    "tags": tags,
+                    "request": json.dumps(request),
+                },
+            )
 
-        return completion_id
+            return completion_id
+        return None
 
     # Save the end of a completion in **openai request format**.
     def log_end(self, completion_id: str, response: dict, duration: int):

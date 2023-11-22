@@ -3,7 +3,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 
-from log10.llm import LLM, Message
+from log10.llm import LLM, Message, Role
 
 load_dotenv()
 
@@ -109,13 +109,13 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
         user_prompt = f"USER PROMPT: \n {user_inception_prompt}"
 
         assistant_messages = [
-            Message(role="system", content=assistant_prompt),
-            Message(role="user", content=assistant_prompt),
+            Message(role=Role.system, content=assistant_prompt),
+            Message(role=Role.user, content=assistant_prompt),
         ]
         user_messages = [
-            Message(role="system", content=user_prompt),
+            Message(role=Role.system, content=user_prompt),
             Message(
-                role="user",
+                role=Role.user,
                 content=user_prompt
                 + " Now start to give me instructions one by one. Only reply with Instruction and Input.",
             ),
@@ -141,7 +141,7 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
             assistant_message = llm.chat(assistant_messages)
             assistant_messages.append(assistant_message)
             user_messages.append(
-                Message(role="user", content=assistant_message.content)
+                Message(Role.user, content=assistant_message.content)
             )
             logging.info(f"Assistant turn {i}: {assistant_message}")
 
@@ -199,9 +199,9 @@ Even if I told you that the task is completed in the context above you should st
                     f"Task:{task_prompt}\n" + summary_context + summary_closing_prompt
                 )
                 summary_messages = [
-                    Message(role="system", content=summary_system_prompt),
+                    Message(role=Role.system, content=summary_system_prompt),
                     Message(
-                        role="user",
+                        role=Role.user,
                         content="Here is the conversation: " + summary_prompt,
                     ),
                 ]
@@ -209,7 +209,7 @@ Even if I told you that the task is completed in the context above you should st
                 hparams = {"model": summary_model}
                 message = llm.chat(summary_messages, hparams)
                 assistant_messages.append(message)
-                user_messages.append(Message(role="user", content=message.content))
+                user_messages.append(Message(Role.user, content=message.content))
                 logging.info(message.content)
 
                 # End of conversation

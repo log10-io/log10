@@ -16,7 +16,7 @@ from langchain.schema import (
     SystemMessage,
 )
 
-from log10.llm import LLM, Kind, Message
+from log10.llm import LLM, Kind, Message, Role
 
 logging.basicConfig()
 logger = logging.getLogger("log10")
@@ -53,7 +53,7 @@ def get_log10_messages(langchain_messages: list[BaseMessage]) -> list[Message]:
             )
 
     return [
-        Message(role=role_map[type(m)], content=m.content) for m in langchain_messages
+        Message(role=Role(role_map[type(m)]), content=m.content) for m in langchain_messages
     ]
 
 
@@ -65,7 +65,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
         super().__init__(log10_config=log10_config, hparams=None)
         self.runs = {}
 
-        if "DEBUG" in log10_config and log10_config["DEBUG"]:
+        if log10_config and "DEBUG" in log10_config and log10_config["DEBUG"]:
             logger.setLevel(logging.DEBUG)
         else:
             logger.setLevel(logging.INFO)

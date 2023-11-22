@@ -60,13 +60,13 @@ autolint:
 	${POETRY} run ruff --fix .
 	${POETRY} run isort ${FOLDERS}
 
-lint-ci-cd: check-lock lint-ruff lint-mypy
+lint-ci-cd: check-lock lint-ruff lint-pyright
 
-lint: autolint check-lock lint-ruff lint-mypy
+lint: autolint check-lock lint-ruff lint-pyright
 
-lint-mypy:
+lint-pyright:
 	@echo "\n${BLUE}Running mypy...${NC}\n"
-	${POETRY} run mypy ${FOLDERS}
+	${POETRY} run pyright ${FOLDERS}
 
 lint-ruff: ## Run the flake8 linter
 	@echo "\n${BLUE}Running ruff...${NC}\n"
