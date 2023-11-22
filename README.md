@@ -33,7 +33,7 @@ Prompt chains such as those in [Langchain](https://github.com/hwchase17/langchai
 ### 📝📊 Logging
 
 Use Log10 to log both closed and open-source LLM calls. It helps you:
-- Compare and identify the best models and prompts
+- Compare and identify the best models and prompts (try [playground](https://log10.io/docs/observability/playgrounds) and [llmeval](https://log10.io/docs/evaluation/installation))
 - Store feedback for fine-tuning
 - Collect performance metrics such as latency and usage
 - Perform analytics and monitor compliance for LLM powered applications
