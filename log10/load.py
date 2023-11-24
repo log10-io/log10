@@ -78,6 +78,22 @@ def get_session_id():
         res = post_session_request()
 
         return res.json()["sessionID"]
+    except requests.HTTPError as http_err:
+        if "401" in str(http_err):
+            raise Exception(
+                "Failed anthorization. Please verify that LOG10_TOKEN and LOG10_ORG_ID are set correctly and try again."
+                + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
+            )
+        else:
+            raise Exception(
+                "Failed to create LOG10 session. Error: "
+                + str(e)
+            )
+    except requests.ConnectionError:
+        raise Exception(
+            "Invalid LOG10_URL. Please verify that LOG10_URL is set correctly and try again."
+            + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
+        )
     except Exception as e:
         raise Exception(
             "Failed to create LOG10 session: "
