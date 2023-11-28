@@ -173,6 +173,12 @@ python -m xdoctest log10 all
 python -m xdoctest /Users/wenzhe/dev/log10/log10/load.py log10:0
 ```
 
+### Logging
+Few options to enable debug logging:
+1. set environment varible `export LOG10_DEBUG=1`
+1. set `log10.load.log10(DEBUG_=True)` when using `log10.load`
+1. set `log10_config(DEBUG=True)` when using llm abstraction classes or callback.
+
 ## 💬 Community
 
 We welcome community participation and feedback. Please leave an issue, submit a PR or join our [Discord](https://discord.gg/CZQvnuRV94).
