@@ -128,6 +128,8 @@ class LLM(ABC):
                     f"Failed to start session with {session_url} using token {self.log10_config.token}. Won't be able to log. {e}"
                 )
                 self.log10_config = None
+        else:
+            logging.warning("log10_config is not set. Won't be able to log with log10.io.")
 
     def last_completion_url(self):
         if self.last_completion_response is None:
