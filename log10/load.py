@@ -18,6 +18,12 @@ from log10.openai import RETRY_ERROR_TYPES as OPENAI_RETRY_ERROR_TYPES
 
 load_dotenv()
 
+logging.basicConfig(
+    format="[%(asctime)s - %(name)s - %(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger: logging.Logger = logging.getLogger("LOG10")
+
 url = os.environ.get("LOG10_URL")
 token = os.environ.get("LOG10_TOKEN")
 org_id = os.environ.get("LOG10_ORG_ID")
@@ -41,29 +47,28 @@ def func_with_backoff(func, *args, **kwargs):
 
 
 # todo: should we do backoff as well?
-def post_request(url: str, json: dict = {}) -> requests.Response:
+def post_request(url: str, json_payload: dict = {}) -> requests.Response:
     headers = {"x-log10-token": token, "Content-Type": "application/json"}
-    json["organization_id"] = org_id
+    json_payload["organization_id"] = org_id
     try:
         # todo: set timeout
-        res = requests.post(url, headers=headers, json=json)
+        res = requests.post(url, headers=headers, json=json_payload)
         # raise_for_status() will raise an exception if the status is 4xx, 5xxx
         res.raise_for_status()
-        logging.debug(
-            f"LOG10: Post request successful with status code {res.status_code}"
-        )
+        logger.debug(f"HTTP request: POST {url} {res.status_code}\n{json.dumps(json_payload, indent=4)}")
+
         return res
     except requests.Timeout:
-        logging.error("LOG10: Post request Timeout")
+        logger.error("HTTP request: POST Timeout")
         raise
     except requests.ConnectionError:
-        logging.error("LOG10: Connection Error")
+        logger.error("HTTP request: POST Connection Error")
         raise
     except requests.HTTPError as e:
-        logging.error(f"LOG10: HTTP Error: {e}")
+        logger.error("HTTP request: POST HTTP Error - {e}")
         raise
     except requests.RequestException as e:
-        logging.error(f"LOG10: Request Exception: {e}")
+        logger.error("HTTP request: POST Request Exception - {e}")
         raise
 
 
@@ -85,10 +90,7 @@ def get_session_id():
                 + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
             )
         else:
-            raise Exception(
-                "Failed to create LOG10 session. Error: "
-                + str(e)
-            )
+            raise Exception("Failed to create LOG10 session. Error: " + str(e))
     except requests.ConnectionError:
         raise Exception(
             "Invalid LOG10_URL. Please verify that LOG10_URL is set correctly and try again."
@@ -151,9 +153,7 @@ def timed_block(block_name):
             yield
         finally:
             elapsed_time = time.perf_counter() - start_time
-            logging.debug(
-                f"TIMED BLOCK - {block_name} took {elapsed_time:.6f} seconds to execute."
-            )
+            logger.debug(f"TIMED BLOCK - {block_name} took {elapsed_time:.6f} seconds to execute.")
     else:
         yield
 
@@ -162,7 +162,7 @@ def log_url(res, completionID):
     output = res.json()
     organizationSlug = output["organizationSlug"]
     full_url = url + "/app/" + organizationSlug + "/completions/" + completionID
-    logging.debug(f"LOG10: Completion URL: {full_url}")
+    logger.debug(f"Completion URL: {full_url}")
 
 
 async def log_async(completion_url, func, **kwargs):
@@ -248,9 +248,7 @@ def intercepting_decorator(func):
                         },
                     ).start()
                 else:
-                    completionID = log_sync(
-                        completion_url=completion_url, func=func, **kwargs
-                    )
+                    completionID = log_sync(completion_url=completion_url, func=func, **kwargs)
 
             current_stack_frame = traceback.extract_stack()
             stacktrace = [
@@ -266,7 +264,7 @@ def intercepting_decorator(func):
             start_time = time.perf_counter()
             output = func_with_backoff(func, *args, **kwargs)
             duration = time.perf_counter() - start_time
-            logging.debug(f"LOG10: TIMED BLOCK - LLM call duration: {duration}")
+            logging.debug(f"TIMED BLOCK - LLM call duration: {duration}")
         except Exception as e:
             if USE_ASYNC:
                 with timed_block("extra time spent waiting for log10 call"):
@@ -307,9 +305,9 @@ def intercepting_decorator(func):
                 if "anthropic" in type(output).__module__:
                     from log10.anthropic import Anthropic
 
-                    response = Anthropic.prepare_response(
-                        kwargs["prompt"], output, "text"
-                    )
+                    response = Anthropic.prepare_response(kwargs["prompt"], output, "text")
+                else:
+                    response = output
 
                 # in case the usage of load(openai) and langchain.ChatOpenAI
                 if "api_key" in kwargs:
@@ -348,9 +346,7 @@ def intercepting_decorator(func):
                         bigquery_client.insert_rows_json(bigquery_table, [log_row])
 
                     except Exception as e:
-                        logging.error(
-                            f"LOG10: failed to insert in Bigquery: {log_row} with error {e}"
-                        )
+                        logging.error(f"LOG10: failed to insert in Bigquery: {log_row} with error {e}")
 
         return output
 
@@ -445,13 +441,10 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         >>> print(completion)
     """
     global DEBUG, USE_ASYNC, sync_log_text
-    DEBUG = DEBUG_
+    DEBUG = DEBUG_ or os.environ.get("LOG10_DEBUG", False)
+    logger.setLevel(logging.DEBUG if DEBUG else logging.INFO)
     USE_ASYNC = USE_ASYNC_
     sync_log_text = set_sync_log_text(USE_ASYNC=USE_ASYNC)
-    logging.basicConfig(
-        level=logging.DEBUG if DEBUG else logging.INFO,
-        format="%(asctime)s - %(levelname)s - LOG10 - %(message)s",
-    )
 
     # def intercept_nested_functions(obj):
     #     for name, attr in vars(obj).items():
