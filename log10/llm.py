@@ -126,8 +126,14 @@ class LLM(ABC):
             except Exception as e:
                 logging.warning(
                     f"Failed to start session with {session_url} using token {self.log10_config.token}. Won't be able to log. {e}"
+                    + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details."
                 )
                 self.log10_config = None
+        else:
+            logging.warning(
+                "log10_config is not set. Won't be able to log with log10.io."
+                + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details."
+            )
 
     def last_completion_url(self):
         if self.last_completion_response is None:
