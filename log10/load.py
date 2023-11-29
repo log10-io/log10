@@ -1,4 +1,3 @@
-import types
 import functools
 import inspect
 import requests
@@ -65,10 +64,10 @@ def post_request(url: str, json_payload: dict = {}) -> requests.Response:
         logger.error("HTTP request: POST Connection Error")
         raise
     except requests.HTTPError as e:
-        logger.error("HTTP request: POST HTTP Error - {e}")
+        logger.error(f"HTTP request: POST HTTP Error - {e}")
         raise
     except requests.RequestException as e:
-        logger.error("HTTP request: POST Request Exception - {e}")
+        logger.error(f"HTTP request: POST Request Exception - {e}")
         raise
 
 
@@ -90,7 +89,7 @@ def get_session_id():
                 + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
             )
         else:
-            raise Exception("Failed to create LOG10 session. Error: " + str(e))
+            raise Exception(f"Failed to create LOG10 session. Error: {http_err}")
     except requests.ConnectionError:
         raise Exception(
             "Invalid LOG10_URL. Please verify that LOG10_URL is set correctly and try again."
@@ -264,14 +263,14 @@ def intercepting_decorator(func):
             start_time = time.perf_counter()
             output = func_with_backoff(func, *args, **kwargs)
             duration = time.perf_counter() - start_time
-            logging.debug(f"TIMED BLOCK - LLM call duration: {duration}")
+            logger.debug(f"TIMED BLOCK - LLM call duration: {duration}")
         except Exception as e:
             if USE_ASYNC:
                 with timed_block("extra time spent waiting for log10 call"):
                     while result_queue.empty():
                         pass
                     completionID = result_queue.get()
-            logging.debug("LOG10: failed", e)
+            logger.debug(f"LOG10: failed - {e}")
             # todo: change with openai v1 update
             if type(e).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(e):
                 failure_kind = "ContextWindowExceedError"
@@ -442,7 +441,7 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
     """
     global DEBUG, USE_ASYNC, sync_log_text
     DEBUG = DEBUG_ or os.environ.get("LOG10_DEBUG", False)
-    logger.setLevel(logging.DEBUG if DEBUG else logging.INFO)
+    logger.setLevel(logging.DEBUG if DEBUG else logging.WARNING)
     USE_ASYNC = USE_ASYNC_
     sync_log_text = set_sync_log_text(USE_ASYNC=USE_ASYNC)
 
