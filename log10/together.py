@@ -1,17 +1,17 @@
 import os
 import time
+from copy import deepcopy
+
 import together
 
-from copy import deepcopy
 from log10.llm import LLM, Kind, Log10Config, TextCompletion
 from log10.utils import merge_hparams
+
 
 together.api_key = os.environ.get("TOGETHER_API_KEY")
 
 
-def llama_2_70b_chat(
-    prompt: str, hparams: dict = None, log10_config: Log10Config = None
-) -> str:
+def llama_2_70b_chat(prompt: str, hparams: dict = None, log10_config: Log10Config = None) -> str:
     """
     Example:
         >>> from log10.llm import Log10Config
@@ -19,9 +19,7 @@ def llama_2_70b_chat(
         >>> response = llama_2_70b_chat("Hello, how are you?", {"temperature": 0.3, "max_tokens": 10}, log10_config=Log10Config())
         >>> print(response)
     """
-    return Together({"model": "togethercomputer/llama-2-70b-chat"}, log10_config).text(
-        prompt, hparams
-    )
+    return Together({"model": "togethercomputer/llama-2-70b-chat"}, log10_config).text(prompt, hparams)
 
 
 class Together(LLM):

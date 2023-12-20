@@ -1,17 +1,19 @@
 import time
 import uuid
-
-from langchain.schema import HumanMessage, AIMessage, SystemMessage, BaseMessage
 from uuid import UUID
 
+from langchain.schema import AIMessage, BaseMessage, HumanMessage, SystemMessage
+
+
 """Callback Handler that prints to std out."""
+import logging
 from typing import Any, Dict, List, Optional, Union
 
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.schema import AgentAction, AgentFinish, LLMResult
+
 from log10.llm import LLM, Kind, Message
 
-import logging
 
 logging.basicConfig()
 logger = logging.getLogger("log10")
@@ -43,13 +45,9 @@ def get_log10_messages(langchain_messages: List[BaseMessage]) -> List[Message]:
     for m in langchain_messages:
         logger.debug(f"message: {m}")
         if type(m) not in role_map:
-            raise BaseException(
-                f"Unsupported message type {type(m)}. Supported types: {list(role_map.values())}"
-            )
+            raise BaseException(f"Unsupported message type {type(m)}. Supported types: {list(role_map.values())}")
 
-    return [
-        Message(role=role_map[type(m)], content=m.content) for m in langchain_messages
-    ]
+    return [Message(role=role_map[type(m)], content=m.content) for m in langchain_messages]
 
 
 class Log10Callback(BaseCallbackHandler, LLM):
@@ -224,24 +222,18 @@ class Log10Callback(BaseCallbackHandler, LLM):
                 log10response["usage"] = token_usage
                 logger.debug(f"usage: {log10response['usage']}")
 
-        logger.debug(
-            f"**\n**on_llm_end**\n**\n: response:\n {log10response} \n\n rest: {kwargs}"
-        )
+        logger.debug(f"**\n**on_llm_end**\n**\n: response:\n {log10response} \n\n rest: {kwargs}")
         self.log_end(run["completion_id"], log10response, duration)
 
     def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
         """Do nothing."""
         logger.debug(f"token:\n {token} \n\n rest: {kwargs}")
 
-    def on_llm_error(
-        self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any
-    ) -> None:
+    def on_llm_error(self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any) -> None:
         """Do nothing."""
         logger.debug(f"error:\n {error} \n\n rest: {kwargs}")
 
-    def on_chain_start(
-        self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any
-    ) -> None:
+    def on_chain_start(self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any) -> None:
         """Print out that we are entering a chain."""
         pass
 
@@ -249,9 +241,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
         """Print out that we finished a chain."""
         pass
 
-    def on_chain_error(
-        self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any
-    ) -> None:
+    def on_chain_error(self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any) -> None:
         """Do nothing."""
         pass
 
@@ -264,9 +254,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
         """Do nothing."""
         pass
 
-    def on_agent_action(
-        self, action: AgentAction, color: Optional[str] = None, **kwargs: Any
-    ) -> Any:
+    def on_agent_action(self, action: AgentAction, color: Optional[str] = None, **kwargs: Any) -> Any:
         """Run on agent action."""
         pass
 
@@ -281,9 +269,7 @@ class Log10Callback(BaseCallbackHandler, LLM):
         """If not the final action, print out observation."""
         pass
 
-    def on_tool_error(
-        self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any
-    ) -> None:
+    def on_tool_error(self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any) -> None:
         """Do nothing."""
         pass
 
@@ -297,8 +283,6 @@ class Log10Callback(BaseCallbackHandler, LLM):
         """Run when agent ends."""
         pass
 
-    def on_agent_finish(
-        self, finish: AgentFinish, color: Optional[str] = None, **kwargs: Any
-    ) -> None:
+    def on_agent_finish(self, finish: AgentFinish, color: Optional[str] = None, **kwargs: Any) -> None:
         """Run on agent end."""
         pass

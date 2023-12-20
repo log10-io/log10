@@ -1,19 +1,22 @@
+import asyncio
 import functools
 import inspect
-import requests
-import os
 import json
+import logging
+import os
+import queue
+import threading
 import time
 import traceback
-from aiohttp import ClientSession
-import asyncio
-import threading
-import queue
 from contextlib import contextmanager
-import logging
-from dotenv import load_dotenv
+
 import backoff  # for exponential backoff
+import requests
+from aiohttp import ClientSession
+from dotenv import load_dotenv
+
 from log10.openai import RETRY_ERROR_TYPES as OPENAI_RETRY_ERROR_TYPES
+
 
 load_dotenv()
 

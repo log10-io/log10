@@ -1,8 +1,9 @@
 import json
 import re
 import string
-from anthropic import HUMAN_PROMPT, AI_PROMPT
 from copy import deepcopy
+
+from anthropic import AI_PROMPT, HUMAN_PROMPT
 
 
 def merge_hparams(override, base):
