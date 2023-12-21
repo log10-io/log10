@@ -1,6 +1,5 @@
 import time
 import uuid
-from copy import deepcopy
 
 from mcli import predict
 

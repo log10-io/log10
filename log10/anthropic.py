@@ -1,7 +1,5 @@
 import logging
 import time
-import uuid
-from copy import deepcopy
 from typing import List
 
 import anthropic
@@ -45,12 +43,6 @@ class Anthropic(LLM):
         completion = self.client.completions.create(**chat_request)
         content = completion.completion
 
-        reason = "stop"
-        if completion.stop_reason == "stop_sequence":
-            reason = "stop"
-        elif completion.stop_reason == "max_tokens":
-            reason = "length"
-
         response = Anthropic.prepare_response(chat_request["prompt"], completion, "chat")
 
         self.log_end(
@@ -90,13 +82,6 @@ class Anthropic(LLM):
         completion_id = self.log_start(openai_request, Kind.text)
         completion = self.client.completions.create(**text_request)
         text = completion.completion
-
-        # Imitate OpenAI reponse format.
-        reason = "stop"
-        if completion.stop_reason == "stop_sequence":
-            reason = "stop"
-        elif completion.stop_reason == "max_tokens":
-            reason = "length"
 
         response = Anthropic.prepare_response(text_request["prompt"], completion, "text")
 
@@ -148,6 +133,11 @@ class Anthropic(LLM):
 
     @staticmethod
     def prepare_response(prompt: str, completion: anthropic.types.Completion, type: str = "text") -> dict:
+        if completion.stop_reason == "stop_sequence":
+            reason = "stop"
+        elif completion.stop_reason == "max_tokens":
+            reason = "length"
+
         tokens_usage = Anthropic.create_tokens_usage(prompt, completion.completion)
         response = {
             "id": completion.model_extra["log_id"],
@@ -156,7 +146,7 @@ class Anthropic(LLM):
             "choices": [
                 {
                     "index": 0,
-                    "finish_reason": completion.stop_reason,
+                    "finish_reason": reason,
                 }
             ],
             "usage": tokens_usage,

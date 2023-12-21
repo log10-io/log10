@@ -1,5 +1,3 @@
-from anthropic import HUMAN_PROMPT
-
 from log10.llm import LLM, Message
 from log10.tools import browser
 

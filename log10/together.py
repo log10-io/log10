@@ -1,6 +1,5 @@
 import os
 import time
-from copy import deepcopy
 
 import together
 

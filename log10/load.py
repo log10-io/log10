@@ -12,7 +12,6 @@ from contextlib import contextmanager
 
 import backoff  # for exponential backoff
 import requests
-from aiohttp import ClientSession
 from dotenv import load_dotenv
 
 from log10.openai import RETRY_ERROR_TYPES as OPENAI_RETRY_ERROR_TYPES
@@ -168,37 +167,36 @@ def log_url(res, completionID):
 
 
 async def log_async(completion_url, func, **kwargs):
-    async with ClientSession() as session:
-        global last_completion_response
+    global last_completion_response
 
-        res = post_request(completion_url)
-        # todo: handle session id for bigquery scenario
-        last_completion_response = res.json()
-        completionID = res.json()["completionID"]
+    res = post_request(completion_url)
+    # todo: handle session id for bigquery scenario
+    last_completion_response = res.json()
+    completionID = res.json()["completionID"]
 
-        if DEBUG:
-            log_url(res, completionID)
+    if DEBUG:
+        log_url(res, completionID)
 
-        # in case the usage of load(openai) and langchain.ChatOpenAI
-        if "api_key" in kwargs:
-            kwargs.pop("api_key")
+    # in case the usage of load(openai) and langchain.ChatOpenAI
+    if "api_key" in kwargs:
+        kwargs.pop("api_key")
 
-        log_row = {
-            # do we want to also store args?
-            "status": "started",
-            "orig_module": func.__module__,
-            "orig_qualname": func.__qualname__,
-            "request": json.dumps(kwargs),
-            "session_id": sessionID,
-            "tags": global_tags,
-        }
-        if target_service == "log10":
-            res = post_request(completion_url + "/" + completionID, log_row)
-        elif target_service == "bigquery":
-            pass
-            # NOTE: We only save on request finalization.
+    log_row = {
+        # do we want to also store args?
+        "status": "started",
+        "orig_module": func.__module__,
+        "orig_qualname": func.__qualname__,
+        "request": json.dumps(kwargs),
+        "session_id": sessionID,
+        "tags": global_tags,
+    }
+    if target_service == "log10":
+        res = post_request(completion_url + "/" + completionID, log_row)
+    elif target_service == "bigquery":
+        pass
+        # NOTE: We only save on request finalization.
 
-        return completionID
+    return completionID
 
 
 def run_async_in_thread(completion_url, func, result_queue, **kwargs):
@@ -330,6 +328,8 @@ def intercepting_decorator(func):
 
                 if target_service == "log10":
                     res = post_request(completion_url + "/" + completionID, log_row)
+                    if res.status_code != 200:
+                        logger.error(f"LOG10: failed to insert in log10: {log_row} with error {res.text}")
                 elif target_service == "bigquery":
                     try:
                         log_row["id"] = str(uuid.uuid4())
