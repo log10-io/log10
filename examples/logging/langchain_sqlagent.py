@@ -86,7 +86,7 @@ db = SQLDatabase.from_uri("sqlite:///users.db")
 toolkit = SQLDatabaseToolkit(db=db)
 
 agent_executor = create_sql_agent(
-    llm=OpenAI(temperature=0, model_name="text-davinci-003"),
+    llm=OpenAI(temperature=0, model_name="gpt-3.5-turbo-instruct"),
     toolkit=toolkit,
     verbose=True,
 )

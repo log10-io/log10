@@ -8,7 +8,7 @@ log10(openai)
 
 with log10_session(tags=["foo", "bar"]):
     response = openai.Completion.create(
-        model="text-ada-001",
+        model="gpt-3.5-turbo-instruct",
         prompt="Where is the Eiffel Tower?",
         temperature=0,
         max_tokens=1024,
@@ -18,6 +18,6 @@ with log10_session(tags=["foo", "bar"]):
     )
     print(response)
 
-    llm = OpenAI(model_name="text-ada-001", temperature=0.5)
+    llm = OpenAI(model_name="gpt-3.5-turbo-instruct", temperature=0.5)
     response = llm.predict("You are a ping pong machine.\nPing?\n")
     print(response)

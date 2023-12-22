@@ -113,7 +113,7 @@ log10(openai)
 
 with log10_session(tags=["foo", "bar"]):
     response = openai.Completion.create(
-        model="text-ada-001",
+        model="gpt-3.5-turbo-instruct",
         prompt="Where is the Eiffel Tower?",
         temperature=0,
         max_tokens=1024,
@@ -155,7 +155,7 @@ llm = ChatAnthropic(model="claude-2", callbacks=[log10_callback], temperature=0.
 llm.predict_messages(messages)
 print(completion)
 
-llm = OpenAI(model_name="text-davinci-003", callbacks=[log10_callback], temperature=0.5)
+llm = OpenAI(model_name="gpt-3.5-turbo-instruct", callbacks=[log10_callback], temperature=0.5)
 completion = llm.predict("You are a ping pong machine.\nPing?\n")
 print(completion)
 ```
