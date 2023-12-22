@@ -45,9 +45,7 @@ with log10_session():
     )
     chain_four = LLMChain(llm=llm, prompt=fourth_prompt)
 
-    overall_chain_two = SimpleSequentialChain(
-        chains=[chain_three, chain_four], verbose=True
-    )
+    overall_chain_two = SimpleSequentialChain(chains=[chain_three, chain_four], verbose=True)
 
     # Run the chain specifying only the input variable for the first chain.
     catchphrase_two = overall_chain_two.run("April")

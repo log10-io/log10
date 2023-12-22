@@ -25,9 +25,7 @@ llm = ChatOpenAI(
 completion = llm.predict_messages(messages, tags=["foobar"])
 print(completion)
 
-llm = ChatAnthropic(
-    model="claude-2", callbacks=[log10_callback], temperature=0.7, tags=["baz"]
-)
+llm = ChatAnthropic(model="claude-2", callbacks=[log10_callback], temperature=0.7, tags=["baz"])
 llm.predict_messages(messages)
 print(completion)
 

@@ -28,9 +28,7 @@ elif provider == "anthropic":
         }
     )
 else:
-    print(
-        f"Unsupported provider option: {provider}. Supported providers are 'openai' or 'anthropic'."
-    )
+    print(f"Unsupported provider option: {provider}. Supported providers are 'openai' or 'anthropic'.")
 
 # Ground truth dataset to use for evaluation
 eval_dataset = (

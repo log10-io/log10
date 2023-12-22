@@ -35,8 +35,4 @@ index = VectorstoreIndexCreator(
 
 # Query Your Index
 query = "What did the president say about Ketanji Brown Jackson"
-print(
-    index.query_with_sources(
-        query, llm=ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo")
-    )
-)
+print(index.query_with_sources(query, llm=ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo")))
