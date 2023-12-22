@@ -1,24 +1,20 @@
-import os
 from collections import deque
-from typing import Dict, List, Optional, Any
-
-from langchain.chat_models import ChatOpenAI
-from langchain import LLMChain, PromptTemplate
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.llms import BaseLLM
-from langchain.vectorstores.base import VectorStore
-from pydantic import BaseModel, Field
-from langchain.chains.base import Chain
-
-from langchain.vectorstores import FAISS
-from langchain.docstore import InMemoryDocstore
-
-from langchain.agents import ZeroShotAgent, Tool, AgentExecutor
-from langchain import OpenAI, SerpAPIWrapper, LLMChain
+from typing import Any, Dict, List, Optional
 
 import openai
-import log10
+from langchain import LLMChain, PromptTemplate, SerpAPIWrapper
+from langchain.agents import AgentExecutor, Tool, ZeroShotAgent
+from langchain.chains.base import Chain
+from langchain.chat_models import ChatOpenAI
+from langchain.docstore import InMemoryDocstore
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.llms import BaseLLM
+from langchain.vectorstores import FAISS
+from langchain.vectorstores.base import VectorStore
+from pydantic import BaseModel, Field
+
 from log10.load import log10
+
 
 log10(openai)
 
@@ -28,6 +24,7 @@ log10(openai)
 embeddings_model = OpenAIEmbeddings()
 # Initialize the vectorstore as empty
 import faiss
+
 
 embedding_size = 1536
 index = faiss.IndexFlatL2(embedding_size)

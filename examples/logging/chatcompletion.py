@@ -1,6 +1,9 @@
 import os
-from log10.load import log10
+
 import openai
+
+from log10.load import log10
+
 
 log10(openai)
 
