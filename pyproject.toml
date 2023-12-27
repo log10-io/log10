@@ -43,3 +43,32 @@ backoff = "^2.2.1"
 anthropic = "^0.3.11"
 mosaicml-cli = "^0.5.30"
 together = "^0.2.7"
+
+[tool.ruff]
+# Never enforce `E501` (line length violations).
+ignore = ["C901", "E501", "E741", "F402", "F823" ]
+select = ["C", "E", "F", "I", "W"]
+line-length = 119
+
+# Ignore import violations in all `__init__.py` files.
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["E402", "F401", "F403", "F811"]
+"log10/langchain.py" = ["E402"]
+"examples/logging/*.py" = ["E402", "F821"]
+
+[tool.ruff.isort]
+lines-after-imports = 2
+known-first-party = ["log10"]
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"

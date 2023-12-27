@@ -1,6 +1,7 @@
-from google.cloud import bigquery
-from google.api_core.exceptions import NotFound
 import os
+
+from google.api_core.exceptions import NotFound
+from google.cloud import bigquery
 
 
 # todo: add requirements.txt file
@@ -55,9 +56,7 @@ def initialize_bigquery(debug=False):
             print(f"Table {completions_table_id} exists in dataset {dataset_id}.")
     else:
         if debug:
-            print(
-                f"Table {completions_table_id} does not exist in dataset {dataset_id}. Creating..."
-            )
+            print(f"Table {completions_table_id} does not exist in dataset {dataset_id}. Creating...")
         # Create the table
         table_ref = client_dataset.table(completions_table_id)
         script_dir = os.path.dirname(os.path.abspath(__file__))

@@ -1,6 +1,9 @@
 import os
-from log10.load import log10
+
 import openai
+
+from log10.load import log10
+
 
 log10(openai)
 
@@ -13,14 +16,16 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 # Load Your Documents
 from langchain.document_loaders import TextLoader
 
+
 loader = TextLoader("./examples/logging/state_of_the_union.txt")
 
 # Create Your Index
-from langchain.indexes import VectorstoreIndexCreator
-from langchain.vectorstores import Chroma
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.text_splitter import CharacterTextSplitter
 from langchain.chat_models import ChatOpenAI
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.indexes import VectorstoreIndexCreator
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.vectorstores import Chroma
+
 
 index = VectorstoreIndexCreator(
     vectorstore_cls=Chroma,
@@ -30,8 +35,4 @@ index = VectorstoreIndexCreator(
 
 # Query Your Index
 query = "What did the president say about Ketanji Brown Jackson"
-print(
-    index.query_with_sources(
-        query, llm=ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo")
-    )
-)
+print(index.query_with_sources(query, llm=ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo")))

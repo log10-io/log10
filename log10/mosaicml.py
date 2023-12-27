@@ -1,15 +1,13 @@
 import time
 import uuid
 
-from copy import deepcopy
-from log10.llm import LLM, Kind, Log10Config, TextCompletion
-from log10.utils import merge_hparams
 from mcli import predict
 
+from log10.llm import LLM, Kind, Log10Config, TextCompletion
+from log10.utils import merge_hparams
 
-def llama_2_70b_chat(
-    prompt: str, hparams: dict = None, log10_config: Log10Config = None
-) -> str:
+
+def llama_2_70b_chat(prompt: str, hparams: dict = None, log10_config: Log10Config = None) -> str:
     """
     Example:
         >>> from log10.llm import Log10Config

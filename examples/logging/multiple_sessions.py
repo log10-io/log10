@@ -1,9 +1,12 @@
-from langchain.chains import LLMChain, SimpleSequentialChain
-from langchain.prompts import PromptTemplate
-from langchain.llms import OpenAI
 import os
-from log10.load import log10, log10_session
+
 import openai
+from langchain.chains import LLMChain, SimpleSequentialChain
+from langchain.llms import OpenAI
+from langchain.prompts import PromptTemplate
+
+from log10.load import log10, log10_session
+
 
 log10(openai)
 
@@ -42,9 +45,7 @@ with log10_session():
     )
     chain_four = LLMChain(llm=llm, prompt=fourth_prompt)
 
-    overall_chain_two = SimpleSequentialChain(
-        chains=[chain_three, chain_four], verbose=True
-    )
+    overall_chain_two = SimpleSequentialChain(chains=[chain_three, chain_four], verbose=True)
 
     # Run the chain specifying only the input variable for the first chain.
     catchphrase_two = overall_chain_two.run("April")

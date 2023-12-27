@@ -1,22 +1,16 @@
+import logging
 import time
-from copy import deepcopy
 from typing import List
+
+import anthropic
+from anthropic import AI_PROMPT, HUMAN_PROMPT
+
 from log10.llm import LLM, ChatCompletion, Kind, Message, TextCompletion
 from log10.utils import merge_hparams
 
 
-from anthropic import HUMAN_PROMPT, AI_PROMPT
-import anthropic
-
-import uuid
-
-import logging
-
-
 class Anthropic(LLM):
-    def __init__(
-        self, hparams: dict = None, skip_initialization: bool = False, log10_config=None
-    ):
+    def __init__(self, hparams: dict = None, skip_initialization: bool = False, log10_config=None):
         super().__init__(hparams, log10_config)
 
         if not skip_initialization:
@@ -49,15 +43,7 @@ class Anthropic(LLM):
         completion = self.client.completions.create(**chat_request)
         content = completion.completion
 
-        reason = "stop"
-        if completion.stop_reason == "stop_sequence":
-            reason = "stop"
-        elif completion.stop_reason == "max_tokens":
-            reason = "length"
-
-        response = Anthropic.prepare_response(
-            chat_request["prompt"], completion, "chat"
-        )
+        response = Anthropic.prepare_response(chat_request["prompt"], completion, "chat")
 
         self.log_end(
             completion_id,
@@ -97,16 +83,7 @@ class Anthropic(LLM):
         completion = self.client.completions.create(**text_request)
         text = completion.completion
 
-        # Imitate OpenAI reponse format.
-        reason = "stop"
-        if completion.stop_reason == "stop_sequence":
-            reason = "stop"
-        elif completion.stop_reason == "max_tokens":
-            reason = "length"
-
-        response = Anthropic.prepare_response(
-            text_request["prompt"], completion, "text"
-        )
+        response = Anthropic.prepare_response(text_request["prompt"], completion, "text")
 
         self.log_end(
             completion_id,
@@ -155,9 +132,12 @@ class Anthropic(LLM):
         }
 
     @staticmethod
-    def prepare_response(
-        prompt: str, completion: anthropic.types.Completion, type: str = "text"
-    ) -> dict:
+    def prepare_response(prompt: str, completion: anthropic.types.Completion, type: str = "text") -> dict:
+        if completion.stop_reason == "stop_sequence":
+            reason = "stop"
+        elif completion.stop_reason == "max_tokens":
+            reason = "length"
+
         tokens_usage = Anthropic.create_tokens_usage(prompt, completion.completion)
         response = {
             "id": completion.model_extra["log_id"],
@@ -166,7 +146,7 @@ class Anthropic(LLM):
             "choices": [
                 {
                     "index": 0,
-                    "finish_reason": completion.stop_reason,
+                    "finish_reason": reason,
                 }
             ],
             "usage": tokens_usage,

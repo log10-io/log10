@@ -1,6 +1,5 @@
 from langchain import OpenAI
-from langchain.chat_models import ChatAnthropic
-from langchain.chat_models import ChatOpenAI
+from langchain.chat_models import ChatAnthropic, ChatOpenAI
 from langchain.schema import AIMessage, HumanMessage, SystemMessage
 
 from log10.langchain import Log10Callback
@@ -26,9 +25,7 @@ llm = ChatOpenAI(
 completion = llm.predict_messages(messages, tags=["foobar"])
 print(completion)
 
-llm = ChatAnthropic(
-    model="claude-2", callbacks=[log10_callback], temperature=0.7, tags=["baz"]
-)
+llm = ChatAnthropic(model="claude-2", callbacks=[log10_callback], temperature=0.7, tags=["baz"])
 llm.predict_messages(messages)
 print(completion)
 

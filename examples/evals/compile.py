@@ -1,9 +1,9 @@
 from log10.anthropic import Anthropic
-from log10.llm import Message, NoopLLM
-from log10.load import log10
 from log10.evals import compile
+from log10.llm import Message, NoopLLM
 from log10.openai import OpenAI
 from log10.tools import code_extractor
+
 
 # Select one of OpenAI or Anthropic models
 model = "gpt-3.5-turbo"

@@ -1,9 +1,9 @@
-import subprocess
-import tempfile
-import os
 import csv
 import json
-import logging
+import os
+import subprocess
+import tempfile
+
 from log10.llm import Messages
 from log10.utils import fuzzy_match, parse_field
 
@@ -48,16 +48,12 @@ def eval(llm, dataset, metric, out_file_path):
             messages = Messages.from_dict(json.loads(example["input"]))
             model_completion = llm.chat(messages)
 
-            example_metric = run_metric(
-                metric, example["ideal"], model_completion.content
-            )
+            example_metric = run_metric(metric, example["ideal"], model_completion.content)
             write_to_csv(
                 out_file_path,
                 [example["input"], example["ideal"], model_completion, example_metric],
             )
-            print(
-                f"\n\nIdeal:{example['ideal']}\nModel output:{model_completion.content}"
-            )
+            print(f"\n\nIdeal:{example['ideal']}\nModel output:{model_completion.content}")
             print(f"Correct:{example_metric}")
     return
 
@@ -66,9 +62,7 @@ def compile(code):
     with tempfile.NamedTemporaryFile(suffix=".c", delete=False) as temp:
         temp.write(code.encode())
         temp.close()
-        process = subprocess.run(
-            ["gcc", temp.name], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
+        process = subprocess.run(["gcc", temp.name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         os.remove(temp.name)  # remove the temp file
         if process.returncode == 0:
             return True

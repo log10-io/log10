@@ -1,24 +1,20 @@
-import os
 from collections import deque
-from typing import Dict, List, Optional, Any
-
-from langchain.chat_models import ChatOpenAI
-from langchain import LLMChain, PromptTemplate
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.llms import BaseLLM
-from langchain.vectorstores.base import VectorStore
-from pydantic import BaseModel, Field
-from langchain.chains.base import Chain
-
-from langchain.vectorstores import FAISS
-from langchain.docstore import InMemoryDocstore
-
-from langchain.agents import ZeroShotAgent, Tool, AgentExecutor
-from langchain import OpenAI, SerpAPIWrapper, LLMChain
+from typing import Any, Dict, List, Optional
 
 import openai
-import log10
+from langchain import LLMChain, PromptTemplate, SerpAPIWrapper
+from langchain.agents import AgentExecutor, Tool, ZeroShotAgent
+from langchain.chains.base import Chain
+from langchain.chat_models import ChatOpenAI
+from langchain.docstore import InMemoryDocstore
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.llms import BaseLLM
+from langchain.vectorstores import FAISS
+from langchain.vectorstores.base import VectorStore
+from pydantic import BaseModel, Field
+
 from log10.load import log10
+
 
 log10(openai)
 
@@ -28,6 +24,7 @@ log10(openai)
 embeddings_model = OpenAIEmbeddings()
 # Initialize the vectorstore as empty
 import faiss
+
 
 embedding_size = 1536
 index = faiss.IndexFlatL2(embedding_size)
@@ -142,9 +139,7 @@ def prioritize_tasks(
     """Prioritize tasks."""
     task_names = [t["task_name"] for t in task_list]
     next_task_id = int(this_task_id) + 1
-    response = task_prioritization_chain.run(
-        task_names=task_names, next_task_id=next_task_id, objective=objective
-    )
+    response = task_prioritization_chain.run(task_names=task_names, next_task_id=next_task_id, objective=objective)
     new_tasks = response.split("\n")
     prioritized_task_list = []
     for task_string in new_tasks:
@@ -167,9 +162,7 @@ def _get_top_tasks(vectorstore, query: str, k: int) -> List[str]:
     return [str(item.metadata["task"]) for item in sorted_results]
 
 
-def execute_task(
-    vectorstore, execution_chain: LLMChain, objective: str, task: str, k: int = 5
-) -> str:
+def execute_task(vectorstore, execution_chain: LLMChain, objective: str, task: str, k: int = 5) -> str:
     """Execute a task."""
     context = _get_top_tasks(vectorstore, query=objective, k=k)
     return execution_chain.run(objective=objective, context=context, task=task)
@@ -230,9 +223,7 @@ class BabyAGI(Chain, BaseModel):
                 self.print_next_task(task)
 
                 # Step 2: Execute the task
-                result = execute_task(
-                    self.vectorstore, self.execution_chain, objective, task["task_name"]
-                )
+                result = execute_task(self.vectorstore, self.execution_chain, objective, task["task_name"])
                 this_task_id = int(task["task_id"])
                 self.print_task_result(result)
 
@@ -266,27 +257,19 @@ class BabyAGI(Chain, BaseModel):
                 )
             num_iters += 1
             if self.max_iterations is not None and num_iters == self.max_iterations:
-                print(
-                    "\033[91m\033[1m" + "\n*****TASK ENDING*****\n" + "\033[0m\033[0m"
-                )
+                print("\033[91m\033[1m" + "\n*****TASK ENDING*****\n" + "\033[0m\033[0m")
                 break
         return {}
 
     @classmethod
-    def from_llm(
-        cls, llm: BaseLLM, vectorstore: VectorStore, verbose: bool = False, **kwargs
-    ) -> "BabyAGI":
+    def from_llm(cls, llm: BaseLLM, vectorstore: VectorStore, verbose: bool = False, **kwargs) -> "BabyAGI":
         """Initialize the BabyAGI Controller."""
         task_creation_chain = TaskCreationChain.from_llm(llm, verbose=verbose)
-        task_prioritization_chain = TaskPrioritizationChain.from_llm(
-            llm, verbose=verbose
-        )
+        task_prioritization_chain = TaskPrioritizationChain.from_llm(llm, verbose=verbose)
         llm_chain = LLMChain(llm=llm, prompt=prompt)
         tool_names = [tool.name for tool in tools]
         agent = ZeroShotAgent(llm_chain=llm_chain, allowed_tools=tool_names)
-        agent_executor = AgentExecutor.from_agent_and_tools(
-            agent=agent, tools=tools, verbose=True
-        )
+        agent_executor = AgentExecutor.from_agent_and_tools(agent=agent, tools=tools, verbose=True)
         return cls(
             task_creation_chain=task_creation_chain,
             task_prioritization_chain=task_prioritization_chain,
@@ -304,8 +287,6 @@ llm = ChatOpenAI(temperature=0)
 verbose = False
 # If None, will keep on going forever
 max_iterations: Optional[int] = 3
-baby_agi = BabyAGI.from_llm(
-    llm=llm, vectorstore=vectorstore, verbose=verbose, max_iterations=max_iterations
-)
+baby_agi = BabyAGI.from_llm(llm=llm, vectorstore=vectorstore, verbose=verbose, max_iterations=max_iterations)
 
 baby_agi({"objective": OBJECTIVE})

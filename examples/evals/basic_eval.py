@@ -1,7 +1,7 @@
-import os
 from log10.anthropic import Anthropic
 from log10.evals import eval
 from log10.openai import OpenAI
+
 
 # Choose provider
 provider = "openai"  # "anthropic"
@@ -28,9 +28,7 @@ elif provider == "anthropic":
         }
     )
 else:
-    print(
-        f"Unsupported provider option: {provider}. Supported providers are 'openai' or 'anthropic'."
-    )
+    print(f"Unsupported provider option: {provider}. Supported providers are 'openai' or 'anthropic'.")
 
 # Ground truth dataset to use for evaluation
 eval_dataset = (

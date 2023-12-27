@@ -1,15 +1,13 @@
-from copy import deepcopy
 import time
+from copy import deepcopy
 from typing import List
-import openai
-from log10.llm import LLM, ChatCompletion, Kind, Message, TextCompletion
-
-import logging
 
 # for exponential backoff
 import backoff
-from openai import error
 import openai
+from openai import error
+
+from log10.llm import LLM, ChatCompletion, Kind, Message, TextCompletion
 
 
 RETRY_ERROR_TYPES = (
