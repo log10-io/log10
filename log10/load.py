@@ -1,6 +1,5 @@
 import asyncio
 import functools
-import inspect
 import json
 import logging
 import os
@@ -9,12 +8,12 @@ import threading
 import time
 import traceback
 from contextlib import contextmanager
+from importlib.metadata import version
 
-import backoff  # for exponential backoff
+import backoff
 import requests
 from dotenv import load_dotenv
-
-from log10.openai import RETRY_ERROR_TYPES as OPENAI_RETRY_ERROR_TYPES
+from packaging.version import parse
 
 
 load_dotenv()
@@ -41,11 +40,30 @@ if target_service == "bigquery":
 elif target_service is None:
     target_service = "log10"  # default to log10
 
+def is_openai_v1() -> bool:
+    """Return whether OpenAI API is v1 or more."""
+    _version = parse(version("openai"))
+    return _version.major >= 1
 
-@backoff.on_exception(backoff.expo, OPENAI_RETRY_ERROR_TYPES)
 def func_with_backoff(func, *args, **kwargs):
-    return func(*args, **kwargs)
+    if func.__module__ != "openai" or is_openai_v1():
+        return func(*args, **kwargs)
 
+    import openai
+
+    retry_errors = (
+        openai.error.APIConnectionError,
+        openai.error.APIError,
+        openai.error.RateLimitError,
+        openai.error.ServiceUnavailableError,
+        openai.error.Timeout,
+    )
+
+    @backoff.on_exception(backoff.expo, retry_errors)
+    def _func_with_backoff(func, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    return _func_with_backoff(func, *args, **kwargs)
 
 # todo: should we do backoff as well?
 def post_request(url: str, json_payload: dict = {}) -> requests.Response:
@@ -306,19 +324,25 @@ def intercepting_decorator(func):
                     from log10.anthropic import Anthropic
 
                     response = Anthropic.prepare_response(kwargs["prompt"], output, "text")
+                    kind = "completion"
                 else:
                     response = output
+                    kind = "chat" if output.object == "chat.completion" else "completion"
 
                 # in case the usage of load(openai) and langchain.ChatOpenAI
                 if "api_key" in kwargs:
                     kwargs.pop("api_key")
 
+                if hasattr(response, 'model_dump_json'):
+                    response = response.model_dump_json()
+                else:
+                    response = json.dumps(response)
                 log_row = {
-                    "response": json.dumps(response),
+                    "response": response,
                     "status": "finished",
                     "duration": int(duration * 1000),
                     "stacktrace": json.dumps(stacktrace),
-                    "kind": "completion",
+                    "kind": kind,
                     "orig_module": func.__module__,
                     "orig_qualname": func.__qualname__,
                     "request": json.dumps(kwargs),
@@ -361,42 +385,57 @@ def set_sync_log_text(USE_ASYNC=True):
 
 def log10(module, DEBUG_=False, USE_ASYNC_=True):
     """Intercept and overload module for logging purposes
+    support both openai V0 and V1, and anthropic
 
     Keyword arguments:
     module -- the module to be intercepted (e.g. openai)
     DEBUG_ -- whether to show log10 related debug statements via python logging (default False)
     USE_ASYNC_ -- whether to run in async mode (default True)
 
+    Openai V1 example:
     Example:
         >>> from log10.load import log10
         >>> import openai
         >>> log10(openai)
-        >>> response = openai.Completion.create(
-        >>>     model="text-davinci-003",
-        >>>     prompt="Once upon a time",
-        >>>     max_tokens=32,
-        >>> )
-        >>> print(response)
+        >>> from openai import OpenAI
+        >>> client = OpenAI()
+        >>> completion = client.completions.create(model='curie', prompt="Once upon a time", max_tokens=32)
+        >>> print(completion)
 
     Example:
         >>> from log10.load import log10
         >>> import openai
         >>> log10(openai)
-        >>> response = openai.ChatCompletion.create(
+        >>> from openai import OpenAI
+        >>> client = OpenAI()
+        >>> completion = client.chat.completions.create(
         >>>     model="gpt-3.5-turbo",
-        >>>     messages=[
-        >>>         {
-        >>>             "role": "system",
-        >>>             "content": "You are a Pingpong machine.",
-        >>>         },
-        >>>         {
-        >>>             "role": "user",
-        >>>             "content": "Ping",
-        >>>         },
-        >>>     ],
+        >>>     messages=[{"role": "user", "content": "Hello world"}],
+        >>> )
+        >>> print(completion)
+
+    Openai V0 example:
+    Example:
+        >>> from log10.load import log10 # xdoctest: +SKIP
+        >>> import openai
+        >>> log10(openai)
+        >>> completion = openai.Completion.create(
+        >>>     model="text-davinci-003",
+        >>>     prompt="Once upon a time",
+        >>>     max_tokens=32,
+        >>> )
+        >>> print(completion)
+
+    Example:
+        >>> from log10.load import log10 # xdoctest: +SKIP
+        >>> import openai
+        >>> log10(openai)
+        >>> completion = openai.ChatCompletion.create(
+        >>>     model="gpt-3.5-turbo",
+        >>>     messages=[{"role": "user", "content": "Hello world"}],
         >>>     max_tokens=8,
         >>> )
-        >>> print(response)
+        >>> print(completion)
 
     Example:
         >>> from log10.load import log10
@@ -467,24 +506,32 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
     #         elif inspect.isclass(method):  # Handle nested classes
     #             intercept_class_methods(method)
 
-    for name, attr in vars(module).items():
-        if inspect.isclass(attr):
-            # OpenAI
-            if module.__name__ == "openai" and name in ["ChatCompletion", "Completion"]:
-                for method_name, method in vars(attr).items():
-                    if isinstance(method, classmethod):
-                        original_method = method.__func__
-                        if original_method.__qualname__ in [
-                            "ChatCompletion.create",
-                            "Completion.create",
-                        ]:
-                            decorated_method = intercepting_decorator(original_method)
-                            setattr(attr, method_name, classmethod(decorated_method))
-    # Anthropic
     if module.__name__ == "anthropic":
-        method = getattr(module.resources.completions.Completions, "create")
         attr = module.resources.completions.Completions
+        method = getattr(attr, "create")
         setattr(attr, "create", intercepting_decorator(method))
+    elif module.__name__ == "openai":
+        openai_version = parse(version("openai"))
+        global OPENAI_V1
+        OPENAI_V1 = openai_version >= parse("1.0.0")
+
+        # support for sync completions
+        if OPENAI_V1:
+            attr = module.resources.completions.Completions
+            method = getattr(attr, "create")
+            setattr(attr, "create", intercepting_decorator(method))
+
+            attr = module.resources.chat.completions.Completions
+            method = getattr(attr, "create")
+            setattr(attr, "create", intercepting_decorator(method))
+        else:
+            attr = module.api_resources.completion.Completion
+            method = getattr(attr, "create")
+            setattr(attr, "create", intercepting_decorator(method))
+
+            attr = module.api_resources.chat_completion.ChatCompletion
+            mothod = getattr(attr, "create")
+            setattr(attr, "create", intercepting_decorator(mothod))
 
         # For future reference:
         # if callable(attr) and isinstance(attr, types.FunctionType):
