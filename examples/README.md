@@ -25,6 +25,7 @@ Can be run on `OpenAI` or `Anthropic`
 ## Logging (and debugging)
 
 ### OpenAI
+Requires openai >= "1.0.0"
 
 - `chatCompletion_async_vs_sync.py` Compare latencies when logging in async vs sync mode
 - `chatCompletion.py` Chat endpoint example

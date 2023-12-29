@@ -7,9 +7,9 @@ from log10.load import log10
 
 log10(openai)
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-completion = openai.ChatCompletion.create(
+completion = client.chat.completions.create(
     model="gpt-3.5-turbo",
     messages=[
         {

@@ -1,5 +1,4 @@
 import datetime
-import os
 import random
 
 import openai
@@ -77,9 +76,6 @@ all_users = session.query(User).all()
 print(all_users)
 
 session.close()
-
-# Setup vars for Langchain
-openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Setup Langchain SQL agent
 db = SQLDatabase.from_uri("sqlite:///users.db")

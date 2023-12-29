@@ -6,8 +6,9 @@ from log10.load import log10, log10_session
 
 log10(openai)
 
+client = openai.OpenAI()
 with log10_session(tags=["foo", "bar"]):
-    response = openai.Completion.create(
+    response = client.completions.create(
         model="text-ada-001",
         prompt="Where is the Eiffel Tower?",
         temperature=0,

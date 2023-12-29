@@ -1,13 +1,9 @@
-import os
-
 import openai
 
 from log10.load import log10
 
 
 log10(openai)
-
-openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Example from: https://python.langchain.com/en/latest/use_cases/question_answering.html
 # Download the state_of_the_union.txt here: https://raw.githubusercontent.com/hwchase17/langchain/master/docs/modules/state_of_the_union.txt

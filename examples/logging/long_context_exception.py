@@ -7,11 +7,11 @@ from log10.load import log10
 
 log10(openai)
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = openai.OpenAI()
 
 text_to_repeat = "What is the meaning of life?" * 1000
 
-response = openai.Completion.create(
+response = client.completions.create(
     model="text-davinci-003",
     prompt=text_to_repeat,
     temperature=0,

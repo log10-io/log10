@@ -1,21 +1,16 @@
-import os
-
 import openai
-from langchain.llms import OpenAI
 
 from log10.load import log10, log10_session
 
 
 log10(openai)
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
-llm = OpenAI(temperature=0.9, model_name="text-curie-001")
+client = openai.OpenAI()
 
 with log10_session() as session:
     print(session.last_completion_url())
 
-    response = openai.Completion.create(
+    response = client.completions.create(
         model="text-ada-001",
         prompt="Why did the chicken cross the road?",
         temperature=0,
@@ -27,7 +22,7 @@ with log10_session() as session:
 
     print(session.last_completion_url())
 
-    response = openai.Completion.create(
+    response = client.completions.create(
         model="text-ada-001",
         prompt="Why did the cow cross the road?",
         temperature=0,
