@@ -30,7 +30,7 @@ logging:
 	python examples/logging/chatcompletion.py
 	python examples/logging/chatcompletion_async_vs_sync.py
 	python examples/logging/completion.py
-	python examples/logging/completion_ada.py
+	python examples/logging/completion_simple.py
 	python examples/logging/get_url.py
 	# python examples/logging/langchain_babyagi.py
 	python examples/logging/langchain_model_logger.py

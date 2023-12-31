@@ -13,7 +13,7 @@ log10(openai)
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
-llm = OpenAI(temperature=0.9, model_name="text-curie-001")
+llm = OpenAI(temperature=0.9, model_name="gpt-3.5-turbo-instruct")
 
 with log10_session():
     prompt = PromptTemplate(

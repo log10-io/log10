@@ -14,7 +14,7 @@ from langchain.llms import OpenAI
 from langchain.prompts import PromptTemplate
 
 
-llm = OpenAI(temperature=0.9, model_name="text-babbage-001")
+llm = OpenAI(temperature=0.9, model_name="gpt-3.5-turbo-instruct")
 prompt = PromptTemplate(
     input_variables=["product"],
     template="What is a good name for a company that makes {product}?",

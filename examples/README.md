@@ -28,8 +28,8 @@ Can be run on `OpenAI` or `Anthropic`
 
 - `chatCompletion_async_vs_sync.py` Compare latencies when logging in async vs sync mode
 - `chatCompletion.py` Chat endpoint example
-- `completion_ada.py` Completion endpoint on Ada (cost efficient for testing purposes, but low quality output)
-- `completion.py` Completion endpoint on davinci (better quality, but more expensive)
+- `completion_simple.py` Completion endpoint on a simple model, `gpt-3.5-turbo-instruct` with DEBUG_ enabled and ASYNC_ disabled
+- `completion.py` Completion endpoint with `gpt-3.5-turbo-instruct`
 - `get_url.py` Get the URL of the completion to get the detailed logs on [log10.io](https://log10.io)
 
 ### Langchain

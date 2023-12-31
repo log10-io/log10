@@ -8,7 +8,7 @@ response = llm.chat([Message(role="user", content="Hello, how are you?")])
 print(response)
 print(f"Duration: {llm.last_duration()}")
 
-llm = OpenAI({"model": "text-davinci-003"}, log10_config=Log10Config())
+llm = OpenAI({"model": "gpt-3.5-turbo-instruct"}, log10_config=Log10Config())
 response = llm.text("Hello, how are you?")
 print(response)
 print(f"Duration: {llm.last_duration()}")

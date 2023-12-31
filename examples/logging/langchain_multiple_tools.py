@@ -15,7 +15,7 @@ from langchain.agents import initialize_agent, load_tools
 from langchain.llms import OpenAI
 
 
-llm = OpenAI(temperature=0, model_name="text-davinci-003", max_tokens=MAX_TOKENS)
+llm = OpenAI(temperature=0, model_name="gpt-3.5-turbo-instruct", max_tokens=MAX_TOKENS)
 
 # Set up Langchain
 tools = load_tools(TOOLS_DEFAULT_LIST, llm=llm)
