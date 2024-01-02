@@ -554,13 +554,27 @@ if is_openai_v1():
         """
         Example:
             >>> from log10.load import Log10_OpenAI as OpenAI
-            >>> client = OpenAI()
+            >>> client = OpenAI(tags=["load_v1_test"])
             >>> completion = client.completions.create(model='curie', prompt="Twice upon a time", max_tokens=32)
+            >>> print(completion)
+
+        Example:
+            >>> from log10.load import Log10_OpenAI as OpenAI
+            >>> client = OpenAI(tags=["load_v1_test"])
+            >>> completion = client.chat.completions.create(
+            >>>     model="gpt-3.5-turbo",
+            >>>     messages=[{"role": "user", "content": "Hello world"}],
+            >>> )
             >>> print(completion)
         """
 
         def __init__(self, *args, **kwargs):
+            # check if tags is passed in
+            if "tags" in kwargs:
+                global global_tags
+                global_tags = kwargs.pop("tags")
             super().__init__(*args, **kwargs)
+
             if not getattr(openai, "_log10_patched", False):
                 log10(openai)
                 openai._log10_patched = True
