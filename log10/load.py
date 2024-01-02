@@ -40,10 +40,12 @@ if target_service == "bigquery":
 elif target_service is None:
     target_service = "log10"  # default to log10
 
+
 def is_openai_v1() -> bool:
     """Return whether OpenAI API is v1 or more."""
     _version = parse(version("openai"))
     return _version.major >= 1
+
 
 def func_with_backoff(func, *args, **kwargs):
     if func.__module__ != "openai" or is_openai_v1():
@@ -64,6 +66,7 @@ def func_with_backoff(func, *args, **kwargs):
         return func(*args, **kwargs)
 
     return _func_with_backoff(func, *args, **kwargs)
+
 
 # todo: should we do backoff as well?
 def post_request(url: str, json_payload: dict = {}) -> requests.Response:
@@ -333,7 +336,7 @@ def intercepting_decorator(func):
                 if "api_key" in kwargs:
                     kwargs.pop("api_key")
 
-                if hasattr(response, 'model_dump_json'):
+                if hasattr(response, "model_dump_json"):
                     response = response.model_dump_json()
                 else:
                     response = json.dumps(response)
@@ -541,3 +544,24 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         #     intercept_class_methods(attr)
         # # else: # uncomment if we want to include nested function support
         # #     intercept_nested_functions(attr)
+
+
+if is_openai_v1():
+    import openai
+    from openai import OpenAI
+
+    class Log10_OpenAI(OpenAI):
+        """
+        Example:
+            >>> from log10.load import Log10_OpenAI as OpenAI
+            >>> client = Log10_OpenAI()
+            >>> completion = client.completions.create(model='curie', prompt="Twice upon a time", max_tokens=32)
+            >>> print(completion)
+        """
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            if not getattr(openai, "_log10_patched", False):
+                logger.info("LOG10: patching openai.OpenAI. Only support completions and chat completions for now.")
+                log10(openai)
+                openai._log10_patched = True
