@@ -1,11 +1,8 @@
-import openai
-
-from log10.load import log10
+from log10.load import OpenAI
 
 
-log10(openai, DEBUG_=True, USE_ASYNC_=False)
+client = OpenAI()
 
-client = openai.OpenAI()
 response = client.completions.create(
     model="text-ada-001",
     prompt="What is 2+2?",

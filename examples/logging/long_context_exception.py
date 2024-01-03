@@ -1,13 +1,7 @@
-import os
-
-import openai
-
-from log10.load import log10
+from log10.load import OpenAI
 
 
-log10(openai)
-
-client = openai.OpenAI()
+client = OpenAI()
 
 text_to_repeat = "What is the meaning of life?" * 1000
 

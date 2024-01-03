@@ -1,11 +1,7 @@
-import openai
-
-from log10.load import log10, log10_session
+from log10.load import OpenAI, log10_session
 
 
-log10(openai)
-
-client = openai.OpenAI()
+client = OpenAI()
 response = client.completions.create(
     model="text-ada-001",
     prompt="Where are the pyramids?",

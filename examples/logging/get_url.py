@@ -1,11 +1,7 @@
-import openai
-
-from log10.load import log10, log10_session
+from log10.load import OpenAI, log10_session
 
 
-log10(openai)
-
-client = openai.OpenAI()
+client = OpenAI()
 
 with log10_session() as session:
     print(session.last_completion_url())
@@ -37,7 +33,7 @@ with log10_session() as session:
 with log10_session() as session:
     print(session.last_completion_url())
 
-    response = openai.Completion.create(
+    response = client.completions.create(
         model="text-ada-001",
         prompt="Why did the frog cross the road?",
         temperature=0,
@@ -49,7 +45,7 @@ with log10_session() as session:
 
     print(session.last_completion_url())
 
-    response = openai.Completion.create(
+    response = client.completions.create(
         model="text-ada-001",
         prompt="Why did the scorpion cross the road?",
         temperature=0,

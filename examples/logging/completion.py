@@ -1,11 +1,8 @@
-import openai
-
-from log10.load import log10
+from log10.load import OpenAI
 
 
-log10(openai)
+client = OpenAI()
 
-client = openai.OpenAI()
 response = client.completions.create(
     model="text-davinci-003",
     prompt="Write the names of all Star Wars movies and spinoffs along with the time periods in which they were set?",

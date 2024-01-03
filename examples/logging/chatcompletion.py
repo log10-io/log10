@@ -1,13 +1,7 @@
-import os
-
-import openai
-
-from log10.load import log10
+from log10.load import OpenAI
 
 
-log10(openai)
-
-client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI()
 
 completion = client.chat.completions.create(
     model="gpt-3.5-turbo",

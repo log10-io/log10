@@ -550,16 +550,16 @@ if is_openai_v1():
     import openai
     from openai import OpenAI
 
-    class Log10_OpenAI(OpenAI):
+    class OpenAI(OpenAI):
         """
         Example:
-            >>> from log10.load import Log10_OpenAI as OpenAI
+            >>> from log10.load import OpenAI
             >>> client = OpenAI(tags=["load_v1_test"])
             >>> completion = client.completions.create(model='curie', prompt="Twice upon a time", max_tokens=32)
             >>> print(completion)
 
         Example:
-            >>> from log10.load import Log10_OpenAI as OpenAI
+            >>> from log10.load import OpenAI
             >>> client = OpenAI(tags=["load_v1_test"])
             >>> completion = client.chat.completions.create(
             >>>     model="gpt-3.5-turbo",
