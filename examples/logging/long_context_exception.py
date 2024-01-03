@@ -1,17 +1,11 @@
-import os
-
-import openai
-
-from log10.load import log10
+from log10.load import OpenAI
 
 
-log10(openai)
-
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI()
 
 text_to_repeat = "What is the meaning of life?" * 1000
 
-response = openai.Completion.create(
+response = client.completions.create(
     model="gpt-3.5-turbo-instruct",
     prompt=text_to_repeat,
     temperature=0,

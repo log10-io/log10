@@ -1,15 +1,9 @@
-import os
-
-import openai
-
-from log10.load import log10
+from log10.load import OpenAI
 
 
-log10(openai, DEBUG_=True, USE_ASYNC_=False)
+client = OpenAI()
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
-response = openai.Completion.create(
+response = client.completions.create(
     model="gpt-3.5-turbo-instruct",
     prompt="What is 2+2?",
     temperature=0,
