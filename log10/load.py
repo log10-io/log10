@@ -395,28 +395,6 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
     DEBUG_ -- whether to show log10 related debug statements via python logging (default False)
     USE_ASYNC_ -- whether to run in async mode (default True)
 
-    Openai V1 example:
-    Example:
-        >>> from log10.load import log10
-        >>> import openai
-        >>> log10(openai)
-        >>> from openai import OpenAI
-        >>> client = OpenAI()
-        >>> completion = client.completions.create(model='curie', prompt="Once upon a time", max_tokens=32)
-        >>> print(completion)
-
-    Example:
-        >>> from log10.load import log10
-        >>> import openai
-        >>> log10(openai)
-        >>> from openai import OpenAI
-        >>> client = OpenAI()
-        >>> completion = client.chat.completions.create(
-        >>>     model="gpt-3.5-turbo",
-        >>>     messages=[{"role": "user", "content": "Hello world"}],
-        >>> )
-        >>> print(completion)
-
     Openai V0 example:
     Example:
         >>> from log10.load import log10 # xdoctest: +SKIP
