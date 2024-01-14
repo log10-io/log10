@@ -20,7 +20,12 @@ from log10.load import log10
 log10(openai)
 # all your openai calls are now logged
 ```
+For OpenAI v1, use `from log10.load import OpenAI` instead of `from openai import OpenAI`
+```python
+from log10.load import OpenAI
 
+client = OpenAI()
+```
 Access your LLM data at [log10.io](https://log10.io)
 
 
@@ -42,8 +47,12 @@ Log10 offers various integration methods, including a python LLM library wrapper
 Pick the one that works best for you.
 
 #### OpenAI
-Use library wrapper `log10(openai)` as shown [above](#-what-is-this).
-Full script [here](examples/logging/chatcompletion.py).
+| log10 ver| openai v0 | openai v1 |
+|----------|----------|----------|
+| 0.4 | `load(openai)` ✅ | ❌ |
+| 0.5 | `load(openai)` ✅ | `load(openai)` ✅<br>`from log10.load import OpenAI` ✅ |
+
+**OpenAI v0** - Use library wrapper `log10(openai)`. Check out `examples/logging` in log10 version `0.4.6`.
 ```python
 import openai
 from log10.load import log10
@@ -52,12 +61,27 @@ log10(openai)
 # openai calls are now logged
 ```
 
-Use Log10 LLM abstraction.
-Full script [here](examples/logging/llm_abstraction.py#6-#14).
+**OpenAI v1**
+> NOTE: We added OpenAI v1 API support in log10 `0.5.0` release. `load.log10(openai)` still works for openai v1.
+```python
+from log10.load import OpenAI
+# from openai import OpenAI
+
+client = OpenAI()
+completion = client.completions.create(model="curie", prompt="Once upon a time")
+# All completions.create and chat.completions.create calls will be logged
+```
+Full script [here](examples/logging/completion.py).
+
+
+**Use Log10 LLM abstraction**
+
 ```python
 from log10.openai import OpenAI
+
 llm = OpenAI({"model": "gpt-3.5-turbo"}, log10_config=Log10Config())
 ```
+openai v1+ lib required. Full script [here](examples/logging/llm_abstraction.py#6-#14).
 
 #### Anthropic
 Use library wrapper `log10(anthropic)`.
@@ -74,6 +98,7 @@ Use Log10 LLM abstraction.
 Full script [here](examples/logging/llm_abstraction.py#16-#19).
 ```python
 from log10.anthropic import Anthropic
+
 llm = Anthropic({"model": "claude-2"}, log10_config=Log10Config())
 ```
 
@@ -85,12 +110,14 @@ Adding other providers is on the roadmap.
 **MosaicML** with LLM abstraction. Full script [here](/examples/logging/mosaicml_completion.py).
 ```python
 from log10.mosaicml import MosaicML
+
 llm = MosaicML({"model": "llama2-70b-chat/v1"}, log10_config=Log10Config())
 ```
 
 **Together** with LLM abstraction. Full script [here](/examples/logging/together_completion.py).
 ```python
 from log10.together import Together
+
 llm = Together({"model": "togethercomputer/llama-2-70b-chat"}, log10_config=Log10Config())
 ```
 
@@ -137,7 +164,7 @@ And provide the following configuration in either a `.env` file, or as environme
 
 ### 🧠🔁 Readiness for RLHF & self hosting
 
-Use your data and feedback from users to fine-tune custom models with RLHF with the option of building and deploying more reliable, accurate and efficient self-hosted models. 
+Use your data and feedback from users to fine-tune custom models with RLHF with the option of building and deploying more reliable, accurate and efficient self-hosted models.
 
 ### 👥🤝 Collaboration
 
@@ -158,7 +185,7 @@ Create flexible groups to share and collaborate over all of the above features
 You can find and run examples under folder `examples`, e.g. run a logging example:
 ```
 python examples/logging/chatcompletion.py
-``` 
+```
 
 Also you can run some end-to-end tests with [`xdocttest`](https://github.com/Erotemic/xdoctest) installed (`pip install xdoctest`).
 
