@@ -50,7 +50,7 @@ Pick the one that works best for you.
 | log10 ver| openai v0 | openai v1 |
 |----------|----------|----------|
 | 0.4 | `load(openai)` ✅ | ❌ |
-| 0.5 | `load(openai)` ✅ | `load(openai)` ✅<br>`from log10.load import OpenAI` ✅ |
+| 0.5 | `load(openai)` ✅ | `from log10.load import OpenAI` ✅ |
 
 **OpenAI v0** - Use library wrapper `log10(openai)`. Check out `examples/logging` in log10 version `0.4.6`.
 ```python
