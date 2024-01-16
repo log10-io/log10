@@ -23,6 +23,18 @@ from log10.load import log10
 
 log10(openai)
 ```
+This works for both openai v0 and v1.
+
+For openai v1 only, the logging can be done like this:
+
+```python
+from log10.load import OpenAI
+# from openai import OpenAI
+
+client = OpenAI()
+completion = client.completions.create(model='curie', prompt="Once upon a time")
+# All completions.create and chat.completions.create calls will be logged
+```
 
 From that point on, all openai calls during the process execution will be logged.
 Please note that this only works for non-streaming calls at this time.
@@ -123,6 +135,12 @@ with log10_session(tags=["foo", "bar"]):
     )
     print(response)
 
+```
+
+An addition way to add tag with openai v1 API:
+```python
+from log10.load import OpenAI
+client = OpenAI(tags=["foo"])
 ```
 
 ## LangChain logger

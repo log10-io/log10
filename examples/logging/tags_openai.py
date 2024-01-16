@@ -1,16 +1,8 @@
-import os
-
-import openai
-
-from log10.load import log10, log10_session
+from log10.load import OpenAI, log10_session
 
 
-log10(openai)
-
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
-
-response = openai.Completion.create(
+client = OpenAI()
+response = client.completions.create(
     model="gpt-3.5-turbo-instruct",
     prompt="Where are the pyramids?",
     temperature=0,
@@ -22,7 +14,7 @@ response = openai.Completion.create(
 print(response)
 
 with log10_session(tags=["foo", "bar"]):
-    response = openai.Completion.create(
+    response = client.completions.create(
         model="gpt-3.5-turbo-instruct",
         prompt="Where is the Eiffel Tower?",
         temperature=0,
@@ -34,7 +26,7 @@ with log10_session(tags=["foo", "bar"]):
     print(response)
 
 with log10_session(tags=["bar", "baz"]):
-    response = openai.Completion.create(
+    response = client.completions.create(
         model="gpt-3.5-turbo-instruct",
         prompt="Where is the statue of liberty?",
         temperature=0,
@@ -45,7 +37,7 @@ with log10_session(tags=["bar", "baz"]):
     )
     print(response)
 
-response = openai.Completion.create(
+response = client.completions.create(
     model="gpt-3.5-turbo-instruct",
     prompt="Where is machu picchu?",
     temperature=0,

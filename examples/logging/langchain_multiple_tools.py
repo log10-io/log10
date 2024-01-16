@@ -1,5 +1,3 @@
-import os
-
 import openai
 
 from log10.load import log10
@@ -7,7 +5,6 @@ from log10.load import log10
 
 log10(openai)
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
 MAX_TOKENS = 512
 TOOLS_DEFAULT_LIST = ["llm-math", "wikipedia"]
 
