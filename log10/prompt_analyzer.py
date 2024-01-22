@@ -27,13 +27,14 @@ class PromptAnalyzer:
         self._report: dict = None
         self._log10_config = log10_config or Log10Config()
         self._http_client = httpx.Client()
+        self._timeout = httpx.Timeout(timeout=5, connect=5, read=5 * 60, write=5)
         self._loading_analysis = False
 
     def _post_request(self, url: str, json_payload: dict) -> httpx.Response:
-        headers = { "x-log10-token": self.log10_config.token, "Content-Type": "application/json"}
-        json_payload["organization_id"] = self.log10_config.organization_id
+        headers = { "x-log10-token": self._log10_config.token, "Content-Type": "application/json"}
+        json_payload["organization_id"] = self._log10_config.org_id
 
-        res = self._http_client.post( self._log10_config.url + url, headers=headers, json=json_payload)
+        res = self._http_client.post( self._log10_config.url + url, headers=headers, json=json_payload, timeout=self._timeout)
         return res
 
     def _convert(self, prompt: str) -> json:
@@ -51,8 +52,15 @@ class PromptAnalyzer:
         report = res.json()
         return report
 
-    def _suggest(self, prompt_json: json, report: dict | None) -> json:
-        res = self._post_request(suggestions_url, prompt_json)
+    def _suggest(self, prompt_json: json, report: dict | None = None) -> json:
+        if report is None:
+            report = [{}]
+
+        json_payload = {
+            "base_prompt": prompt_json,
+            "report": report,
+        }
+        res = self._post_request(suggestions_url, json_payload)
         suggestion = res.json()
         return suggestion
 
