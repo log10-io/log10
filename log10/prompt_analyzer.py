@@ -24,7 +24,7 @@ class PromptAnalyzer:
     def __init__(self, log10_config: Log10Config = None):
         self._prompts: list[str] = []
         self._suggestions: dict = None
-        self._report: dict = None
+        self._reports: dict = None
         self._log10_config = log10_config or Log10Config()
         self._http_client = httpx.Client()
         self._timeout = httpx.Timeout(timeout=5, connect=5, read=5 * 60, write=5)
@@ -44,9 +44,9 @@ class PromptAnalyzer:
 
     def _report(self, last_prompt, current_prompt, suggestions) -> json:
         json_payload = {
-            "base_prompt": last_prompt,
-            "new_prompt": current_prompt,
-            "suggestions": suggestions,
+            "base_prompt": json.dumps(last_prompt),
+            "new_prompt": json.dumps(current_prompt),
+            "suggestions": json.dumps(suggestions),
         }
         res = self._post_request(report_url, json_payload)
         report = res.json()
@@ -54,7 +54,7 @@ class PromptAnalyzer:
 
     def _suggest(self, prompt_json: json, report: dict | None = None) -> json:
         if report is None:
-            report = [{}]
+            report = "[{}]"
 
         json_payload = {
             "base_prompt": prompt_json,
