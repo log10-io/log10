@@ -75,6 +75,18 @@ class PromptAnalyzer:
         return suggestion
 
     def analyze(self, prompt: str) -> dict:
+        """
+        Analyze prompt and return suggestions. You can make multiple calls to this method by
+        making changes to the prompt. This function keeps track of the prompt history and generate
+        suggestions based on the prompt history.
+
+        Example:
+        >>> from log10.prompt_analyzer import PromptAnalyzer
+        >>> analyzer = PromptAnalyzer()
+        >>> prompt = "You are an assistant communicating with XYZ users on their support line."
+        >>> suggestions = analyzer.analyze(prompt)
+        >>> print(suggestions)
+        """
         total_steps = 3 if self._suggestions_history else 2
         step = 0
         try:
