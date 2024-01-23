@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 
 import httpx
 from dotenv import load_dotenv
@@ -15,10 +14,12 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger: logging.Logger = logging.getLogger("LOG10")
+logger.setLevel(logging.INFO)
 
 convert_url = "/api/experimental/autoprompt/convert"
 report_url = "/api/experimental/autoprompt/report"
 suggestions_url = "/api/experimental/autoprompt/suggestions"
+
 
 class PromptAnalyzer:
     def __init__(self, log10_config: Log10Config = None):
@@ -31,10 +32,12 @@ class PromptAnalyzer:
         self._loading_analysis = False
 
     def _post_request(self, url: str, json_payload: dict) -> httpx.Response:
-        headers = { "x-log10-token": self._log10_config.token, "Content-Type": "application/json"}
+        headers = {"x-log10-token": self._log10_config.token, "Content-Type": "application/json"}
         json_payload["organization_id"] = self._log10_config.org_id
 
-        res = self._http_client.post( self._log10_config.url + url, headers=headers, json=json_payload, timeout=self._timeout)
+        res = self._http_client.post(
+            self._log10_config.url + url, headers=headers, json=json_payload, timeout=self._timeout
+        )
         return res
 
     def _convert(self, prompt: str) -> json:
@@ -53,7 +56,7 @@ class PromptAnalyzer:
         return report
 
     def _suggest(self, prompt_json: json, report: dict | None = None) -> json:
-        if report is None:
+        if report is None or report == {}:
             report = "[{}]"
 
         json_payload = {
@@ -64,10 +67,10 @@ class PromptAnalyzer:
         suggestion = res.json()
         return suggestion
 
-    def analyze(self, prompt: str) -> json | None:
+    def analyze(self, prompt: str) -> dict:
         """
         prompt: str - The prompt to analyze
-        returns: json - suggestion
+        returns: dict  - suggestion
         """
         if self._loading_analysis:
             logger.warning("Please wait for the current analysis to finish.")
@@ -78,7 +81,7 @@ class PromptAnalyzer:
             self._loading_analysis = True
             self._prompts.append(prompt)
             converted_prompt = self._convert(prompt)
-            logger.debug(converted_prompt)
+            logger.debug(f"converted prompt: {converted_prompt}")
 
             logger.info("Generating suggestions...")
 
@@ -86,16 +89,14 @@ class PromptAnalyzer:
                 logger.info("Running report step")
                 last_prompt = self._prompts[-1]
                 report_json = self._report(last_prompt, prompt, self._suggestions)
-                logger.debug(report_json)
+                logger.debug(f"report: {report_json}")
                 self._report = report_json
 
-            suggestions_json = self._suggest(converted_prompt, self._report)
+            suggestions_json = self._suggest(converted_prompt, self._reports)
+            logger.debug(f"suggestions: {suggestions_json}")
             self._suggestions = suggestions_json
         except Exception as e:
             logger.error(e)
         finally:
             self._loading_analysis = False
             return self._suggestions
-
-
-
