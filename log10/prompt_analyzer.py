@@ -121,6 +121,7 @@ class PromptAnalyzer:
             self._suggestions_history.append(suggestions_dict)
 
             logger.debug(f"suggestions: {suggestions_dict}")
+            logger.info("Done analyzing.")
 
             return suggestions_dict
         except Exception as e:
