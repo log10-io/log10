@@ -28,7 +28,7 @@ build = "^0.10.0"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<4.0"
-langchain = "^0.0.303"
+langchain = "<0.2.0"
 openai = "<2"
 requests = "^2.31.0"
 python-dotenv = "^1.0.0"
