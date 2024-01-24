@@ -230,6 +230,7 @@ class LLM(ABC):
             f"/api/completions/{completion_id}",
             "POST",
             {
+                "organization_id": self.log10_config.org_id,
                 "response": json.dumps(response),
                 "status": "finished",
                 "duration": duration_sec,
