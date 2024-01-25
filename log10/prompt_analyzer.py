@@ -49,12 +49,19 @@ class PromptAnalyzer:
             raise
 
     def _convert(self, prompt: str) -> dict:
-        res = self._post_request(self.convert_url, {"prompt": prompt})
+        json_payload = {"prompt": prompt}
+
+        # Pass session ID if it has already been set.
+        if self.__session_id:
+            json_payload["session_id"] = self.__session_id
+
+        res = self._post_request(self.convert_url, json_payload)
         res_json = res.json()
         converted = res_json.get("output")
 
         # The convert API returns a session ID we can use to link together a session.
-        self.__session_id = res_json.get("session_id")
+        if not self.__session_id:
+            self.__session_id = res_json.get("session_id")
 
         return converted
 
