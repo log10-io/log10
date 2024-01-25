@@ -1,27 +1,16 @@
+import os
 import json
 import logging
-import os
 import traceback
 from abc import ABC
 from enum import Enum
 from typing import List, Optional
 
 import requests
-
-
 Role = Enum("Role", ["system", "assistant", "user"])
 Kind = Enum("Kind", ["chat", "text"])
-
-
 class Log10Config:
-    def __init__(
-        self,
-        url: str = None,
-        token: str = None,
-        org_id: str = None,
-        tags: List[str] = None,
-        DEBUG: bool = False,
-    ):
+    def __init__(self, url: str = None, token: str = None, org_id: str = None, tags: List[str] = None, DEBUG: bool = False,):
         self.url = url if url else os.getenv("LOG10_URL")
         self.token = token if token else os.getenv("LOG10_TOKEN")
         self.org_id = org_id if org_id else os.getenv("LOG10_ORG_ID")
