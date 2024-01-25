@@ -533,7 +533,7 @@ if is_openai_v1():
         Example:
             >>> from log10.load import OpenAI
             >>> client = OpenAI(tags=["load_v1_test"])
-            >>> completion = client.completions.create(model='curie', prompt="Twice upon a time", max_tokens=32)
+            >>> completion = client.completions.create(model='gpt-3.5-turbo-instruct', prompt="Twice upon a time", max_tokens=32)
             >>> print(completion)
 
         Example:
