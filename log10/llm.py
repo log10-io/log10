@@ -1,12 +1,14 @@
-import os
 import json
 import logging
+import os
 import traceback
 from abc import ABC
 from enum import Enum
 from typing import List, Optional
 
 import requests
+
+
 Role = Enum("Role", ["system", "assistant", "user"])
 Kind = Enum("Kind", ["chat", "text"])
 class Log10Config:
