@@ -31,6 +31,9 @@ class PromptAnalyzer:
         self._log10_config = log10_config or Log10Config()
         self._http_client = httpx.Client()
 
+        # Set by `_convert`.
+        self.__session_id = None
+
     def _post_request(self, url: str, json_payload: dict) -> httpx.Response:
         headers = {"x-log10-token": self._log10_config.token, "Content-Type": "application/json"}
         json_payload["organization_id"] = self._log10_config.org_id
@@ -47,7 +50,12 @@ class PromptAnalyzer:
 
     def _convert(self, prompt: str) -> dict:
         res = self._post_request(self.convert_url, {"prompt": prompt})
-        converted = res.json()
+        res_json = res.json()
+        converted = res_json.get("output")
+
+        # The convert API returns a session ID we can use to link together a session.
+        self.__session_id = res_json.get("session_id")
+
         return converted
 
     def _report(self, last_prompt: dict, current_prompt: dict, suggestions: dict) -> dict:
@@ -55,9 +63,10 @@ class PromptAnalyzer:
             "base_prompt": json.dumps(last_prompt),
             "new_prompt": json.dumps(current_prompt),
             "suggestions": json.dumps(suggestions),
+            "session_id": self.__session_id,
         }
         res = self._post_request(self.report_url, json_payload)
-        report = res.json()
+        report = res.json().get("output")
         return report
 
     def _suggest(self, prompt_json: json, report: dict | None = None) -> dict:
@@ -69,9 +78,10 @@ class PromptAnalyzer:
         json_payload = {
             "base_prompt": prompt_json,
             "report": report,
+            "session_id": self.__session_id,
         }
         res = self._post_request(self.suggestions_url, json_payload)
-        suggestion = res.json()
+        suggestion = res.json().get("output")
         return suggestion
 
     def analyze(self, prompt: str) -> dict:
