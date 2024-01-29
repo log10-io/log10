@@ -72,6 +72,7 @@ def func_with_backoff(func, *args, **kwargs):
 def post_request(url: str, json_payload: dict = {}) -> requests.Response:
     headers = {"x-log10-token": token, "Content-Type": "application/json"}
     json_payload["organization_id"] = org_id
+    error_msg = None
     try:
         # todo: set timeout
         res = requests.post(url, headers=headers, json=json_payload)
@@ -81,17 +82,16 @@ def post_request(url: str, json_payload: dict = {}) -> requests.Response:
 
         return res
     except requests.Timeout:
-        logger.error("HTTP request: POST Timeout")
-        raise
+        error_msg = "HTTP request: POST Timeout"
     except requests.ConnectionError:
-        logger.error("HTTP request: POST Connection Error")
-        raise
+        error_msg = "HTTP request: POST Connection Error"
     except requests.HTTPError as e:
-        logger.error(f"HTTP request: POST HTTP Error - {e}")
-        raise
+        error_msg = f"HTTP request: POST HTTP Error - {e}"
     except requests.RequestException as e:
-        logger.error(f"HTTP request: POST Request Exception - {e}")
-        raise
+        error_msg = f"HTTP request: POST Request Exception - {e}"
+    finally:
+        if error_msg is not None:
+            logger.error(error_msg)
 
 
 post_session_request = functools.partial(post_request, url + "/api/sessions", {})
@@ -101,30 +101,34 @@ def get_session_id():
     if target_service == "bigquery":
         return str(uuid.uuid4())
 
+    error_msg = None
     try:
         res = post_session_request()
 
         return res.json()["sessionID"]
     except requests.HTTPError as http_err:
         if "401" in str(http_err):
-            raise Exception(
+            error_msg = (
                 "Failed anthorization. Please verify that LOG10_TOKEN and LOG10_ORG_ID are set correctly and try again."
                 + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
             )
         else:
-            raise Exception(f"Failed to create LOG10 session. Error: {http_err}")
+            error_msg = f"Failed to create LOG10 session. Error: {http_err}"
     except requests.ConnectionError:
-        raise Exception(
+        error_msg = (
             "Invalid LOG10_URL. Please verify that LOG10_URL is set correctly and try again."
             + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
         )
     except Exception as e:
-        raise Exception(
+        error_msg = (
             "Failed to create LOG10 session: "
             + str(e)
             + "\nLikely cause: LOG10 env vars missing or not picked up correctly!"
             + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
         )
+    finally:
+        if error_msg is not None:
+            logger.error(error_msg)
 
 
 # Global variable to store the current sessionID.
@@ -311,7 +315,6 @@ def intercepting_decorator(func):
                 "tags": global_tags,
             }
             res = post_request(completion_url + "/" + completionID, log_row)
-            raise e
         else:
             # finished with no exceptions
             if USE_ASYNC:
