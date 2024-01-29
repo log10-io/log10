@@ -7,7 +7,7 @@ from enum import Enum
 from typing import List, Optional
 
 import requests
-
+from tenacity import retry, stop_after_attempt
 
 Role = Enum("Role", ["system", "assistant", "user"])
 Kind = Enum("Kind", ["chat", "text"])
@@ -162,16 +162,20 @@ class LLM(ABC):
     def chat_request(self, messages: List[Message], hparams: dict = None) -> dict:
         raise Exception("Not implemented")
 
+    @retry(stop=stop_after_attempt(3))
     def api_request(self, rel_url: str, method: str, request: dict):
-        return requests.request(
-            method,
-            f"{self.log10_config.url}{rel_url}",
-            headers={
-                "x-log10-token": self.log10_config.token,
-                "Content-Type": "application/json",
-            },
-            json=request,
-        )
+        try:
+            return requests.request(
+                method,
+                f"{self.log10_config.url}{rel_url}",
+                headers={
+                    "x-log10-token": self.log10_config.token,
+                    "Content-Type": "application/json",
+                },
+                json=request,
+            )
+        except Exception as e:
+            raise Exception(f"Failed to log to log10.io: {e}")
 
     # Save the start of a completion in **openai request format**.
     def log_start(self, request, kind: Kind, tags: Optional[List[str]] = None):

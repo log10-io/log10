@@ -43,6 +43,7 @@ backoff = "^2.2.1"
 anthropic = "^0.3.11"
 mosaicml-cli = "^0.5.30"
 together = "^0.2.7"
+tenacity="^8.2.3"
 
 [tool.ruff]
 # Never enforce `E501` (line length violations).

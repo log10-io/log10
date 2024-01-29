@@ -14,6 +14,7 @@ import backoff
 import requests
 from dotenv import load_dotenv
 from packaging.version import parse
+from tenacity import retry, stop_after_attempt
 
 
 load_dotenv()
@@ -68,7 +69,7 @@ def func_with_backoff(func, *args, **kwargs):
     return _func_with_backoff(func, *args, **kwargs)
 
 
-# todo: should we do backoff as well?
+@retry(stop=stop_after_attempt(3))
 def post_request(url: str, json_payload: dict = {}) -> requests.Response:
     headers = {"x-log10-token": token, "Content-Type": "application/json"}
     json_payload["organization_id"] = org_id
@@ -92,7 +93,9 @@ def post_request(url: str, json_payload: dict = {}) -> requests.Response:
     except requests.RequestException as e:
         logger.error(f"HTTP request: POST Request Exception - {e}")
         raise
-
+    except Exception as e:
+        logger.error(f"HTTP request: POST Exception - {e}")
+        raise
 
 post_session_request = functools.partial(post_request, url + "/api/sessions", {})
 
