@@ -29,9 +29,7 @@ org_id = os.environ.get("LOG10_ORG_ID")
 # log10, bigquery
 target_service = os.environ.get("LOG10_DATA_STORE", "log10")
 if target_service == "bigquery":
-    raise NotImplementedError(
-        "For big query support, please get in touch with us at support@log10.io"
-    )
+    raise NotImplementedError("For big query support, please get in touch with us at support@log10.io")
 
 
 def is_openai_v1() -> bool:
@@ -106,9 +104,7 @@ def get_session_id():
     try:
         sessionID = res.json().get("sessionID")
     except Exception as e:
-        logger.warning(
-            f"LOG10: failed to get session ID. Error: {e}. Skipping session scope recording."
-        )
+        logger.warning(f"LOG10: failed to get session ID. Error: {e}. Skipping session scope recording.")
 
     return sessionID
 
@@ -171,9 +167,7 @@ def intercepting_decorator(func):
             organizationSlug = r.json().get("organizationSlug")
             last_completion_response = r.json()
         except Exception as e:
-            logger.warning(
-                f"LOG10: failed to get completion ID. Error: {e}. Skipping completion recording."
-            )
+            logger.warning(f"LOG10: failed to get completion ID. Error: {e}. Skipping completion recording.")
             return func_with_backoff(func, *args, **kwargs)
 
         completion_url = f"{url}/api/completions/{completionID}"
@@ -223,11 +217,7 @@ def intercepting_decorator(func):
             duration = time.perf_counter() - start_time
             logger.debug(f"LOG10: failed - {e}")
             # todo: change with openai v1 update
-            if type(
-                e
-            ).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(
-                e
-            ):
+            if type(e).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(e):
                 failure_kind = "ContextWindowExceedError"
             else:
                 failure_kind = type(e).__name__
