@@ -310,8 +310,6 @@ def intercepting_decorator(func):
             ]
 
             start_time = time.perf_counter()
-            logger.debug(f"TIMED BLOCK - LLM call start time: {start_time}")
-
             output = func_with_backoff(func, *args, **kwargs)
 
             duration = time.perf_counter() - start_time
@@ -344,6 +342,9 @@ def intercepting_decorator(func):
             }
             if not got_log10_exception:
                 res = post_request(completion_url + "/" + completionID, log_row)
+                if res is None or res.status_code != 200:
+                    logger.error(f"LOG10: failed to insert in log10: {log_row}.")
+                    got_log10_exception = True
         else:
             # finished with no exceptions
             if USE_ASYNC:
@@ -388,7 +389,7 @@ def intercepting_decorator(func):
 
                 if target_service == "log10" and not got_log10_exception:
                     res = post_request(completion_url + "/" + completionID, log_row)
-                    if res.status_code != 200:
+                    if res is None or res.status_code != 200:
                         logger.error(f"LOG10: failed to insert in log10: {log_row} with error {res.text}")
                 elif target_service == "bigquery":
                     try:
