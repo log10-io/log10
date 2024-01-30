@@ -10,7 +10,9 @@ def test_log_sync_500():
 
     with requests_mock.Mocker() as m:
         m.post(url, status_code=500)
-        log_sync(url, payload)
+        completionID = log_sync(url, payload)
+        # if completionID is None
+        assert completionID is None
 
 
 @pytest.mark.asyncio
@@ -20,4 +22,6 @@ async def test_log_async_500():
 
     with requests_mock.Mocker() as m:
         m.post(url, status_code=500)
-        await log_async(url, payload)
+        completionID = await log_async(url, payload)
+        # if completionID is empty string
+        assert completionID == ""
