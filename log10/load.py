@@ -28,7 +28,9 @@ org_id = os.environ.get("LOG10_ORG_ID")
 # log10, bigquery
 target_service = os.environ.get("LOG10_DATA_STORE", "log10")
 if target_service == "bigquery":
-    raise NotImplementedError("For big query support, please get in touch with us at support@log10.io")
+    raise NotImplementedError(
+        "For big query support, please get in touch with us at support@log10.io"
+    )
 
 
 def is_openai_v1() -> bool:
@@ -103,7 +105,9 @@ def get_session_id():
     try:
         sessionID = res.json().get("sessionID")
     except Exception as e:
-        logger.warning(f"LOG10: failed to get session ID. Error: {e}. Skipping session scope recording.")
+        logger.warning(
+            f"LOG10: failed to get session ID. Error: {e}. Skipping session scope recording."
+        )
 
     return sessionID
 
@@ -166,7 +170,9 @@ def intercepting_decorator(func):
             organizationSlug = r.json().get("organizationSlug")
             last_completion_response = r.json()
         except Exception as e:
-            logger.warning(f"LOG10: failed to get completion ID. Error: {e}. Skipping completion recording.")
+            logger.warning(
+                f"LOG10: failed to get completion ID. Error: {e}. Skipping completion recording."
+            )
             return func_with_backoff(func, *args, **kwargs)
 
         completion_url = f"{url}/api/completions/{completionID}"
@@ -216,7 +222,11 @@ def intercepting_decorator(func):
             duration = time.perf_counter() - start_time
             logger.debug(f"LOG10: failed - {e}")
             # todo: change with openai v1 update
-            if type(e).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(e):
+            if type(
+                e
+            ).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(
+                e
+            ):
                 failure_kind = "ContextWindowExceedError"
             else:
                 failure_kind = type(e).__name__
@@ -281,7 +291,7 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
     Keyword arguments:
     module -- the module to be intercepted (e.g. openai)
     DEBUG_ -- whether to show log10 related debug statements via python logging (default False)
-    USE_ASYNC_ -- whether to run in async mode (default True)
+    USE_ASYNC_ -- Disabled in 0.5.3. Calls are asynchronous.
 
     Openai V0 example:
     Example:
@@ -353,8 +363,11 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
     global DEBUG, USE_ASYNC, sync_log_text
     DEBUG = DEBUG_ or os.environ.get("LOG10_DEBUG", False)
     logger.setLevel(logging.DEBUG if DEBUG else logging.WARNING)
-    USE_ASYNC = USE_ASYNC_
-    sync_log_text = set_sync_log_text(USE_ASYNC=USE_ASYNC)
+
+    if USE_ASYNC_:
+        logger.debug(
+            "LOG10: USE_ASYNC is deprecated. Calls are synchronous by default."
+        )
 
     # def intercept_nested_functions(obj):
     #     for name, attr in vars(obj).items():
