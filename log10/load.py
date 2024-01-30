@@ -23,7 +23,6 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger: logging.Logger = logging.getLogger("LOG10")
-logger.setLevel(logging.DEBUG)
 
 url = os.environ.get("LOG10_URL")
 token = os.environ.get("LOG10_TOKEN")
@@ -70,13 +69,13 @@ def func_with_backoff(func, *args, **kwargs):
 
 
 # todo: should we do backoff as well?
-def post_request(url: str, json_payload: dict = {}, timeout=None) -> requests.Response:
+def post_request(url: str, json_payload: dict = {}) -> requests.Response:
     headers = {"x-log10-token": token, "Content-Type": "application/json"}
     json_payload["organization_id"] = org_id
     error_msg = None
     try:
         # todo: set timeout
-        res = requests.post(url, headers=headers, json=json_payload, timeout=timeout)
+        res = requests.post(url, headers=headers, json=json_payload)
         # raise_for_status() will raise an exception if the status is 4xx, 5xxx
         res.raise_for_status()
         logger.debug(f"HTTP request: POST {url} {res.status_code}\n{json.dumps(json_payload, indent=4)}")
@@ -95,7 +94,7 @@ def post_request(url: str, json_payload: dict = {}, timeout=None) -> requests.Re
             logger.error(error_msg)
 
 
-post_session_request = functools.partial(post_request, url + "/api/sessions", {}, 0.5)
+post_session_request = functools.partial(post_request, url + "/api/sessions", {})
 
 
 def get_session_id():
@@ -197,13 +196,11 @@ async def log_async(completion_url, func, **kwargs):
     global last_completion_response
     global got_log10_exception
 
-    res = post_request(completion_url, timeout=0.5)
+    res = post_request(completion_url)
     if res is None or res.status_code != 200:
-        # import ipdb; ipdb.set_trace()
-
         logger.error(f"LOG10: failed to create completion.")
         got_log10_exception = True
-        return "failed creation"
+        return ""
 
     # todo: handle session id for bigquery scenario
     last_completion_response = res.json()
@@ -226,11 +223,11 @@ async def log_async(completion_url, func, **kwargs):
         "tags": global_tags,
     }
     if target_service == "log10":
-        res = post_request(completion_url + "/" + completionID, log_row, timeout=0.5)
+        res = post_request(completion_url + "/" + completionID, log_row)
         if res is None or res.status_code != 200:
             logger.error(f"LOG10: failed to insert in log10: {log_row}.")
             got_log10_exception = True
-            return "failed to update completion"
+            return ""
     elif target_service == "bigquery":
         pass
         # NOTE: We only save on request finalization.
@@ -239,11 +236,8 @@ async def log_async(completion_url, func, **kwargs):
 
 
 def run_async_in_thread(completion_url, func, result_queue, **kwargs):
-    logger.debug("Calling log_async in thread")
     result = asyncio.run(log_async(completion_url=completion_url, func=func, **kwargs))
-    logger.debug("Finished log_async in thread")
     if result is not None:
-        logger.debug("Putting result in queue")
         result_queue.put(result)
 
 
@@ -351,14 +345,14 @@ def intercepting_decorator(func):
                 response = output
 
                 # Adjust the Anthropic output to match OAI completion output
-                # if "anthropic" in type(output).__module__:
-                #     from log10.anthropic import Anthropic
+                if "anthropic" in type(output).__module__:
+                    from log10.anthropic import Anthropic
 
-                #     response = Anthropic.prepare_response(kwargs["prompt"], output, "text")
-                #     kind = "completion"
-                # else:
-                #     response = output
-                #     kind = "chat" if output.object == "chat.completion" else "completion"
+                    response = Anthropic.prepare_response(kwargs["prompt"], output, "text")
+                    kind = "completion"
+                else:
+                    response = output
+                    kind = "chat" if output.object == "chat.completion" else "completion"
 
                 # in case the usage of load(openai) and langchain.ChatOpenAI
                 if "api_key" in kwargs:
@@ -373,7 +367,7 @@ def intercepting_decorator(func):
                     "status": "finished",
                     "duration": int(duration * 1000),
                     "stacktrace": json.dumps(stacktrace),
-                    # "kind": kind,
+                    "kind": kind,
                     "orig_module": func.__module__,
                     "orig_qualname": func.__qualname__,
                     "request": json.dumps(kwargs),

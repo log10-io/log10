@@ -100,6 +100,7 @@ class TextCompletion(Completion):
 class LLM(ABC):
     last_completion_response = None
     duration = None
+    got_log10_exception = False
 
     def __init__(self, hparams: dict = None, log10_config: Log10Config = None):
         self.log10_config = log10_config
@@ -163,15 +164,20 @@ class LLM(ABC):
         raise Exception("Not implemented")
 
     def api_request(self, rel_url: str, method: str, request: dict):
-        return requests.request(
-            method,
-            f"{self.log10_config.url}{rel_url}",
-            headers={
-                "x-log10-token": self.log10_config.token,
-                "Content-Type": "application/json",
-            },
-            json=request,
-        )
+        try:
+            return requests.request(
+                method,
+                f"{self.log10_config.url}{rel_url}",
+                headers={
+                    "x-log10-token": self.log10_config.token,
+                    "Content-Type": "application/json",
+                },
+                json=request,
+            )
+        except Exception as e:
+            logging.error(f"Failed to log to log10.io: {e}")
+            self.got_log10_exception = True
+            return None
 
     # Save the start of a completion in **openai request format**.
     def log_start(self, request, kind: Kind, tags: Optional[List[str]] = None):
@@ -179,6 +185,7 @@ class LLM(ABC):
             return None
 
         res = self.api_request("/api/completions", "POST", {"organization_id": self.log10_config.org_id})
+
         self.last_completion_response = res.json()
         completion_id = res.json()["completionID"]
 
@@ -188,22 +195,23 @@ class LLM(ABC):
         else:
             tags = self.log10_config.tags
 
-        res = self.api_request(
-            f"/api/completions/{completion_id}",
-            "POST",
-            {
-                "kind": kind == Kind.text and "completion" or "chat",
-                "organization_id": self.log10_config.org_id,
-                "session_id": self.session_id,
-                "orig_module": "openai.api_resources.completion"
-                if kind == Kind.text
-                else "openai.api_resources.chat_completion",
-                "orig_qualname": "Completion.create" if kind == Kind.text else "ChatCompletion.create",
-                "status": "started",
-                "tags": tags,
-                "request": json.dumps(request),
-            },
-        )
+        if not self.got_log10_exception:
+            res = self.api_request(
+                f"/api/completions/{completion_id}",
+                "POST",
+                {
+                    "kind": kind == Kind.text and "completion" or "chat",
+                    "organization_id": self.log10_config.org_id,
+                    "session_id": self.session_id,
+                    "orig_module": "openai.api_resources.completion"
+                    if kind == Kind.text
+                    else "openai.api_resources.chat_completion",
+                    "orig_qualname": "Completion.create" if kind == Kind.text else "ChatCompletion.create",
+                    "status": "started",
+                    "tags": tags,
+                    "request": json.dumps(request),
+                },
+            )
 
         return completion_id
 
@@ -226,17 +234,18 @@ class LLM(ABC):
         duration_sec = int(duration * 1000)
         self.duration = duration_sec
 
-        self.api_request(
-            f"/api/completions/{completion_id}",
-            "POST",
-            {
-                "organization_id": self.log10_config.org_id,
-                "response": json.dumps(response),
-                "status": "finished",
-                "duration": duration_sec,
-                "stacktrace": json.dumps(stacktrace),
-            },
-        )
+        if not self.got_log10_exception:
+            self.api_request(
+                f"/api/completions/{completion_id}",
+                "POST",
+                {
+                    "organization_id": self.log10_config.org_id,
+                    "response": json.dumps(response),
+                    "status": "finished",
+                    "duration": duration_sec,
+                    "stacktrace": json.dumps(stacktrace),
+                },
+            )
 
 
 class NoopLLM(LLM):
