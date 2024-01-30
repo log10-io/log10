@@ -76,6 +76,8 @@ def post_request(url: str, json_payload: dict = {}) -> requests.Response:
         # todo: set timeout
         res = requests.post(url, headers=headers, json=json_payload)
         # raise_for_status() will raise an exception if the status is 4xx, 5xxx
+        res.raise_for_status()
+
         logger.debug(f"HTTP request: POST {url} {res.status_code}\n{json.dumps(json_payload, indent=4)}")
         return res
     except requests.Timeout:
