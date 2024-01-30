@@ -4,13 +4,11 @@ import logging
 import os
 import time
 import traceback
-from contextlib import contextmanager
+import uuid
 from importlib.metadata import version
 
-import httpx
-
 import backoff
-import requests
+import httpx
 from dotenv import load_dotenv
 from packaging.version import parse
 
@@ -31,9 +29,7 @@ org_id = os.environ.get("LOG10_ORG_ID")
 # log10, bigquery
 target_service = os.environ.get("LOG10_DATA_STORE", "log10")
 if target_service == "bigquery":
-    raise NotImplementedError(
-        "For big query support, please get in touch with us at support@log10.io"
-    )
+    raise NotImplementedError("For big query support, please get in touch with us at support@log10.io")
 
 
 def is_openai_v1() -> bool:
@@ -71,7 +67,7 @@ transport = httpx.HTTPTransport(retries=5)
 httpx_client = httpx.Client(transport=transport)
 
 
-def post_request(url: str, json: dict = {}) -> requests.Response:
+def try_post_request(url: str, json: dict = {}) -> httpx.Response:
     """
     Authenticated POST request to log10.
     """
@@ -103,14 +99,12 @@ def get_session_id():
     """
     Get session ID from log10.
     """
-    res = post_request(url + "/api/sessions", {})
+    res = try_post_request(url + "/api/sessions", {})
     sessionID = None
     try:
         sessionID = res.json().get("sessionID")
     except Exception as e:
-        logger.warning(
-            f"LOG10: failed to get session ID. Error: {e}. Skipping session scope recording."
-        )
+        logger.warning(f"LOG10: failed to get session ID. Error: {e}. Skipping session scope recording.")
 
     return sessionID
 
@@ -141,11 +135,7 @@ class log10_session:
             return None
 
         return (
-            url
-            + "/app/"
-            + last_completion_response["organizationSlug"]
-            + "/completions/"
-            + last_completion_response["completionID"]
+            f"{url}/app/{last_completion_response["organizationSlug"]}/completions/{last_completion_response["completionID"]}"
         )
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -153,13 +143,6 @@ class log10_session:
             global global_tags
             global_tags = None
         return
-
-
-def log_url(res, completionID):
-    output = res.json()
-    organizationSlug = output["organizationSlug"]
-    full_url = url + "/app/" + organizationSlug + "/completions/" + completionID
-    logger.debug(f"Completion URL: {full_url}")
 
 
 def intercepting_decorator(func):
@@ -175,24 +158,10 @@ def intercepting_decorator(func):
         if sessionID is None:
             sessionID = get_session_id()
 
-        #
-        # Get completion ID.
-        # If we cannot get a completion id, continue with degraded functionality (no logging).
-        #
-        completion_url = url + "/api/completions"
-        r = post_request(completion_url, json={})
-        completionID = None
+        # Generate completion ID (uuid v4)
+        completionID = uuid.uuid4().hex
+        url = f"{url}/api/completions/{completionID}"
         organizationSlug = None
-        try:
-            completionID = r.json().get("completionID")
-            organizationSlug = r.json().get("organizationSlug")
-        except Exception as e:
-            logger.warning(
-                f"LOG10: failed to get completion ID. Error: {e}. Skipping logging."
-            )
-            return func_with_backoff(func, *args, **kwargs)
-
-        url = completion_url + "/" + completionID
 
         full_url = url + "/app/" + organizationSlug + "/completions/" + completionID
         if DEBUG:
@@ -223,12 +192,12 @@ def intercepting_decorator(func):
 
         output = None
         start_time = None
-        try:
-            #
-            # Store request
-            #
-            post_request(url, json=log_row)
 
+        #
+        # Store request
+        #
+        try_post_request(url, json=log_row)
+        try:
             #
             # Call LLM
             #
@@ -239,11 +208,7 @@ def intercepting_decorator(func):
             duration = time.perf_counter() - start_time
             logger.debug(f"LOG10: failed - {e}")
             # todo: change with openai v1 update
-            if type(
-                e
-            ).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(
-                e
-            ):
+            if type(e).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(e):
                 failure_kind = "ContextWindowExceedError"
             else:
                 failure_kind = type(e).__name__
@@ -255,7 +220,7 @@ def intercepting_decorator(func):
             log_row["failure_kind"] = failure_kind
             log_row["failure_reason"] = failure_reason
 
-            post_request(url, log_row)
+            try_post_request(url, log_row)
 
             # We forward non-logger errors
             raise e
@@ -290,7 +255,7 @@ def intercepting_decorator(func):
             log_row["duration"] = int(duration * 1000)
             log_row["kind"] = kind
 
-            post_request(url, log_row)
+            try_post_request(url, log_row)
 
         return output
 
