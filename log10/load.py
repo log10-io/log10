@@ -23,6 +23,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger: logging.Logger = logging.getLogger("LOG10")
+logger.setLevel(logging.DEBUG)
 
 url = os.environ.get("LOG10_URL")
 token = os.environ.get("LOG10_TOKEN")
@@ -69,13 +70,13 @@ def func_with_backoff(func, *args, **kwargs):
 
 
 # todo: should we do backoff as well?
-def post_request(url: str, json_payload: dict = {}) -> requests.Response:
+def post_request(url: str, json_payload: dict = {}, timeout=None) -> requests.Response:
     headers = {"x-log10-token": token, "Content-Type": "application/json"}
     json_payload["organization_id"] = org_id
     error_msg = None
     try:
         # todo: set timeout
-        res = requests.post(url, headers=headers, json=json_payload)
+        res = requests.post(url, headers=headers, json=json_payload, timeout=timeout)
         # raise_for_status() will raise an exception if the status is 4xx, 5xxx
         res.raise_for_status()
         logger.debug(f"HTTP request: POST {url} {res.status_code}\n{json.dumps(json_payload, indent=4)}")
@@ -94,7 +95,7 @@ def post_request(url: str, json_payload: dict = {}) -> requests.Response:
             logger.error(error_msg)
 
 
-post_session_request = functools.partial(post_request, url + "/api/sessions", {})
+post_session_request = functools.partial(post_request, url + "/api/sessions", {}, 0.5)
 
 
 def get_session_id():
@@ -135,6 +136,7 @@ def get_session_id():
 sessionID = get_session_id()
 last_completion_response = None
 global_tags = []
+got_log10_exception = False
 
 
 class log10_session:
@@ -193,8 +195,16 @@ def log_url(res, completionID):
 
 async def log_async(completion_url, func, **kwargs):
     global last_completion_response
+    global got_log10_exception
 
-    res = post_request(completion_url)
+    res = post_request(completion_url, timeout=0.5)
+    if res is None or res.status_code != 200:
+        # import ipdb; ipdb.set_trace()
+
+        logger.error(f"LOG10: failed to create completion.")
+        got_log10_exception = True
+        return "failed creation"
+
     # todo: handle session id for bigquery scenario
     last_completion_response = res.json()
     completionID = res.json()["completionID"]
@@ -216,7 +226,11 @@ async def log_async(completion_url, func, **kwargs):
         "tags": global_tags,
     }
     if target_service == "log10":
-        res = post_request(completion_url + "/" + completionID, log_row)
+        res = post_request(completion_url + "/" + completionID, log_row, timeout=0.5)
+        if res is None or res.status_code != 200:
+            logger.error(f"LOG10: failed to insert in log10: {log_row}.")
+            got_log10_exception = True
+            return "failed to update completion"
     elif target_service == "bigquery":
         pass
         # NOTE: We only save on request finalization.
@@ -225,8 +239,12 @@ async def log_async(completion_url, func, **kwargs):
 
 
 def run_async_in_thread(completion_url, func, result_queue, **kwargs):
+    logger.debug("Calling log_async in thread")
     result = asyncio.run(log_async(completion_url=completion_url, func=func, **kwargs))
-    result_queue.put(result)
+    logger.debug("Finished log_async in thread")
+    if result is not None:
+        logger.debug("Putting result in queue")
+        result_queue.put(result)
 
 
 def log_sync(completion_url, func, **kwargs):
@@ -287,10 +305,15 @@ def intercepting_decorator(func):
             ]
 
             start_time = time.perf_counter()
+            logger.debug(f"TIMED BLOCK - LLM call start time: {start_time}")
+
             output = func_with_backoff(func, *args, **kwargs)
+
             duration = time.perf_counter() - start_time
             logger.debug(f"TIMED BLOCK - LLM call duration: {duration}")
         except Exception as e:
+            # Not getting here for any log10 exception
+            # but will get here only for llm exceptions
             if USE_ASYNC:
                 with timed_block("extra time spent waiting for log10 call"):
                     while result_queue.empty():
@@ -314,7 +337,8 @@ def intercepting_decorator(func):
                 "session_id": sessionID,
                 "tags": global_tags,
             }
-            res = post_request(completion_url + "/" + completionID, log_row)
+            if not got_log10_exception:
+                res = post_request(completion_url + "/" + completionID, log_row)
         else:
             # finished with no exceptions
             if USE_ASYNC:
@@ -325,15 +349,16 @@ def intercepting_decorator(func):
 
             with timed_block("result call duration (sync)"):
                 response = output
-                # Adjust the Anthropic output to match OAI completion output
-                if "anthropic" in type(output).__module__:
-                    from log10.anthropic import Anthropic
 
-                    response = Anthropic.prepare_response(kwargs["prompt"], output, "text")
-                    kind = "completion"
-                else:
-                    response = output
-                    kind = "chat" if output.object == "chat.completion" else "completion"
+                # Adjust the Anthropic output to match OAI completion output
+                # if "anthropic" in type(output).__module__:
+                #     from log10.anthropic import Anthropic
+
+                #     response = Anthropic.prepare_response(kwargs["prompt"], output, "text")
+                #     kind = "completion"
+                # else:
+                #     response = output
+                #     kind = "chat" if output.object == "chat.completion" else "completion"
 
                 # in case the usage of load(openai) and langchain.ChatOpenAI
                 if "api_key" in kwargs:
@@ -348,7 +373,7 @@ def intercepting_decorator(func):
                     "status": "finished",
                     "duration": int(duration * 1000),
                     "stacktrace": json.dumps(stacktrace),
-                    "kind": kind,
+                    # "kind": kind,
                     "orig_module": func.__module__,
                     "orig_qualname": func.__qualname__,
                     "request": json.dumps(kwargs),
@@ -356,7 +381,7 @@ def intercepting_decorator(func):
                     "tags": global_tags,
                 }
 
-                if target_service == "log10":
+                if target_service == "log10" and not got_log10_exception:
                     res = post_request(completion_url + "/" + completionID, log_row)
                     if res.status_code != 200:
                         logger.error(f"LOG10: failed to insert in log10: {log_row} with error {res.text}")
