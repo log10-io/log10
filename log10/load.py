@@ -243,7 +243,13 @@ def run_async_in_thread(completion_url, func, result_queue, **kwargs):
 
 def log_sync(completion_url, func, **kwargs):
     global last_completion_response
+    global got_log10_exception
+
     res = post_request(completion_url)
+    if res is None or res.status_code != 200:
+        logger.error("LOG10: failed to create completion.")
+        got_log10_exception = True
+        return
 
     last_completion_response = res.json()
     completionID = res.json()["completionID"]
@@ -262,6 +268,11 @@ def log_sync(completion_url, func, **kwargs):
         "tags": global_tags,
     }
     res = post_request(completion_url + "/" + completionID, log_row)
+    if res is None or res.status_code != 200:
+        logger.error(f"LOG10: failed to insert in log10: {log_row}.")
+        got_log10_exception = True
+        return
+
     return completionID
 
 
