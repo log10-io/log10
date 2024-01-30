@@ -134,9 +134,7 @@ class log10_session:
         if last_completion_response is None:
             return None
 
-        return (
-            f"{url}/app/{last_completion_response["organizationSlug"]}/completions/{last_completion_response["completionID"]}"
-        )
+        return f"{url}/app/{last_completion_response["organizationSlug"]}/completions/{last_completion_response["completionID"]}"
 
     def __exit__(self, exc_type, exc_value, traceback):
         if self.tags is not None:
@@ -190,13 +188,13 @@ def intercepting_decorator(func):
             "tags": global_tags,
         }
 
-        output = None
-        start_time = None
-
         #
         # Store request
         #
         try_post_request(url, json=log_row)
+
+        output = None
+        start_time = None
         try:
             #
             # Call LLM
