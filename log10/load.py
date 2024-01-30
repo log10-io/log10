@@ -1,14 +1,13 @@
-import asyncio
 import functools
 import json
 import logging
 import os
-import queue
-import threading
 import time
 import traceback
 from contextlib import contextmanager
 from importlib.metadata import version
+
+import httpx
 
 import backoff
 import requests
@@ -24,21 +23,17 @@ logging.basicConfig(
 )
 logger: logging.Logger = logging.getLogger("LOG10")
 
-url = os.environ.get("LOG10_URL")
+url = os.environ.get("LOG10_URL", "https://log10.io")
 token = os.environ.get("LOG10_TOKEN")
 org_id = os.environ.get("LOG10_ORG_ID")
 
+
 # log10, bigquery
 target_service = os.environ.get("LOG10_DATA_STORE", "log10")
-
 if target_service == "bigquery":
-    from log10.bigquery import initialize_bigquery
-
-    bigquery_client, bigquery_table = initialize_bigquery()
-    import uuid
-    from datetime import datetime, timezone
-elif target_service is None:
-    target_service = "log10"  # default to log10
+    raise NotImplementedError(
+        "For big query support, please get in touch with us at support@log10.io"
+    )
 
 
 def is_openai_v1() -> bool:
@@ -48,6 +43,9 @@ def is_openai_v1() -> bool:
 
 
 def func_with_backoff(func, *args, **kwargs):
+    """
+    openai retries for V0. V1 has built-in retries, so we don't need to do anything in that case.
+    """
     if func.__module__ != "openai" or is_openai_v1():
         return func(*args, **kwargs)
 
@@ -68,67 +66,57 @@ def func_with_backoff(func, *args, **kwargs):
     return _func_with_backoff(func, *args, **kwargs)
 
 
-# todo: should we do backoff as well?
-def post_request(url: str, json_payload: dict = {}) -> requests.Response:
-    headers = {"x-log10-token": token, "Content-Type": "application/json"}
-    json_payload["organization_id"] = org_id
+# TODO: Retries on 5xx errors has to be handled in user code, so recommendation is to use tenacity.
+transport = httpx.HTTPTransport(retries=5)
+httpx_client = httpx.Client(transport=transport)
+
+
+def post_request(url: str, json: dict = {}) -> requests.Response:
+    """
+    Authenticated POST request to log10.
+    """
+    json["organization_id"] = org_id
+    r = None
     try:
         # todo: set timeout
-        res = requests.post(url, headers=headers, json=json_payload)
-        # raise_for_status() will raise an exception if the status is 4xx, 5xxx
-        res.raise_for_status()
-        logger.debug(f"HTTP request: POST {url} {res.status_code}\n{json.dumps(json_payload, indent=4)}")
-
-        return res
-    except requests.Timeout:
-        logger.error("HTTP request: POST Timeout")
-        raise
-    except requests.ConnectionError:
-        logger.error("HTTP request: POST Connection Error")
-        raise
-    except requests.HTTPError as e:
-        logger.error(f"HTTP request: POST HTTP Error - {e}")
-        raise
-    except requests.RequestException as e:
-        logger.error(f"HTTP request: POST Request Exception - {e}")
-        raise
-
-
-post_session_request = functools.partial(post_request, url + "/api/sessions", {})
-
-
-def get_session_id():
-    if target_service == "bigquery":
-        return str(uuid.uuid4())
-
-    try:
-        res = post_session_request()
-
-        return res.json()["sessionID"]
-    except requests.HTTPError as http_err:
+        r = httpx_client.post(
+            url,
+            headers={"x-log10-token": token, "Content-Type": "application/json"},
+            json=json,
+        )
+        r.raise_for_status()
+    except httpx.HTTPError as http_err:
         if "401" in str(http_err):
-            raise Exception(
+            logging.error(
                 "Failed anthorization. Please verify that LOG10_TOKEN and LOG10_ORG_ID are set correctly and try again."
                 + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
             )
         else:
-            raise Exception(f"Failed to create LOG10 session. Error: {http_err}")
-    except requests.ConnectionError:
-        raise Exception(
-            "Invalid LOG10_URL. Please verify that LOG10_URL is set correctly and try again."
-            + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
-        )
+            logging.error(f"Failed to create LOG10 session. Error: {http_err}")
     except Exception as e:
-        raise Exception(
-            "Failed to create LOG10 session: "
-            + str(e)
-            + "\nLikely cause: LOG10 env vars missing or not picked up correctly!"
-            + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
+        logger.error(f"LOG10: failed to insert in log10: {json} with error {e}")
+
+    return r
+
+
+def get_session_id():
+    """
+    Get session ID from log10.
+    """
+    res = post_request(url + "/api/sessions", {})
+    sessionID = None
+    try:
+        sessionID = res.json().get("sessionID")
+    except Exception as e:
+        logger.warning(
+            f"LOG10: failed to get session ID. Error: {e}. Skipping session scope recording."
         )
+
+    return sessionID
 
 
 # Global variable to store the current sessionID.
-sessionID = get_session_id()
+sessionID = None
 last_completion_response = None
 global_tags = []
 
@@ -167,19 +155,6 @@ class log10_session:
         return
 
 
-@contextmanager
-def timed_block(block_name):
-    if DEBUG:
-        start_time = time.perf_counter()
-        try:
-            yield
-        finally:
-            elapsed_time = time.perf_counter() - start_time
-            logger.debug(f"TIMED BLOCK - {block_name} took {elapsed_time:.6f} seconds to execute.")
-    else:
-        yield
-
-
 def log_url(res, completionID):
     output = res.json()
     organizationSlug = output["organizationSlug"]
@@ -187,195 +162,135 @@ def log_url(res, completionID):
     logger.debug(f"Completion URL: {full_url}")
 
 
-async def log_async(completion_url, func, **kwargs):
-    global last_completion_response
-
-    res = post_request(completion_url)
-    # todo: handle session id for bigquery scenario
-    last_completion_response = res.json()
-    completionID = res.json()["completionID"]
-
-    if DEBUG:
-        log_url(res, completionID)
-
-    # in case the usage of load(openai) and langchain.ChatOpenAI
-    if "api_key" in kwargs:
-        kwargs.pop("api_key")
-
-    log_row = {
-        # do we want to also store args?
-        "status": "started",
-        "orig_module": func.__module__,
-        "orig_qualname": func.__qualname__,
-        "request": json.dumps(kwargs),
-        "session_id": sessionID,
-        "tags": global_tags,
-    }
-    if target_service == "log10":
-        res = post_request(completion_url + "/" + completionID, log_row)
-    elif target_service == "bigquery":
-        pass
-        # NOTE: We only save on request finalization.
-
-    return completionID
-
-
-def run_async_in_thread(completion_url, func, result_queue, **kwargs):
-    result = asyncio.run(log_async(completion_url=completion_url, func=func, **kwargs))
-    result_queue.put(result)
-
-
-def log_sync(completion_url, func, **kwargs):
-    global last_completion_response
-    res = post_request(completion_url)
-
-    last_completion_response = res.json()
-    completionID = res.json()["completionID"]
-    if DEBUG:
-        log_url(res, completionID)
-    # in case the usage of load(openai) and langchain.ChatOpenAI
-    if "api_key" in kwargs:
-        kwargs.pop("api_key")
-    log_row = {
-        # do we want to also store args?
-        "status": "started",
-        "orig_module": func.__module__,
-        "orig_qualname": func.__qualname__,
-        "request": json.dumps(kwargs),
-        "session_id": sessionID,
-        "tags": global_tags,
-    }
-    res = post_request(completion_url + "/" + completionID, log_row)
-    return completionID
-
-
 def intercepting_decorator(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
+        global last_completion_response
+        global sessionID
+
+        #
+        # If session ID is not set, create a new session.
+        # If session ID isn't returned, continue with degraded functionality (lost session scope).
+        #
+        if sessionID is None:
+            sessionID = get_session_id()
+
+        #
+        # Get completion ID.
+        # If we cannot get a completion id, continue with degraded functionality (no logging).
+        #
         completion_url = url + "/api/completions"
-        output = None
-        result_queue = queue.Queue()
-
+        r = post_request(completion_url, json={})
+        completionID = None
+        organizationSlug = None
         try:
-            with timed_block(sync_log_text + " call duration"):
-                if USE_ASYNC:
-                    threading.Thread(
-                        target=run_async_in_thread,
-                        kwargs={
-                            "completion_url": completion_url,
-                            "func": func,
-                            "result_queue": result_queue,
-                            **kwargs,
-                        },
-                    ).start()
-                else:
-                    completionID = log_sync(completion_url=completion_url, func=func, **kwargs)
+            completionID = r.json().get("completionID")
+            organizationSlug = r.json().get("organizationSlug")
+        except Exception as e:
+            logger.warning(
+                f"LOG10: failed to get completion ID. Error: {e}. Skipping logging."
+            )
+            return func_with_backoff(func, *args, **kwargs)
 
-            current_stack_frame = traceback.extract_stack()
-            stacktrace = [
-                {
-                    "file": frame.filename,
-                    "line": frame.line,
-                    "lineno": frame.lineno,
-                    "name": frame.name,
-                }
-                for frame in current_stack_frame
-            ]
+        url = completion_url + "/" + completionID
 
+        full_url = url + "/app/" + organizationSlug + "/completions/" + completionID
+        if DEBUG:
+            logger.debug(f"Completion URL: {full_url}")
+
+        #
+        # Create base log row (resending request in case of failure)
+        #
+        current_stack_frame = traceback.extract_stack()
+        stacktrace = [
+            {
+                "file": frame.filename,
+                "line": frame.line,
+                "lineno": frame.lineno,
+                "name": frame.name,
+            }
+            for frame in current_stack_frame
+        ]
+        log_row = {
+            "status": "started",
+            "orig_module": func.__module__,
+            "orig_qualname": func.__qualname__,
+            "stacktrace": json.dumps(stacktrace),
+            "request": json.dumps(kwargs),
+            "session_id": sessionID,
+            "tags": global_tags,
+        }
+
+        output = None
+        start_time = None
+        try:
+            #
+            # Store request
+            #
+            post_request(url, json=log_row)
+
+            #
+            # Call LLM
+            #
             start_time = time.perf_counter()
             output = func_with_backoff(func, *args, **kwargs)
-            duration = time.perf_counter() - start_time
-            logger.debug(f"TIMED BLOCK - LLM call duration: {duration}")
+
         except Exception as e:
-            if USE_ASYNC:
-                with timed_block("extra time spent waiting for log10 call"):
-                    while result_queue.empty():
-                        pass
-                    completionID = result_queue.get()
+            duration = time.perf_counter() - start_time
             logger.debug(f"LOG10: failed - {e}")
             # todo: change with openai v1 update
-            if type(e).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(e):
+            if type(
+                e
+            ).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(
+                e
+            ):
                 failure_kind = "ContextWindowExceedError"
             else:
                 failure_kind = type(e).__name__
+
             failure_reason = str(e)
-            log_row = {
-                "status": "failed",
-                "failure_kind": failure_kind,
-                "failure_reason": failure_reason,
-                "stacktrace": json.dumps(stacktrace),
-                "kind": "completion",
-                "orig_module": func.__module__,
-                "orig_qualname": func.__qualname__,
-                "session_id": sessionID,
-                "tags": global_tags,
-            }
-            res = post_request(completion_url + "/" + completionID, log_row)
+
+            log_row["status"] = "failed"
+            log_row["duration"] = int(duration * 1000)
+            log_row["failure_kind"] = failure_kind
+            log_row["failure_reason"] = failure_reason
+
+            post_request(url, log_row)
+
+            # We forward non-logger errors
             raise e
         else:
-            # finished with no exceptions
-            if USE_ASYNC:
-                with timed_block("extra time spent waiting for log10 call"):
-                    while result_queue.empty():
-                        pass
-                    completionID = result_queue.get()
+            #
+            # Store both request and response, in case of failure of first call.
+            #
+            duration = time.perf_counter() - start_time
+            response = output
 
-            with timed_block("result call duration (sync)"):
+            # Adjust the Anthropic output to match OAI completion output
+            if "anthropic" in type(output).__module__:
+                from log10.anthropic import Anthropic
+
+                response = Anthropic.prepare_response(kwargs["prompt"], output, "text")
+                kind = "completion"
+            else:
                 response = output
-                # Adjust the Anthropic output to match OAI completion output
-                if "anthropic" in type(output).__module__:
-                    from log10.anthropic import Anthropic
+                kind = "chat" if output.object == "chat.completion" else "completion"
 
-                    response = Anthropic.prepare_response(kwargs["prompt"], output, "text")
-                    kind = "completion"
-                else:
-                    response = output
-                    kind = "chat" if output.object == "chat.completion" else "completion"
+            # in case the usage of load(openai) and langchain.ChatOpenAI
+            if "api_key" in kwargs:
+                kwargs.pop("api_key")
 
-                # in case the usage of load(openai) and langchain.ChatOpenAI
-                if "api_key" in kwargs:
-                    kwargs.pop("api_key")
+            if hasattr(response, "model_dump_json"):
+                response = response.model_dump_json()
+            else:
+                response = json.dumps(response)
 
-                if hasattr(response, "model_dump_json"):
-                    response = response.model_dump_json()
-                else:
-                    response = json.dumps(response)
-                log_row = {
-                    "response": response,
-                    "status": "finished",
-                    "duration": int(duration * 1000),
-                    "stacktrace": json.dumps(stacktrace),
-                    "kind": kind,
-                    "orig_module": func.__module__,
-                    "orig_qualname": func.__qualname__,
-                    "request": json.dumps(kwargs),
-                    "session_id": sessionID,
-                    "tags": global_tags,
-                }
+            log_row["status"] = "finished"
+            log_row["response"] = response
+            log_row["duration"] = int(duration * 1000)
+            log_row["kind"] = kind
 
-                if target_service == "log10":
-                    res = post_request(completion_url + "/" + completionID, log_row)
-                    if res.status_code != 200:
-                        logger.error(f"LOG10: failed to insert in log10: {log_row} with error {res.text}")
-                elif target_service == "bigquery":
-                    try:
-                        log_row["id"] = str(uuid.uuid4())
-                        log_row["created_at"] = datetime.now(timezone.utc).isoformat()
-                        log_row["request"] = json.dumps(kwargs)
-
-                        if func.__qualname__ == "Completion.create":
-                            log_row["kind"] = "completion"
-                        elif func.__qualname__ == "ChatCompletion.create":
-                            log_row["kind"] = "chat"
-
-                        log_row["orig_module"] = func.__module__
-                        log_row["orig_qualname"] = func.__qualname__
-                        log_row["session_id"] = sessionID
-
-                        bigquery_client.insert_rows_json(bigquery_table, [log_row])
-
-                    except Exception as e:
-                        logging.error(f"LOG10: failed to insert in Bigquery: {log_row} with error {e}")
+            post_request(url, log_row)
 
         return output
 
