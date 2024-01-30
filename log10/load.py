@@ -198,7 +198,7 @@ async def log_async(completion_url, func, **kwargs):
 
     res = post_request(completion_url)
     if res is None or res.status_code != 200:
-        logger.error(f"LOG10: failed to create completion.")
+        logger.error("LOG10: failed to create completion.")
         got_log10_exception = True
         return ""
 
