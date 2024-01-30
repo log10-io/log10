@@ -1,9 +1,11 @@
 import asyncio
+import os
 
+import httpx
 import pytest
 import requests_mock
 
-from log10.load import log_sync, log_async
+from log10.load import log_sync, log_async, OpenAI
 from log10.llm import LLM, Log10Config
 
 
@@ -49,3 +51,26 @@ async def test_log_async_multiple_calls():
         llm.log_end(completion_id=completion_id, response=mock_resp, duration=5)
 
     await asyncio.gather(*[loop.run_in_executor(None, fake_logging) for _ in range(simultaneous_calls)])
+
+
+@pytest.mark.skip(reason="This is a very simple load test and doesn't need to be run as part of the test suite.")
+@pytest.mark.asyncio
+async def test_log_async_httpx_multiple_calls(respx_mock):
+    simultaneous_calls = 100
+
+    mock_resp = {
+        "role": "user",
+        "content": "Say this is a test",
+    }
+
+
+    client = OpenAI()
+
+    respx_mock.post("https://api.openai.com/v1/chat/completions").mock(return_value=httpx.Response(200, json=mock_resp))
+
+    def better_logging():
+        completion = client.chat.completions.create(model="gpt-3.5-turbo", messages=[
+            {"role": "user", "content": "Say pong"}])
+
+    loop = asyncio.get_event_loop()
+    await asyncio.gather(*[loop.run_in_executor(None, better_logging) for _ in range(simultaneous_calls)])
