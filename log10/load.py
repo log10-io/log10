@@ -29,7 +29,9 @@ org_id = os.environ.get("LOG10_ORG_ID")
 # log10, bigquery
 target_service = os.environ.get("LOG10_DATA_STORE", "log10")
 if target_service == "bigquery":
-    raise NotImplementedError("For big query support, please get in touch with us at support@log10.io")
+    raise NotImplementedError(
+        "For big query support, please get in touch with us at support@log10.io"
+    )
 
 
 def is_openai_v1() -> bool:
@@ -104,7 +106,9 @@ def get_session_id():
     try:
         sessionID = res.json().get("sessionID")
     except Exception as e:
-        logger.warning(f"LOG10: failed to get session ID. Error: {e}. Skipping session scope recording.")
+        logger.warning(
+            f"LOG10: failed to get session ID. Error: {e}. Skipping session scope recording."
+        )
 
     return sessionID
 
@@ -134,7 +138,7 @@ class log10_session:
         if last_completion_response is None:
             return None
 
-        return f"{url}/app/{last_completion_response["organizationSlug"]}/completions/{last_completion_response["completionID"]}"
+        return f"{url}/app/{last_completion_response.get('organizationSlug', 'unknown')}/completions/{last_completion_response.get('completionID')}"
 
     def __exit__(self, exc_type, exc_value, traceback):
         if self.tags is not None:
@@ -156,12 +160,25 @@ def intercepting_decorator(func):
         if sessionID is None:
             sessionID = get_session_id()
 
-        # Generate completion ID (uuid v4)
-        completionID = uuid.uuid4().hex
-        url = f"{url}/api/completions/{completionID}"
-        organizationSlug = None
+        #
+        # Get completion ID. In case of failure, continue with degraded functionality (lost completion scope).
+        #
+        organizationSlug = "unknown"
+        completionID = None
+        r = try_post_request(f"{url}/api/completions", json={})
+        try:
+            completionID = r.json().get("completionID")
+            organizationSlug = r.json().get("organizationSlug")
+            last_completion_response = r.json()
+        except Exception as e:
+            logger.warning(
+                f"LOG10: failed to get completion ID. Error: {e}. Skipping completion recording."
+            )
+            return func_with_backoff(func, *args, **kwargs)
 
-        full_url = url + "/app/" + organizationSlug + "/completions/" + completionID
+        completion_url = f"{url}/api/completions/{completionID}"
+
+        full_url = f"{url}/app/{organizationSlug}/completions/{completionID}"
         if DEBUG:
             logger.debug(f"Completion URL: {full_url}")
 
@@ -191,7 +208,7 @@ def intercepting_decorator(func):
         #
         # Store request
         #
-        try_post_request(url, json=log_row)
+        try_post_request(completion_url, json=log_row)
 
         output = None
         start_time = None
@@ -206,7 +223,11 @@ def intercepting_decorator(func):
             duration = time.perf_counter() - start_time
             logger.debug(f"LOG10: failed - {e}")
             # todo: change with openai v1 update
-            if type(e).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(e):
+            if type(
+                e
+            ).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(
+                e
+            ):
                 failure_kind = "ContextWindowExceedError"
             else:
                 failure_kind = type(e).__name__
@@ -218,7 +239,7 @@ def intercepting_decorator(func):
             log_row["failure_kind"] = failure_kind
             log_row["failure_reason"] = failure_reason
 
-            try_post_request(url, log_row)
+            try_post_request(completion_url, log_row)
 
             # We forward non-logger errors
             raise e
@@ -253,7 +274,7 @@ def intercepting_decorator(func):
             log_row["duration"] = int(duration * 1000)
             log_row["kind"] = kind
 
-            try_post_request(url, log_row)
+            try_post_request(completion_url, log_row)
 
         return output
 
