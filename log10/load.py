@@ -4,7 +4,6 @@ import logging
 import os
 import time
 import traceback
-import uuid
 from importlib.metadata import version
 
 import backoff
