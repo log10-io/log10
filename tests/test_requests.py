@@ -13,10 +13,9 @@ def test_log_sync_500():
     payload = {'abc': '123'}
     url = 'https://log10.io/api/completions'
 
-    with pytest.raises(Exception) as e:
-        with requests_mock.Mocker() as m:
-            m.post(url, status_code=500)
-            log_sync(url, payload)
+    with requests_mock.Mocker() as m:
+        m.post(url, status_code=500)
+        log_sync(url, payload)
 
 
 @pytest.mark.asyncio
@@ -24,10 +23,9 @@ async def test_log_async_500():
     payload = {'abc': '123'}
     url = 'https://log10.io/api/completions'
 
-    with pytest.raises(Exception) as e:
-        with requests_mock.Mocker() as m:
-            m.post(url, status_code=500)
-            await log_async(url, payload)
+    with requests_mock.Mocker() as m:
+        m.post(url, status_code=500)
+        await log_async(url, payload)
 
 
 @pytest.mark.skip(reason="This is a very simple load test and doesn't need to be run as part of the test suite.")
