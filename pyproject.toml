@@ -21,6 +21,9 @@ packages = [
 
 [tool.poetry.group.dev.dependencies]
 build = "^0.10.0"
+pytest = "^8.0.0"
+requests-mock = "^1.11.0"
+respx = "^0.20.2"
 
 [project.urls]
 "Homepage" = "https://github.com/log10-io/log10"
