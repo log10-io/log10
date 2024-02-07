@@ -79,9 +79,7 @@ def post_request(url: str, json_payload: dict = {}) -> requests.Response:
         # raise_for_status() will raise an exception if the status is 4xx, 5xxx
         res.raise_for_status()
 
-        logger.debug(
-            f"HTTP request: POST {url} {res.status_code}\n{json.dumps(json_payload, indent=4)}"
-        )
+        logger.debug(f"HTTP request: POST {url} {res.status_code}\n{json.dumps(json_payload, indent=4)}")
         return res
     except requests.Timeout:
         logger.error("HTTP request: POST Timeout")
@@ -180,9 +178,7 @@ def timed_block(block_name):
             yield
         finally:
             elapsed_time = time.perf_counter() - start_time
-            logger.debug(
-                f"TIMED BLOCK - {block_name} took {elapsed_time:.6f} seconds to execute."
-            )
+            logger.debug(f"TIMED BLOCK - {block_name} took {elapsed_time:.6f} seconds to execute.")
     else:
         yield
 
@@ -318,18 +314,12 @@ class StreamingResponseWrapper:
                 ],
             }
             self.partial_log_row["response"] = json.dumps(response)
-            self.partial_log_row["duration"] = int(
-                time.perf_counter() - self.start_time * 1000
-            )
+            self.partial_log_row["duration"] = int(time.perf_counter() - self.start_time * 1000)
 
             try:
-                res = post_request(
-                    self.completion_url + "/" + self.completionID, self.partial_log_row
-                )
+                res = post_request(self.completion_url + "/" + self.completionID, self.partial_log_row)
                 if res.status_code != 200:
-                    logger.error(
-                        f"LOG10: failed to insert in log10: {self.partial_log_row} with error {res.text}"
-                    )
+                    logger.error(f"LOG10: failed to insert in log10: {self.partial_log_row} with error {res.text}")
             except Exception as e:
                 traceback.print_tb(e.__traceback__)
                 logging.warn(f"LOG10: failed to log: {e}. Skipping")
@@ -360,14 +350,10 @@ def intercepting_decorator(func):
                         },
                     ).start()
                 else:
-                    completionID = log_sync(
-                        completion_url=completion_url, func=func, **kwargs
-                    )
+                    completionID = log_sync(completion_url=completion_url, func=func, **kwargs)
 
                     if completionID is None:
-                        logging.warn(
-                            "LOG10: failed to get completionID from log10. Skipping log."
-                        )
+                        logging.warn("LOG10: failed to get completionID from log10. Skipping log.")
                         func_with_backoff(func, *args, **kwargs)
                         return
 
@@ -394,18 +380,12 @@ def intercepting_decorator(func):
                     completionID = result_queue.get()
 
             if completionID is None:
-                logging.warn(
-                    f"LOG10: failed to get completionID from log10: {e}. Skipping log."
-                )
+                logging.warn(f"LOG10: failed to get completionID from log10: {e}. Skipping log.")
                 return
 
             logger.debug(f"LOG10: failed - {e}")
             # todo: change with openai v1 update
-            if type(
-                e
-            ).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(
-                e
-            ):
+            if type(e).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(e):
                 failure_kind = "ContextWindowExceedError"
             else:
                 failure_kind = type(e).__name__
@@ -424,9 +404,7 @@ def intercepting_decorator(func):
             try:
                 res = post_request(completion_url + "/" + completionID, log_row)
             except Exception as le:
-                logging.warn(
-                    f"LOG10: failed to log: {le}. Skipping, but raising LLM error."
-                )
+                logging.warn(f"LOG10: failed to log: {le}. Skipping, but raising LLM error.")
             raise e
         else:
             # finished with no exceptions
@@ -442,15 +420,11 @@ def intercepting_decorator(func):
                 if "anthropic" in type(output).__module__:
                     from log10.anthropic import Anthropic
 
-                    response = Anthropic.prepare_response(
-                        kwargs["prompt"], output, "text"
-                    )
+                    response = Anthropic.prepare_response(kwargs["prompt"], output, "text")
                     kind = "completion"
                 elif type(output).__name__ == "Stream":
                     response = output
-                    kind = (
-                        "chat"  # Should be "stream", but we don't have that kind yet.
-                    )
+                    kind = "chat"  # Should be "stream", but we don't have that kind yet.
                     return StreamingResponseWrapper(
                         completion_url=completion_url,
                         completionID=completionID,
@@ -470,9 +444,7 @@ def intercepting_decorator(func):
 
                 else:
                     response = output
-                    kind = (
-                        "chat" if output.object == "chat.completion" else "completion"
-                    )
+                    kind = "chat" if output.object == "chat.completion" else "completion"
 
                 # in case the usage of load(openai) and langchain.ChatOpenAI
                 if "api_key" in kwargs:
@@ -499,9 +471,7 @@ def intercepting_decorator(func):
                     try:
                         res = post_request(completion_url + "/" + completionID, log_row)
                         if res.status_code != 200:
-                            logger.error(
-                                f"LOG10: failed to insert in log10: {log_row} with error {res.text}"
-                            )
+                            logger.error(f"LOG10: failed to insert in log10: {log_row} with error {res.text}")
                     except Exception as e:
                         logging.warn(f"LOG10: failed to log: {e}. Skipping")
 
@@ -523,9 +493,7 @@ def intercepting_decorator(func):
                         bigquery_client.insert_rows_json(bigquery_table, [log_row])
 
                     except Exception as e:
-                        logging.error(
-                            f"LOG10: failed to insert in Bigquery: {log_row} with error {e}"
-                        )
+                        logging.error(f"LOG10: failed to insert in Bigquery: {log_row} with error {e}")
 
         return output
 
