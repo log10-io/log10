@@ -269,6 +269,26 @@ def log_sync(completion_url, func, **kwargs):
 
 
 class StreamingResponseWrapper:
+    """
+    Wraps a streaming response object to log the final result and duration to log10.
+
+    Openai V1 example:
+    Example:
+        >>> from log10.load import OpenAI
+        >>> client = OpenAI()
+        >>> response = client.chat.completions.create(
+        >>>     model="gpt-3.5-turbo",
+        >>>     messages=[{"role": "user", "content": "Count to 200"}],
+        >>>     temperature=0,
+        >>>     stream=True,
+        >>> )
+        >>> for chunk in response:
+        >>>     content = chunk.choices[0].delta.content
+        >>>     if content:
+        >>>         print(content, end="", flush=True)
+        >>> print("")
+    """
+
     def __init__(self, completion_url, completionID, response, partial_log_row):
         self.completionID = completionID
         self.completion_url = completion_url
