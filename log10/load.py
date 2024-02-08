@@ -278,6 +278,7 @@ class StreamingResponseWrapper:
         self.start_time = time.perf_counter()
         self.gpt_id = None
         self.model = None
+        self.finish_reason = None
 
     def __iter__(self):
         return self
@@ -293,6 +294,8 @@ class StreamingResponseWrapper:
 
                 self.model = chunk.model
                 self.gpt_id = chunk.id
+            else:
+                self.finish_reason = chunk.choices[0].finish_reason
 
             return chunk
         except StopIteration as se:
@@ -305,7 +308,7 @@ class StreamingResponseWrapper:
                 "choices": [
                     {
                         "index": 0,
-                        "finish_reason": "stop",
+                        "finish_reason": self.finish_reason,
                         "message": {
                             "role": "assistant",
                             "content": self.final_result,
@@ -314,7 +317,7 @@ class StreamingResponseWrapper:
                 ],
             }
             self.partial_log_row["response"] = json.dumps(response)
-            self.partial_log_row["duration"] = int(time.perf_counter() - self.start_time * 1000)
+            self.partial_log_row["duration"] = int((time.perf_counter() - self.start_time) * 1000)
 
             try:
                 res = post_request(self.completion_url + "/" + self.completionID, self.partial_log_row)
@@ -325,9 +328,6 @@ class StreamingResponseWrapper:
                 logging.warn(f"LOG10: failed to log: {e}. Skipping")
 
             raise se
-
-    def get_final_result(self):
-        return self.final_result
 
 
 def intercepting_decorator(func):
@@ -423,7 +423,6 @@ def intercepting_decorator(func):
                     response = Anthropic.prepare_response(kwargs["prompt"], output, "text")
                     kind = "completion"
                 elif type(output).__name__ == "Stream":
-                    response = output
                     kind = "chat"  # Should be "stream", but we don't have that kind yet.
                     return StreamingResponseWrapper(
                         completion_url=completion_url,
