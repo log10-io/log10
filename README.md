@@ -1,6 +1,6 @@
 # log10
 
-⚡ Unified LLM data management ⚡
+⚡ Unified LLM data management to drive accuracy at scale ⚡
 
 [![pypi](https://github.com/log10-io/log10/actions/workflows/release.yml/badge.svg)](https://github.com/log10-io/log10/actions/workflows/release.yml)
 [![](https://dcbadge.vercel.app/api/server/CZQvnuRV94?compact=true&style=flat)](https://discord.gg/CZQvnuRV94)
@@ -18,7 +18,7 @@ import openai
 from log10.load import log10
 
 log10(openai)
-# all your openai calls are now logged
+# all your openai calls are now logged - including 3rd party libs using openai
 ```
 For OpenAI v1, use `from log10.load import OpenAI` instead of `from openai import OpenAI`
 ```python
@@ -30,10 +30,6 @@ Access your LLM data at [log10.io](https://log10.io)
 
 
 ## 🚀 What can this help with?
-
-### 🔍🐞 Prompt chain debugging
-
-Prompt chains such as those in [Langchain](https://github.com/hwchase17/langchain) can be difficult to debug. Log10 provides prompt provenance, session tracking and call stack functionality to help debug chains.
 
 ### 📝📊 Logging
 
@@ -58,7 +54,7 @@ import openai
 from log10.load import log10
 
 log10(openai)
-# openai calls are now logged
+# openai calls are now logged - including 3rd party libs using openai such as magentic or langchain
 ```
 
 **OpenAI v1**
@@ -68,7 +64,7 @@ from log10.load import OpenAI
 # from openai import OpenAI
 
 client = OpenAI()
-completion = client.completions.create(model="curie", prompt="Once upon a time")
+completion = client.completions.create(model="gpt-3.5-turbo-instruct", prompt="Once upon a time")
 # All completions.create and chat.completions.create calls will be logged
 ```
 Full script [here](examples/logging/completion.py).
@@ -143,24 +139,13 @@ llm = ChatOpenAI(model_name="gpt-3.5-turbo", callbacks=[log10_callback])
 
 Read more here for options for logging using library wrapper, langchain callback logger and how to apply log10 tags [here](./logging.md).
 
-### 💿🧩 Flexible data store
+### 🤖👷 Prompt engineering copilot
 
-log10 provides a managed data store, but if you'd prefer to manage data in your own environment, you can use data stores like google big query.
+Optimizing prompts requires a lot of manual effort. Log10 provides a copilot that can help you with suggestions on how to [optimize your prompt](https://log10.io/docs/prompt_engineering/auto_prompt#how-to-use-auto-prompting-in-log10-python-library). 
 
-Install the big query client library with:
+### 🔍🐞 Prompt chain debugging
 
-`pip install log10-io[bigquery]`
-
-And provide the following configuration in either a `.env` file, or as environment variables:
-
-| Name | Description |
-|------|-------------|
-| `LOG10_DATA_STORE`  |  Either `log10` or `bigquery` |
-| `LOG10_BQ_PROJECT_ID`   | Your google cloud project id      |
-| `LOG10_BQ_DATASET_ID`  |  The big query dataset id  |
-| `LOG10_BQ_COMPLETIONS_TABLE_ID` | The name of the table to store completions in |
-
-**Note** that your environment should have been setup with google cloud credentials. Read more [here](https://cloud.google.com/sdk/gcloud/reference/auth/login) about authenticating.
+Prompt chains such as those in [Langchain](https://github.com/hwchase17/langchain) can be difficult to debug. Log10 provides prompt provenance, session tracking and call stack functionality to help debug chains.
 
 ### 🧠🔁 Readiness for RLHF & self hosting
 
@@ -206,6 +191,25 @@ Few options to enable debug logging:
 1. set `log10.load.log10(DEBUG_=True)` when using `log10.load`
 1. set `log10_config(DEBUG=True)` when using llm abstraction classes or callback.
 
+### 💿🧩 Flexible data store
+
+log10 provides a managed data store, but if you'd prefer to manage data in your own environment, you can use data stores like google big query.
+
+Install the big query client library with:
+
+`pip install log10-io[bigquery]`
+
+And provide the following configuration in either a `.env` file, or as environment variables:
+
+| Name | Description |
+|------|-------------|
+| `LOG10_DATA_STORE`  |  Either `log10` or `bigquery` |
+| `LOG10_BQ_PROJECT_ID`   | Your google cloud project id      |
+| `LOG10_BQ_DATASET_ID`  |  The big query dataset id  |
+| `LOG10_BQ_COMPLETIONS_TABLE_ID` | The name of the table to store completions in |
+
+**Note** that your environment should have been setup with google cloud credentials. Read more [here](https://cloud.google.com/sdk/gcloud/reference/auth/login) about authenticating.
+
 ## 💬 Community
 
-We welcome community participation and feedback. Please leave an issue, submit a PR or join our [Discord](https://discord.gg/CZQvnuRV94).
+We welcome community participation and feedback. Please leave an issue, submit a PR or join our [Discord](https://discord.gg/CZQvnuRV94). For enterprise use cases, please [contact us](mailto:support@log10.io) to set up a shared slack channel.
