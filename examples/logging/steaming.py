@@ -1,6 +1,7 @@
 # from openai import OpenAI
 from log10.load import OpenAI
 
+
 client = OpenAI()
 
 response = client.chat.completions.create(

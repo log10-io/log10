@@ -5,8 +5,8 @@ import httpx
 import pytest
 import requests_mock
 
-from log10.load import log_sync, log_async, OpenAI, log10_session
 from log10.llm import LLM, Log10Config
+from log10.load import OpenAI, log10_session, log_async, log_sync
 
 
 def test_log_sync_500():
@@ -69,10 +69,8 @@ async def test_log_async_httpx_multiple_calls_with_tags(respx_mock):
 
     def better_logging():
         uuids = [str(uuid.uuid4()) for _ in range(5)]
-        with log10_session(tags=uuids) as s:
-            completion = client.chat.completions.create(
-                model="gpt-3.5-turbo", messages=[{"role": "user", "content": "Say pong"}]
-            )
+        with log10_session(tags=uuids):
+            client.chat.completions.create(model="gpt-3.5-turbo", messages=[{"role": "user", "content": "Say pong"}])
 
     loop = asyncio.get_event_loop()
     await asyncio.gather(*[loop.run_in_executor(None, better_logging) for _ in range(simultaneous_calls)])
