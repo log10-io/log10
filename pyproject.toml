@@ -19,6 +19,9 @@ packages = [
     { include = "log10" },
 ]
 
+[tool.poetry.scripts]
+log10 = "log10.__main__:cli"
+
 [tool.poetry.group.dev.dependencies]
 build = "^0.10.0"
 pytest = "^8.0.0"

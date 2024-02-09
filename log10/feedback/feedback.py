@@ -1,6 +1,6 @@
-import click
 import logging
 
+import click
 import httpx
 from dotenv import load_dotenv
 
@@ -57,9 +57,12 @@ class Feedback:
         return res
 
 @click.command()
-@click.option("--task_id", help="Task ID")
-@click.option("--rate", help="Rate in JSON format")
+@click.option("--task_id", prompt="Enter task id", help="Task ID")
+@click.option("--rate", prompt="Enter task rate", help="Rate in JSON format")
 def create_feedback(task_id, rate):
-    fb = Feedback()
-    feedback = fb.create(task_id=task_id, rate=rate)
-    print(feedback)
+    click.echo("Creating feedback")
+    click.echo(f"Task ID: {task_id}")
+    click.echo(f"Rate: {rate}")
+    # fb = Feedback()
+    # feedback = fb.create(task_id=task_id, rate=rate)
+    # click.echo(feedback)

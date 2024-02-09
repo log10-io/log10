@@ -1,6 +1,6 @@
-import click
 import logging
 
+import click
 import httpx
 from dotenv import load_dotenv
 
@@ -47,9 +47,12 @@ class FeedbackTask:
 
 # create a cli interface for FeebackTask.create function
 @click.command()
-@click.option("--name", help="Name of the task")
-@click.option("--task_schema", help="Task schema")
+@click.option("--name", prompt="Enter feedback task name", help="Name of the task")
+@click.option("--task_schema", prompt="Enter feedback task schema", help="Task schema")
 def create_feedback_task(name, task_schema):
-    fb_task = FeedbackTask()
-    task = fb_task.create(name=name, task_schema=task_schema)
-    print(task)
+    click.echo("Creating feedback task")
+    click.echo(f"Name: {name}")
+    click.echo(f"Task Schema: {task_schema}")
+    # fb_task = FeedbackTask()
+    # task = fb_task.create(name=name, task_schema=task_schema)
+    # click.echo(task)
