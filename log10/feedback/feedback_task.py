@@ -15,8 +15,11 @@ logging.basicConfig(
 )
 logger: logging.Logger = logging.getLogger("LOG10")
 logger.setLevel(logging.INFO)
+
+
 class FeedbackTask:
     feedback_task_create_url = "/api/v1/feedback_task"
+
     def __init__(self, log10_config: Log10Config = None):
         self._log10_config = log10_config or Log10Config()
         self._http_client = httpx.Client()
@@ -25,9 +28,7 @@ class FeedbackTask:
         headers = {"x-log10-token": self._log10_config.token, "Content-Type": "application/json"}
         json_payload["organization_id"] = self._log10_config.org_id
         try:
-            res = self._http_client.post(
-                self._log10_config.url + url, headers=headers, json=json_payload
-            )
+            res = self._http_client.post(self._log10_config.url + url, headers=headers, json=json_payload)
             res.raise_for_status()
             return res
         except Exception as e:
@@ -44,6 +45,7 @@ class FeedbackTask:
         json_payload = {"name": name, "task_schema": task_schema}
         res = self._post_request(self.feedback_task_create_url, json_payload)
         return res
+
 
 # create a cli interface for FeebackTask.create function
 @click.command()

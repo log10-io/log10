@@ -25,6 +25,7 @@ logging.basicConfig(
 logger: logging.Logger = logging.getLogger("LOG10")
 logger.setLevel(logging.INFO)
 
+
 class Feedback:
     feedback_create_url = "/api/v1/feedback"
 
@@ -36,9 +37,7 @@ class Feedback:
         headers = {"x-log10-token": self._log10_config.token, "Content-Type": "application/json"}
         json_payload["organization_id"] = self._log10_config.org_id
         try:
-            res = self._http_client.post(
-                self._log10_config.url + url, headers=headers, json=json_payload
-            )
+            res = self._http_client.post(self._log10_config.url + url, headers=headers, json=json_payload)
             res.raise_for_status()
             return res
         except Exception as e:
@@ -55,6 +54,7 @@ class Feedback:
         json_payload = {"task_id": task_id, "rate": rate}
         res = self._post_request(self.feedback_create_url, json_payload)
         return res
+
 
 @click.command()
 @click.option("--task_id", prompt="Enter task id", help="Task ID")
