@@ -27,7 +27,7 @@ logger.setLevel(logging.INFO)
 
 
 class Feedback:
-    feedback_create_url = "/api/v1/feedback"
+    feedback_create_url = "api/v1/feedback"
 
     def __init__(self, log10_config: Log10Config = None):
         self._log10_config = log10_config or Log10Config()
@@ -44,14 +44,14 @@ class Feedback:
             logger.error(e)
             raise
 
-    def create(self, task_id: str, rate: dict) -> httpx.Response:
+    def create(self, task_id: str, rate: dict, completion_tags_selector: list[str], comment: str = None) -> httpx.Response:
         """
         Example:
         >>> from log10.feedback import Feedback
         >>> fb = Feedback()
         >>> fb.create(task_id="task_id", rate={...})
         """
-        json_payload = {"task_id": task_id, "rate": rate}
+        json_payload = {"task_id": task_id, "json_values": rate, "completion_tags_selector": completion_tags_selector}
         res = self._post_request(self.feedback_create_url, json_payload)
         return res
 

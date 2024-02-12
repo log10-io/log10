@@ -29,9 +29,6 @@ class FeedbackTask:
         headers = {"x-log10-token": self._log10_config.token, "Content-Type": "application/json", "x-log10-organization": self._log10_config.org_id}
         json_payload["organization_id"] = self._log10_config.org_id
         try:
-            from pprint import pprint
-            pprint(f"{headers=}")
-            pprint(f"{json_payload=}")
             res = self._http_client.post(self._log10_config.url + url, headers=headers, json=json_payload)
             res.raise_for_status()
             return res
@@ -46,7 +43,7 @@ class FeedbackTask:
         >>> feedback_task = FeedbackTask()
         >>> task = feedback_task.create(name="summarization", task_schema={...})
         """
-        json_payload = {"task_schema": task_schema}
+        json_payload = {"json_schema": task_schema}
         if name:
             json_payload["name"] = name
         if instruction:
