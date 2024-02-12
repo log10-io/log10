@@ -1,3 +1,4 @@
+import json
 import logging
 
 import click
@@ -17,7 +18,6 @@ logger: logging.Logger = logging.getLogger("LOG10")
 logger.setLevel(logging.INFO)
 
 
-
 class FeedbackTask:
     feedback_task_create_url = "api/v1/feedback_task"
 
@@ -26,7 +26,11 @@ class FeedbackTask:
         self._http_client = httpx.Client()
 
     def _post_request(self, url: str, json_payload: dict) -> httpx.Response:
-        headers = {"x-log10-token": self._log10_config.token, "Content-Type": "application/json", "x-log10-organization": self._log10_config.org_id}
+        headers = {
+            "x-log10-token": self._log10_config.token,
+            "Content-Type": "application/json",
+            "x-log10-organization": self._log10_config.org_id,
+        }
         json_payload["organization_id"] = self._log10_config.org_id
         try:
             res = self._http_client.post(self._log10_config.url + url, headers=headers, json=json_payload)
@@ -34,15 +38,10 @@ class FeedbackTask:
             return res
         except Exception as e:
             logger.error(e)
+            logger.error(e.response.json()["error"])
             raise
 
     def create(self, task_schema: dict, name: str = None, instruction: str = None) -> httpx.Response:
-        """
-        Example:
-        >>> from log10.feedback.feedback_task import FeedbackTask
-        >>> feedback_task = FeedbackTask()
-        >>> task = feedback_task.create(name="summarization", task_schema={...})
-        """
         json_payload = {"json_schema": task_schema}
         if name:
             json_payload["name"] = name
@@ -59,8 +58,6 @@ class FeedbackTask:
 @click.option("--task_schema", prompt="Enter feedback task schema", help="Task schema")
 def create_feedback_task(name, task_schema):
     click.echo("Creating feedback task")
-    click.echo(f"Name: {name}")
-    click.echo(f"Task Schema: {task_schema}")
-    # fb_task = FeedbackTask()
-    # task = fb_task.create(name=name, task_schema=task_schema)
-    # click.echo(task)
+    task_schema = json.loads(task_schema)
+    task = FeedbackTask().create(name=name, task_schema=task_schema)
+    click.echo(f"Use this task_id to add feedback: {task.json()['id']}")
