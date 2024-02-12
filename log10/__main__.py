@@ -26,7 +26,3 @@ feedback_task.add_command(create_feedback_task, "create")
 
 if __name__ == "__main__":
     cli()
-
-
-# cli.add_command(feedback.create_feedback)
-# cli.add_command(feedback_task.create_feedback_task)

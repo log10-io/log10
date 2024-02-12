@@ -34,7 +34,7 @@ class Feedback:
         self._http_client = httpx.Client()
 
     def _post_request(self, url: str, json_payload: dict) -> httpx.Response:
-        headers = {"x-log10-token": self._log10_config.token, "Content-Type": "application/json"}
+        headers = {"x-log10-token": self._log10_config.token, "x-log10-organization": self._log10_config.org_id, "Content-Type": "application/json"}
         json_payload["organization_id"] = self._log10_config.org_id
         try:
             res = self._http_client.post(self._log10_config.url + url, headers=headers, json=json_payload)
