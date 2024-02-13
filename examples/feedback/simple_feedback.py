@@ -35,6 +35,7 @@ print(completion.choices[0].message)
 # add feedback to the completion
 #
 
+
 # define a feedback task
 class EmojiFeedback(BaseModel):
     feedback: Literal["😀", "🙁"] = Field(..., description="User feedback with emojis")
