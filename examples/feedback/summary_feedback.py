@@ -1,8 +1,9 @@
 import uuid
-from log10.feedback.feedback_task import FeedbackTask
-from log10.feedback.feedback import Feedback
 
+from log10.feedback.feedback import Feedback
+from log10.feedback.feedback_task import FeedbackTask
 from log10.load import OpenAI
+
 
 task = FeedbackTask().create(
     name="Summary grading task",
@@ -52,11 +53,11 @@ completion = client.chat.completions.create(
     messages=[
         {
             "role": "system",
-            "content": "You are the most knowledgable Star Wars guru on the planet",
+            "content": "You help users summarize reddit posts. The message from the user will be the post to summarize?",
         },
         {
             "role": "user",
-            "content": "Write the time period of all the Star Wars movies and spinoffs?",
+            "content": "Yesterday, I accidentally dropped my Motorola Atrix 2 and the screen cracked really badly. My phone is still fully functional, but it's a bit difficult to see what I'm doing when I'm texting or web browsing, etc. \n\nAnyway, I stupidly didn't buy insurance for my phone and I'm not eligible for an upgrade until next May! AT&T offers some options as far as getting a no-commitment phone at a slight discount, but spending $300-$600 for a new phone isn't really in the budget right now. I know when you start a new contract, AT&T offers their phones at a fraction of the price (i.e., $100 for a $500 phone) so would I be able to take advantage of that? It seems like I wouldn't, but I'm a little confused with how their policy works that way! I was thinking of visiting my local store.\n\nSo I was looking at [Motorola's repair center] and they said they won't repair phones that have been physically abused - so that means dropped, submerged in water, ran over, exposed to heat, etc. \n\nI found a couple websites that will repair your phone if you send it in. [Doctor Quick Fix] will do it for $110 and I'm still waiting on a quote from [CPR](\n\nSo my question is, have any of you used this company, or know anyone who has used it? Should I trust these companies? Do you have any recommendations? What should I do to get my phone fixed?",
         },
     ],
 )
