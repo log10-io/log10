@@ -56,8 +56,9 @@ class FeedbackTask:
 @click.command()
 @click.option("--name", prompt="Enter feedback task name", help="Name of the task")
 @click.option("--task_schema", prompt="Enter feedback task schema", help="Task schema")
-def create_feedback_task(name, task_schema):
+@click.option("--instruction", prompt="Enter feedback task instruction", help="Task instruction", default="")
+def create_feedback_task(name, task_schema, instruction):
     click.echo("Creating feedback task")
     task_schema = json.loads(task_schema)
-    task = FeedbackTask().create(name=name, task_schema=task_schema)
+    task = FeedbackTask().create(name=name, task_schema=task_schema, instruction=instruction)
     click.echo(f"Use this task_id to add feedback: {task.json()['id']}")
