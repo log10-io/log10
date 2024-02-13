@@ -29,7 +29,7 @@ class FeedbackTask:
         headers = {
             "x-log10-token": self._log10_config.token,
             "Content-Type": "application/json",
-            "x-log10-organization": self._log10_config.org_id,
+            "x-log10-organization-id": self._log10_config.org_id,
         }
         json_payload["organization_id"] = self._log10_config.org_id
         try:
