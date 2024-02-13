@@ -58,7 +58,7 @@ class Feedback:
 @click.option("--task_id", prompt="Enter task id", help="Task ID")
 @click.option("--values", prompt="Enter task values", help="Feedback in JSON format")
 @click.option("--completion_tags_selector", prompt="Enter completion tags selector", help="Completion tags selector")
-@click.option("--comment", prompt="Enter comment", help="Comment", default="")
+@click.option("--comment", help="Comment", default="")
 def create_feedback(task_id, values, completion_tags_selector, comment):
     click.echo("Creating feedback")
     tags = completion_tags_selector.split(",")
