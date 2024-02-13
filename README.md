@@ -143,6 +143,11 @@ Read more here for options for logging using library wrapper, langchain callback
 
 Optimizing prompts requires a lot of manual effort. Log10 provides a copilot that can help you with suggestions on how to [optimize your prompt](https://log10.io/docs/prompt_engineering/auto_prompt#how-to-use-auto-prompting-in-log10-python-library). 
 
+### 👷🔢 Feedback
+
+Add feedback to your completions. Checkout the Python [example](/examples/feedback/simple_feedback.py)
+or use CLI `log10 feedback-task create` and `log10 feedback create`. Please check our [doc](https://log10.io/docs/feedback) for more details.
+
 ### 🔍🐞 Prompt chain debugging
 
 Prompt chains such as those in [Langchain](https://github.com/hwchase17/langchain) can be difficult to debug. Log10 provides prompt provenance, session tracking and call stack functionality to help debug chains.
