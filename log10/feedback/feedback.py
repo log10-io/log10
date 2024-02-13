@@ -19,7 +19,7 @@ logger.setLevel(logging.INFO)
 
 
 class Feedback:
-    feedback_create_url = "api/v1/feedback"
+    feedback_create_url = "/api/v1/feedback"
 
     def __init__(self, log10_config: Log10Config = None):
         self._log10_config = log10_config or Log10Config()
