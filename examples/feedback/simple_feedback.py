@@ -1,3 +1,4 @@
+import uuid
 from pprint import pprint
 from typing import Literal
 
@@ -8,11 +9,14 @@ from log10.feedback.feedback_task import FeedbackTask
 from log10.load import OpenAI
 
 
-class EmojiFeedback(BaseModel):
-    feedback: Literal["😀", "🙁"] = Field(..., description="User feedback with emojis")
+#
+# use log10 to log an openai completion
+#
 
-
-client = OpenAI()
+# create a unique id
+unique_id = str(uuid.uuid4())
+print(f"Use tag: {unique_id}")
+client = OpenAI(tags=[unique_id])
 completion = client.chat.completions.create(
     model="gpt-3.5-turbo",
     messages=[
@@ -26,13 +30,23 @@ completion = client.chat.completions.create(
         },
     ],
 )
-completion_id = completion.choices[0].id
+print(completion.choices[0].message)
 
-task = FeedbackTask()
-res = task.create(name="emoji_feedback_task", task_schema=EmojiFeedback.model_json_schema())
-task_id = res["id"]
-pprint(task)
-# Example usage
-fb = Feedback()
-res = fb.create(task_id=task_id, data=EmojiFeedback(feedback="😀").model_dump_json(), completion_tags_selector=[str(completion_id)])
-pprint(res)
+#
+# add feedback to the completion
+#
+
+
+# define a feedback task
+class EmojiFeedback(BaseModel):
+    feedback: Literal["😀", "🙁"] = Field(..., description="User feedback with emojis")
+
+
+# create a feedback
+fb = EmojiFeedback(feedback="😀")
+
+task = FeedbackTask().create(name="emoji_task_test", task_schema=fb.model_json_schema())
+task_dump = task.json()
+
+print(fb.model_dump_json())
+Feedback().create(task_id=task_dump["id"], values=fb.model_dump(), completion_tags_selector=[unique_id])
