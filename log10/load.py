@@ -643,6 +643,28 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
             attr = module.resources.chat.completions.Completions
             method = getattr(attr, "create")
             setattr(attr, "create", intercepting_decorator(method))
+
+            # support for async completions
+            # patch module.AsyncOpenAI.__init__ to new_init
+            origin_init = module.AsyncOpenAI.__init__
+
+            def new_init(self, *args, **kwargs):
+                logger.debug("LOG10: patching AsyncOpenAI.__init__")
+                import httpx
+
+                from log10._httpx_utils import _LogTransport, get_completion_id, log_request
+
+                event_hooks = {
+                    "request": [get_completion_id, log_request],
+                }
+                async_httpx_client = httpx.AsyncClient(
+                    event_hooks=event_hooks, transport=_LogTransport(httpx.AsyncHTTPTransport())
+                )
+                kwargs["http_client"] = async_httpx_client
+                origin_init(self, *args, **kwargs)
+
+            module.AsyncOpenAI.__init__ = new_init
+
         else:
             attr = module.api_resources.completion.Completion
             method = getattr(attr, "create")
