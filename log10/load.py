@@ -74,10 +74,8 @@ def post_request(url: str, json_payload: dict = {}) -> requests.Response:
     headers = {"x-log10-token": token, "Content-Type": "application/json"}
     json_payload["organization_id"] = org_id
     try:
-        # todo: set timeout
-        res = requests.post(
-            url, headers=headers, json=json_payload, timeout=os.environ.get("LOG10_REQUESTS_TIMEOUT", 10)
-        )
+        timeout = int(os.environ.get("LOG10_REQUESTS_TIMEOUT", 10))
+        res = requests.post(url, headers=headers, json=json_payload, timeout=timeout)
         # raise_for_status() will raise an exception if the status is 4xx, 5xxx
         res.raise_for_status()
 
