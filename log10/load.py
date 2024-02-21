@@ -75,6 +75,7 @@ def post_request(url: str, json_payload: dict = {}) -> requests.Response:
     json_payload["organization_id"] = org_id
     try:
         timeout = int(os.environ.get("LOG10_REQUESTS_TIMEOUT", 10))
+        assert isinstance(timeout, int)
         res = requests.post(url, headers=headers, json=json_payload, timeout=timeout)
         # raise_for_status() will raise an exception if the status is 4xx, 5xxx
         res.raise_for_status()
