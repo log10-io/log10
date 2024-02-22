@@ -110,18 +110,48 @@ class _LogResponse(Response):
                 for frame in current_stack_frame
             ]
             full_content = ""
+            function_name = ""
+            full_argument = ""
             responses = full_response.split("\n\n")
             for r in responses:
                 if "data: [DONE]" in r:
                     break
 
                 r_json = json.loads(r[6:])
-                content = r_json["choices"][0]["delta"].get("content", "")
-                if content:
-                    full_content += content
+
+                delta = r_json["choices"][0]["delta"]
+
+                # Delta may have content
+                if "content" in delta:
+                    content = delta["content"]
+                    if content:
+                        full_content += content
+
+                # May be a function call, and have to reconstruct the arguments
+                if "function_call" in delta:
+                    # May be function name
+                    if "name" in delta["function_call"]:
+                        function_name = delta["function_call"]["name"]
+                    # May be function arguments
+                    if "arguments" in delta["function_call"]:
+                        full_argument += delta["function_call"]["arguments"]
+
             response_json = r_json.copy()
             response_json["object"] = "completion"
-            response_json["choices"][0]["message"] = {"role": "assistant", "content": full_content}
+
+            # If finish_reason is function_call - don't log the response
+            if not (
+                "choices" in response_json
+                and response_json["choices"]
+                and response_json["choices"][0]["finish_reason"] == "function_call"
+            ):
+                response_json["choices"][0]["message"] = {"role": "assistant", "content": full_content}
+            else:
+                response_json["choices"][0]["function_call"] = {
+                    "name": function_name,
+                    "arguments": full_argument,
+                }
+
             log_row = {
                 "response": json.dumps(response_json),
                 "status": "finished",
