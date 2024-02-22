@@ -15,6 +15,7 @@ import requests
 from dotenv import load_dotenv
 from packaging.version import parse
 
+import pprint
 
 load_dotenv()
 
@@ -80,7 +81,9 @@ def post_request(url: str, json_payload: dict = {}) -> requests.Response:
         # raise_for_status() will raise an exception if the status is 4xx, 5xxx
         res.raise_for_status()
 
-        logger.debug(f"HTTP request: POST {url} {res.status_code}\n{json.dumps(json_payload, indent=4)}")
+        logger.debug(
+            f"HTTP request: POST {url} {res.status_code}\n{json.dumps(json_payload, indent=4)}"
+        )
         return res
     except requests.Timeout:
         logger.error("HTTP request: POST Timeout")
@@ -179,7 +182,9 @@ def timed_block(block_name):
             yield
         finally:
             elapsed_time = time.perf_counter() - start_time
-            logger.debug(f"TIMED BLOCK - {block_name} took {elapsed_time:.6f} seconds to execute.")
+            logger.debug(
+                f"TIMED BLOCK - {block_name} took {elapsed_time:.6f} seconds to execute."
+            )
     else:
         yield
 
@@ -207,6 +212,8 @@ async def log_async(completion_url, func, **kwargs):
         if "api_key" in kwargs:
             kwargs.pop("api_key")
 
+        kwargs["messages"] = flatten_messages(kwargs["messages"])
+
         log_row = {
             # do we want to also store args?
             "status": "started",
@@ -216,6 +223,7 @@ async def log_async(completion_url, func, **kwargs):
             "session_id": sessionID,
             "tags": global_tags,
         }
+        
         if target_service == "log10":
             try:
                 res = post_request(completion_url + "/" + completionID, log_row)
@@ -228,7 +236,7 @@ async def log_async(completion_url, func, **kwargs):
             # NOTE: We only save on request finalization.
 
     except Exception as e:
-        logging.warn(f"LOG10: failed to log: {e}. SKipping")
+        logging.warn(f"LOG10: failed to log: {e}. Skipping")
         return None
 
     return completionID
@@ -338,17 +346,45 @@ class StreamingResponseWrapper:
                 ],
             }
             self.partial_log_row["response"] = json.dumps(response)
-            self.partial_log_row["duration"] = int((time.perf_counter() - self.start_time) * 1000)
+            self.partial_log_row["duration"] = int(
+                (time.perf_counter() - self.start_time) * 1000
+            )
 
             try:
-                res = post_request(self.completion_url + "/" + self.completionID, self.partial_log_row)
+                res = post_request(
+                    self.completion_url + "/" + self.completionID, self.partial_log_row
+                )
                 if res.status_code != 200:
-                    logger.error(f"LOG10: failed to insert in log10: {self.partial_log_row} with error {res.text}")
+                    logger.error(
+                        f"LOG10: failed to insert in log10: {self.partial_log_row} with error {res.text}"
+                    )
             except Exception as e:
                 traceback.print_tb(e.__traceback__)
                 logging.warn(f"LOG10: failed to log: {e}. Skipping")
 
             raise se
+
+
+def flatten_messages(messages):
+    flat_messages = []
+    for message in messages:
+        if type(message).__name__ == "dict":
+            flat_messages.append(message)
+        else:
+            flat_messages.append(message.model_dump())
+
+    pprint.pprint(flat_messages)
+
+    return flat_messages
+
+
+def flatten_response(response):
+    if "choices" in response:
+        # May have to flatten, if not a dictionary
+        if type(response.choices[0].message).__name__ != "dict":
+            response.choices[0].message = response.choices[0].message.model_dump()
+
+    return response
 
 
 def intercepting_decorator(func):
@@ -371,10 +407,14 @@ def intercepting_decorator(func):
                         },
                     ).start()
                 else:
-                    completionID = log_sync(completion_url=completion_url, func=func, **kwargs)
+                    completionID = log_sync(
+                        completion_url=completion_url, func=func, **kwargs
+                    )
 
                     if completionID is None:
-                        logging.warn("LOG10: failed to get completionID from log10. Skipping log.")
+                        logging.warn(
+                            "LOG10: failed to get completionID from log10. Skipping log."
+                        )
                         func_with_backoff(func, *args, **kwargs)
                         return
 
@@ -401,12 +441,18 @@ def intercepting_decorator(func):
                     completionID = result_queue.get()
 
             if completionID is None:
-                logging.warn(f"LOG10: failed to get completionID from log10: {e}. Skipping log.")
+                logging.warn(
+                    f"LOG10: failed to get completionID from log10: {e}. Skipping log."
+                )
                 return
 
             logger.debug(f"LOG10: failed - {e}")
             # todo: change with openai v1 update
-            if type(e).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(e):
+            if type(
+                e
+            ).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(
+                e
+            ):
                 failure_kind = "ContextWindowExceedError"
             else:
                 failure_kind = type(e).__name__
@@ -425,7 +471,9 @@ def intercepting_decorator(func):
             try:
                 res = post_request(completion_url + "/" + completionID, log_row)
             except Exception as le:
-                logging.warn(f"LOG10: failed to log: {le}. Skipping, but raising LLM error.")
+                logging.warn(
+                    f"LOG10: failed to log: {le}. Skipping, but raising LLM error."
+                )
             raise e
         else:
             # finished with no exceptions
@@ -441,10 +489,14 @@ def intercepting_decorator(func):
                 if "anthropic" in type(output).__module__:
                     from log10.anthropic import Anthropic
 
-                    response = Anthropic.prepare_response(kwargs["prompt"], output, "text")
+                    response = Anthropic.prepare_response(
+                        kwargs["prompt"], output, "text"
+                    )
                     kind = "completion"
                 elif type(output).__name__ == "Stream":
-                    kind = "chat"  # Should be "stream", but we don't have that kind yet.
+                    kind = (
+                        "chat"  # Should be "stream", but we don't have that kind yet.
+                    )
                     return StreamingResponseWrapper(
                         completion_url=completion_url,
                         completionID=completionID,
@@ -464,16 +516,27 @@ def intercepting_decorator(func):
 
                 else:
                     response = output
-                    kind = "chat" if output.object == "chat.completion" else "completion"
+                    kind = (
+                        "chat" if output.object == "chat.completion" else "completion"
+                    )
 
                 # in case the usage of load(openai) and langchain.ChatOpenAI
                 if "api_key" in kwargs:
                     kwargs.pop("api_key")
 
+                # We may have to flatten messages from their ChatCompletionMessage with nested ChatCompletionMessageToolCall to json serializable format
+                # Rewrite in-place
+                if "messages" in kwargs:
+                    kwargs["messages"] = flatten_messages(kwargs["messages"])
+
+                if "choices" in response:
+                    response = flatten_response(response)
+
                 if hasattr(response, "model_dump_json"):
                     response = response.model_dump_json()
                 else:
                     response = json.dumps(response)
+
                 log_row = {
                     "response": response,
                     "status": "finished",
@@ -487,11 +550,15 @@ def intercepting_decorator(func):
                     "tags": global_tags,
                 }
 
+                pprint.pprint(log_row)
+
                 if target_service == "log10":
                     try:
                         res = post_request(completion_url + "/" + completionID, log_row)
                         if res.status_code != 200:
-                            logger.error(f"LOG10: failed to insert in log10: {log_row} with error {res.text}")
+                            logger.error(
+                                f"LOG10: failed to insert in log10: {log_row} with error {res.text}"
+                            )
                     except Exception as e:
                         logging.warn(f"LOG10: failed to log: {e}. Skipping")
 
@@ -513,7 +580,9 @@ def intercepting_decorator(func):
                         bigquery_client.insert_rows_json(bigquery_table, [log_row])
 
                     except Exception as e:
-                        logging.error(f"LOG10: failed to insert in Bigquery: {log_row} with error {e}")
+                        logging.error(
+                            f"LOG10: failed to insert in Bigquery: {log_row} with error {e}"
+                        )
 
         return output
 
@@ -652,13 +721,18 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
                 logger.debug("LOG10: patching AsyncOpenAI.__init__")
                 import httpx
 
-                from log10._httpx_utils import _LogTransport, get_completion_id, log_request
+                from log10._httpx_utils import (
+                    _LogTransport,
+                    get_completion_id,
+                    log_request,
+                )
 
                 event_hooks = {
                     "request": [get_completion_id, log_request],
                 }
                 async_httpx_client = httpx.AsyncClient(
-                    event_hooks=event_hooks, transport=_LogTransport(httpx.AsyncHTTPTransport())
+                    event_hooks=event_hooks,
+                    transport=_LogTransport(httpx.AsyncHTTPTransport()),
                 )
                 kwargs["http_client"] = async_httpx_client
                 origin_init(self, *args, **kwargs)

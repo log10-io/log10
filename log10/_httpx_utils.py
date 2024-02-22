@@ -52,7 +52,9 @@ async def get_completion_id(request: Request):
     try:
         completion_id = res.json().get("completionID")
     except Exception as e:
-        logger.error(f"Failed to get completion ID. Error: {e}. Skipping completion recording.")
+        logger.error(
+            f"Failed to get completion ID. Error: {e}. Skipping completion recording."
+        )
     else:
         request.headers["x-log10-completion-id"] = completion_id
 
@@ -83,12 +85,16 @@ async def log_request(request: Request):
         "session_id": sessionID,
         "tags": global_tags,
     }
-    _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+    _try_post_request(
+        url=f"{base_url}/api/completions/{completion_id}", payload=log_row
+    )
 
 
 class _LogResponse(Response):
     async def aiter_bytes(self, *args, **kwargs):
         full_response = ""
+        function_name = ""
+        full_argument = ""
         finished = False
         async for chunk in super().aiter_bytes(*args, **kwargs):
             full_response += chunk.decode(errors="ignore")
@@ -109,6 +115,7 @@ class _LogResponse(Response):
                 }
                 for frame in current_stack_frame
             ]
+            print("full_response:", full_response)
             full_content = ""
             responses = full_response.split("\n\n")
             for r in responses:
@@ -116,12 +123,41 @@ class _LogResponse(Response):
                     break
 
                 r_json = json.loads(r[6:])
-                content = r_json["choices"][0]["delta"].get("content", "")
-                if content:
-                    full_content += content
+
+                delta = r_json["choices"][0]["delta"]
+
+                # Delta may have content
+                if "content" in delta:
+                    content = delta["content"]
+                    if content:
+                        full_content += content
+
+                # May be a function call, and have to reconstruct the arguments
+                if "function_call" in delta:
+                    # May be function name
+                    if "name" in delta["function_call"]:
+                        function_name = delta["function_call"]["name"]
+                    # May be function arguments
+                    if "arguments" in delta["function_call"]:
+                        full_argument += delta["function_call"]["arguments"]
+
             response_json = r_json.copy()
             response_json["object"] = "completion"
-            response_json["choices"][0]["message"] = {"role": "assistant", "content": full_content}
+
+            # If finish_reason is function_call - don't log the response
+            print(response_json)
+            if not (
+                "choices" in response_json
+                and response_json["choices"]
+                and response_json["choices"][0]["finish_reason"] == "function_call"
+            ):
+                response_json["choices"][0]["message"]["content"] = full_content
+            else:
+                response_json["choices"][0]["function_call"] = {
+                    "name": function_name,
+                    "arguments": full_argument,
+                }
+
             log_row = {
                 "response": json.dumps(response_json),
                 "status": "finished",
@@ -132,7 +168,9 @@ class _LogResponse(Response):
                 "session_id": sessionID,
                 "tags": global_tags,
             }
-            _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+            _try_post_request(
+                url=f"{base_url}/api/completions/{completion_id}", payload=log_row
+            )
 
 
 class _LogTransport(httpx.AsyncBaseTransport):
@@ -172,7 +210,9 @@ class _LogTransport(httpx.AsyncBaseTransport):
                 "session_id": sessionID,
                 "tags": global_tags,
             }
-            _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+            _try_post_request(
+                url=f"{base_url}/api/completions/{completion_id}", payload=log_row
+            )
             return response
         elif response.headers.get("content-type") == "text/event-stream":
             return _LogResponse(
