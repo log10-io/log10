@@ -117,7 +117,8 @@ class _LogResponse(Response):
 
                 r_json = json.loads(r[6:])
                 content = r_json["choices"][0]["delta"].get("content", "")
-                full_content += content
+                if content:
+                    full_content += content
             response_json = r_json.copy()
             response_json["object"] = "completion"
             response_json["choices"][0]["message"] = {"role": "assistant", "content": full_content}
