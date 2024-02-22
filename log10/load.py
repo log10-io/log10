@@ -489,17 +489,17 @@ def intercepting_decorator(func):
                     response = output
                     kind = "chat" if output.object == "chat.completion" else "completion"
 
+                    # We may have to flatten messages from their ChatCompletionMessage with nested ChatCompletionMessageToolCall to json serializable format
+                    # Rewrite in-place
+                    if "messages" in kwargs:
+                        kwargs["messages"] = flatten_messages(kwargs["messages"])
+
+                    if "choices" in response:
+                        response = flatten_response(response)
+
                 # in case the usage of load(openai) and langchain.ChatOpenAI
                 if "api_key" in kwargs:
                     kwargs.pop("api_key")
-
-                # We may have to flatten messages from their ChatCompletionMessage with nested ChatCompletionMessageToolCall to json serializable format
-                # Rewrite in-place
-                if "messages" in kwargs:
-                    kwargs["messages"] = flatten_messages(kwargs["messages"])
-
-                if "choices" in response:
-                    response = flatten_response(response)
 
                 if hasattr(response, "model_dump_json"):
                     response = response.model_dump_json()
