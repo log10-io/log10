@@ -3,7 +3,6 @@ import functools
 import json
 import logging
 import os
-import pprint
 import queue
 import threading
 import time
@@ -362,9 +361,6 @@ def flatten_messages(messages):
             flat_messages.append(message)
         else:
             flat_messages.append(message.model_dump())
-
-    pprint.pprint(flat_messages)
-
     return flat_messages
 
 
@@ -521,8 +517,6 @@ def intercepting_decorator(func):
                     "session_id": sessionID,
                     "tags": global_tags,
                 }
-
-                pprint.pprint(log_row)
 
                 if target_service == "log10":
                     try:
