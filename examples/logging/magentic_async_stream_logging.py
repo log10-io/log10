@@ -21,5 +21,4 @@ async def main():
             print(chunk, end="", flush=True)
 
 
-# Python 3.7+
 asyncio.run(main())
