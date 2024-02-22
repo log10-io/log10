@@ -6,11 +6,10 @@ from typing import Literal
 import openai
 from magentic import FunctionCall, prompt
 
-from log10.load import global_tags, log10
+from log10.load import log10
 
 
 log10(openai)
-global_tags = ["magentic", "function", "example"]  # noqa: F811
 
 
 def activate_oven(temperature: int, mode: Literal["broil", "bake", "roast"]) -> str:

@@ -325,7 +325,7 @@ class StreamingResponseWrapper:
             elif chunk.choices[0].delta.function_call:
                 arguments = chunk.choices[0].delta.function_call.arguments
                 self.function_arguments += arguments
-                if chunk.choices[0].delta.function_call.name:
+                if not self.function_name and chunk.choices[0].delta.function_call.name:
                     self.function_name = chunk.choices[0].delta.function_call.name
             else:
                 self.finish_reason = chunk.choices[0].finish_reason
