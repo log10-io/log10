@@ -358,7 +358,7 @@ class StreamingResponseWrapper:
 def flatten_messages(messages):
     flat_messages = []
     for message in messages:
-        if type(message).__name__ == "dict":
+        if isinstance(message, dict):
             flat_messages.append(message)
         else:
             flat_messages.append(message.model_dump())
@@ -368,7 +368,7 @@ def flatten_messages(messages):
 def flatten_response(response):
     if "choices" in response:
         # May have to flatten, if not a dictionary
-        if type(response.choices[0].message).__name__ != "dict":
+        if not isinstance(response.choices[0].message, dict):
             response.choices[0].message = response.choices[0].message.model_dump()
 
     return response

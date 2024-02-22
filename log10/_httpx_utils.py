@@ -52,9 +52,7 @@ async def get_completion_id(request: Request):
     try:
         completion_id = res.json().get("completionID")
     except Exception as e:
-        logger.error(
-            f"Failed to get completion ID. Error: {e}. Skipping completion recording."
-        )
+        logger.error(f"Failed to get completion ID. Error: {e}. Skipping completion recording.")
     else:
         request.headers["x-log10-completion-id"] = completion_id
 
@@ -85,16 +83,12 @@ async def log_request(request: Request):
         "session_id": sessionID,
         "tags": global_tags,
     }
-    _try_post_request(
-        url=f"{base_url}/api/completions/{completion_id}", payload=log_row
-    )
+    _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
 
 
 class _LogResponse(Response):
     async def aiter_bytes(self, *args, **kwargs):
         full_response = ""
-        function_name = ""
-        full_argument = ""
         finished = False
         async for chunk in super().aiter_bytes(*args, **kwargs):
             full_response += chunk.decode(errors="ignore")
@@ -115,8 +109,9 @@ class _LogResponse(Response):
                 }
                 for frame in current_stack_frame
             ]
-            print("full_response:", full_response)
             full_content = ""
+            function_name = ""
+            full_argument = ""
             responses = full_response.split("\n\n")
             for r in responses:
                 if "data: [DONE]" in r:
@@ -145,13 +140,12 @@ class _LogResponse(Response):
             response_json["object"] = "completion"
 
             # If finish_reason is function_call - don't log the response
-            print(response_json)
             if not (
                 "choices" in response_json
                 and response_json["choices"]
                 and response_json["choices"][0]["finish_reason"] == "function_call"
             ):
-                response_json["choices"][0]["message"]["content"] = full_content
+                response_json["choices"][0]["message"] = {"role": "assistant", "content": full_content}
             else:
                 response_json["choices"][0]["function_call"] = {
                     "name": function_name,
@@ -168,9 +162,7 @@ class _LogResponse(Response):
                 "session_id": sessionID,
                 "tags": global_tags,
             }
-            _try_post_request(
-                url=f"{base_url}/api/completions/{completion_id}", payload=log_row
-            )
+            _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
 
 
 class _LogTransport(httpx.AsyncBaseTransport):
@@ -210,9 +202,7 @@ class _LogTransport(httpx.AsyncBaseTransport):
                 "session_id": sessionID,
                 "tags": global_tags,
             }
-            _try_post_request(
-                url=f"{base_url}/api/completions/{completion_id}", payload=log_row
-            )
+            _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
             return response
         elif response.headers.get("content-type") == "text/event-stream":
             return _LogResponse(
