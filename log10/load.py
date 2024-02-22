@@ -207,7 +207,8 @@ async def log_async(completion_url, func, **kwargs):
         if "api_key" in kwargs:
             kwargs.pop("api_key")
 
-        kwargs["messages"] = flatten_messages(kwargs["messages"])
+        if "messages" in kwargs:
+            kwargs["messages"] = flatten_messages(kwargs["messages"])
 
         log_row = {
             # do we want to also store args?
