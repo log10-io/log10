@@ -300,6 +300,8 @@ class StreamingResponseWrapper:
         self.partial_log_row = partial_log_row
         self.response = response
         self.final_result = ""  # Store the final result
+        self.function_name = ""
+        self.function_arguments = ""
         self.start_time = time.perf_counter()
         self.gpt_id = None
         self.model = None
@@ -311,14 +313,20 @@ class StreamingResponseWrapper:
     def __next__(self):
         try:
             chunk = next(self.response)
-            content = chunk.choices[0].delta.content
-            if content:
+            # import ipdb; ipdb.set_trace()
+            if chunk.choices[0].delta.content:
                 # Here you can intercept and modify content if needed
+                content = chunk.choices[0].delta.content
                 self.final_result += content  # Save the content
                 # Yield the original or modified content
 
                 self.model = chunk.model
                 self.gpt_id = chunk.id
+            elif chunk.choices[0].delta.function_call:
+                arguments = chunk.choices[0].delta.function_call.arguments
+                self.function_arguments += arguments
+                if chunk.choices[0].delta.function_call.name:
+                    self.function_name = chunk.choices[0].delta.function_call.name
             else:
                 self.finish_reason = chunk.choices[0].finish_reason
 
@@ -326,21 +334,38 @@ class StreamingResponseWrapper:
         except StopIteration as se:
             # Log the final result
             # Create fake response for openai format.
-            response = {
-                "id": self.gpt_id,
-                "object": "completion",
-                "model": self.model,
-                "choices": [
-                    {
-                        "index": 0,
-                        "finish_reason": self.finish_reason,
-                        "message": {
-                            "role": "assistant",
-                            "content": self.final_result,
-                        },
-                    }
-                ],
-            }
+            if self.final_result:
+                response = {
+                    "id": self.gpt_id,
+                    "object": "completion",
+                    "model": self.model,
+                    "choices": [
+                        {
+                            "index": 0,
+                            "finish_reason": self.finish_reason,
+                            "message": {
+                                "role": "assistant",
+                                "content": self.final_result,
+                            },
+                        }
+                    ],
+                }
+            elif self.function_arguments:
+                response = {
+                    "id": self.gpt_id,
+                    "object": "completion",
+                    "model": self.model,
+                    "choices": [
+                        {
+                            "index": 0,
+                            "finish_reason": self.finish_reason,
+                            "function_call": {
+                                "name": self.function_name,
+                                "arguments": self.function_arguments,
+                            },
+                        }
+                    ],
+                }
             self.partial_log_row["response"] = json.dumps(response)
             self.partial_log_row["duration"] = int((time.perf_counter() - self.start_time) * 1000)
 
@@ -635,6 +660,9 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
     global DEBUG, USE_ASYNC, sync_log_text
     DEBUG = DEBUG_ or os.environ.get("LOG10_DEBUG", False)
     logger.setLevel(logging.DEBUG if DEBUG else logging.WARNING)
+    if DEBUG:
+        openai_logger = logging.getLogger("openai")
+        openai_logger.setLevel(logging.DEBUG)
     USE_ASYNC = USE_ASYNC_
     sync_log_text = set_sync_log_text(USE_ASYNC=USE_ASYNC)
 
