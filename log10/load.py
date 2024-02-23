@@ -592,7 +592,8 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
 
     Openai V0 example:
     Example:
-        >>> from log10.load import log10 # xdoctest: +SKIP
+        >>> # xdoctest: +SKIP
+        >>> from log10.load import log10
         >>> import openai
         >>> log10(openai)
         >>> completion = openai.Completion.create(
@@ -603,7 +604,8 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         >>> print(completion)
 
     Example:
-        >>> from log10.load import log10 # xdoctest: +SKIP
+        >>> # xdoctest: +SKIP
+        >>> from log10.load import log10
         >>> import openai
         >>> log10(openai)
         >>> completion = openai.ChatCompletion.create(
@@ -660,9 +662,6 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
     global DEBUG, USE_ASYNC, sync_log_text
     DEBUG = DEBUG_ or os.environ.get("LOG10_DEBUG", False)
     logger.setLevel(logging.DEBUG if DEBUG else logging.WARNING)
-    if DEBUG:
-        openai_logger = logging.getLogger("openai")
-        openai_logger.setLevel(logging.DEBUG)
     USE_ASYNC = USE_ASYNC_
     sync_log_text = set_sync_log_text(USE_ASYNC=USE_ASYNC)
 
