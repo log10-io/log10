@@ -207,6 +207,9 @@ async def log_async(completion_url, func, **kwargs):
         if "api_key" in kwargs:
             kwargs.pop("api_key")
 
+        if "messages" in kwargs:
+            kwargs["messages"] = flatten_messages(kwargs["messages"])
+
         log_row = {
             # do we want to also store args?
             "status": "started",
@@ -216,6 +219,7 @@ async def log_async(completion_url, func, **kwargs):
             "session_id": sessionID,
             "tags": global_tags,
         }
+
         if target_service == "log10":
             try:
                 res = post_request(completion_url + "/" + completionID, log_row)
@@ -228,7 +232,7 @@ async def log_async(completion_url, func, **kwargs):
             # NOTE: We only save on request finalization.
 
     except Exception as e:
-        logging.warn(f"LOG10: failed to log: {e}. SKipping")
+        logging.warn(f"LOG10: failed to log: {e}. Skipping")
         return None
 
     return completionID
@@ -296,6 +300,8 @@ class StreamingResponseWrapper:
         self.partial_log_row = partial_log_row
         self.response = response
         self.final_result = ""  # Store the final result
+        self.function_name = ""
+        self.function_arguments = ""
         self.start_time = time.perf_counter()
         self.gpt_id = None
         self.model = None
@@ -307,14 +313,20 @@ class StreamingResponseWrapper:
     def __next__(self):
         try:
             chunk = next(self.response)
-            content = chunk.choices[0].delta.content
-            if content:
+            # import ipdb; ipdb.set_trace()
+            if chunk.choices[0].delta.content:
                 # Here you can intercept and modify content if needed
+                content = chunk.choices[0].delta.content
                 self.final_result += content  # Save the content
                 # Yield the original or modified content
 
                 self.model = chunk.model
                 self.gpt_id = chunk.id
+            elif chunk.choices[0].delta.function_call:
+                arguments = chunk.choices[0].delta.function_call.arguments
+                self.function_arguments += arguments
+                if not self.function_name and chunk.choices[0].delta.function_call.name:
+                    self.function_name = chunk.choices[0].delta.function_call.name
             else:
                 self.finish_reason = chunk.choices[0].finish_reason
 
@@ -322,21 +334,38 @@ class StreamingResponseWrapper:
         except StopIteration as se:
             # Log the final result
             # Create fake response for openai format.
-            response = {
-                "id": self.gpt_id,
-                "object": "completion",
-                "model": self.model,
-                "choices": [
-                    {
-                        "index": 0,
-                        "finish_reason": self.finish_reason,
-                        "message": {
-                            "role": "assistant",
-                            "content": self.final_result,
-                        },
-                    }
-                ],
-            }
+            if self.final_result:
+                response = {
+                    "id": self.gpt_id,
+                    "object": "completion",
+                    "model": self.model,
+                    "choices": [
+                        {
+                            "index": 0,
+                            "finish_reason": self.finish_reason,
+                            "message": {
+                                "role": "assistant",
+                                "content": self.final_result,
+                            },
+                        }
+                    ],
+                }
+            elif self.function_arguments:
+                response = {
+                    "id": self.gpt_id,
+                    "object": "completion",
+                    "model": self.model,
+                    "choices": [
+                        {
+                            "index": 0,
+                            "finish_reason": self.finish_reason,
+                            "function_call": {
+                                "name": self.function_name,
+                                "arguments": self.function_arguments,
+                            },
+                        }
+                    ],
+                }
             self.partial_log_row["response"] = json.dumps(response)
             self.partial_log_row["duration"] = int((time.perf_counter() - self.start_time) * 1000)
 
@@ -349,6 +378,25 @@ class StreamingResponseWrapper:
                 logging.warn(f"LOG10: failed to log: {e}. Skipping")
 
             raise se
+
+
+def flatten_messages(messages):
+    flat_messages = []
+    for message in messages:
+        if isinstance(message, dict):
+            flat_messages.append(message)
+        else:
+            flat_messages.append(message.model_dump())
+    return flat_messages
+
+
+def flatten_response(response):
+    if "choices" in response:
+        # May have to flatten, if not a dictionary
+        if not isinstance(response.choices[0].message, dict):
+            response.choices[0].message = response.choices[0].message.model_dump()
+
+    return response
 
 
 def intercepting_decorator(func):
@@ -466,6 +514,14 @@ def intercepting_decorator(func):
                     response = output
                     kind = "chat" if output.object == "chat.completion" else "completion"
 
+                    # We may have to flatten messages from their ChatCompletionMessage with nested ChatCompletionMessageToolCall to json serializable format
+                    # Rewrite in-place
+                    if "messages" in kwargs:
+                        kwargs["messages"] = flatten_messages(kwargs["messages"])
+
+                    if "choices" in response:
+                        response = flatten_response(response)
+
                 # in case the usage of load(openai) and langchain.ChatOpenAI
                 if "api_key" in kwargs:
                     kwargs.pop("api_key")
@@ -474,6 +530,7 @@ def intercepting_decorator(func):
                     response = response.model_dump_json()
                 else:
                     response = json.dumps(response)
+
                 log_row = {
                     "response": response,
                     "status": "finished",
@@ -535,7 +592,8 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
 
     Openai V0 example:
     Example:
-        >>> from log10.load import log10 # xdoctest: +SKIP
+        >>> # xdoctest: +SKIP
+        >>> from log10.load import log10
         >>> import openai
         >>> log10(openai)
         >>> completion = openai.Completion.create(
@@ -546,7 +604,8 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         >>> print(completion)
 
     Example:
-        >>> from log10.load import log10 # xdoctest: +SKIP
+        >>> # xdoctest: +SKIP
+        >>> from log10.load import log10
         >>> import openai
         >>> log10(openai)
         >>> completion = openai.ChatCompletion.create(
@@ -643,6 +702,33 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
             attr = module.resources.chat.completions.Completions
             method = getattr(attr, "create")
             setattr(attr, "create", intercepting_decorator(method))
+
+            # support for async completions
+            # patch module.AsyncOpenAI.__init__ to new_init
+            origin_init = module.AsyncOpenAI.__init__
+
+            def new_init(self, *args, **kwargs):
+                logger.debug("LOG10: patching AsyncOpenAI.__init__")
+                import httpx
+
+                from log10._httpx_utils import (
+                    _LogTransport,
+                    get_completion_id,
+                    log_request,
+                )
+
+                event_hooks = {
+                    "request": [get_completion_id, log_request],
+                }
+                async_httpx_client = httpx.AsyncClient(
+                    event_hooks=event_hooks,
+                    transport=_LogTransport(httpx.AsyncHTTPTransport()),
+                )
+                kwargs["http_client"] = async_httpx_client
+                origin_init(self, *args, **kwargs)
+
+            module.AsyncOpenAI.__init__ = new_init
+
         else:
             attr = module.api_resources.completion.Completion
             method = getattr(attr, "create")
