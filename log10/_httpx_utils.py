@@ -7,7 +7,7 @@ import httpx
 from httpx import Request, Response
 
 from log10.llm import Log10Config
-from log10.load import global_tags, sessionID
+from log10.load import get_log10_session_tags, sessionID
 
 
 logger: logging.Logger = logging.getLogger("LOG10")
@@ -81,8 +81,9 @@ async def log_request(request: Request):
         "orig_qualname": orig_qualname,
         "request": request.content.decode("utf-8"),
         "session_id": sessionID,
-        "tags": global_tags,
     }
+    if get_log10_session_tags():
+        log_row["tags"] = get_log10_session_tags()
     _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
 
 
@@ -160,8 +161,9 @@ class _LogResponse(Response):
                 "kind": "chat",
                 "request": self.request.content.decode("utf-8"),
                 "session_id": sessionID,
-                "tags": global_tags,
             }
+            if get_log10_session_tags():
+                log_row["tags"] = get_log10_session_tags()
             _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
 
 
@@ -200,8 +202,9 @@ class _LogTransport(httpx.AsyncBaseTransport):
                 "kind": "chat",
                 "request": request.content.decode("utf-8"),
                 "session_id": sessionID,
-                "tags": global_tags,
             }
+            if get_log10_session_tags():
+                log_row["tags"] = get_log10_session_tags()
             _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
             return response
         elif response.headers.get("content-type") == "text/event-stream":

@@ -137,6 +137,10 @@ last_completion_response = None
 global_tags = []
 
 
+def get_log10_session_tags():
+    return global_tags
+
+
 class log10_session:
     def __init__(self, tags=None):
         self.tags = tags
