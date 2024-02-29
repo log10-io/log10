@@ -62,3 +62,9 @@ def create_feedback_task(name, task_schema, instruction):
     task_schema = json.loads(task_schema)
     task = FeedbackTask().create(name=name, task_schema=task_schema, instruction=instruction)
     click.echo(f"Use this task_id to add feedback: {task.json()['id']}")
+
+
+def list():
+    # http://localhost:3000/api/v1/feedback_task?organization_id=4ffbada7-a483-49f6-83c0-987d07c779ed&offset=0&limit=50
+
+    
