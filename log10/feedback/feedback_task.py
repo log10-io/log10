@@ -3,6 +3,7 @@ import logging
 
 import click
 import httpx
+import rich
 from dotenv import load_dotenv
 
 from log10.llm import Log10Config
@@ -24,16 +25,16 @@ class FeedbackTask:
     def __init__(self, log10_config: Log10Config = None):
         self._log10_config = log10_config or Log10Config()
         self._http_client = httpx.Client()
+        self._http_client.headers = {
+            "x-log10-token": self._log10_config.token,
+            "x-log10-organization-id": self._log10_config.org_id,
+            "Content-Type": "application/json",
+        }
 
     def _post_request(self, url: str, json_payload: dict) -> httpx.Response:
-        headers = {
-            "x-log10-token": self._log10_config.token,
-            "Content-Type": "application/json",
-            "x-log10-organization-id": self._log10_config.org_id,
-        }
         json_payload["organization_id"] = self._log10_config.org_id
         try:
-            res = self._http_client.post(self._log10_config.url + url, headers=headers, json=json_payload)
+            res = self._http_client.post(self._log10_config.url + url, json=json_payload)
             res.raise_for_status()
             return res
         except Exception as e:
@@ -51,6 +52,17 @@ class FeedbackTask:
         res = self._post_request(self.feedback_task_create_url, json_payload)
         return res
 
+    def list(self, limit: int = 10, offset: int = 0) -> httpx.Response:
+        url = f"{self._log10_config.url}/api/v1/feedback_task?organization_id={self._log10_config.org_id}&offset={offset}&limit={limit}"
+        try:
+            res = self._http_client.get(url=url)
+            res.raise_for_status()
+            return res
+        except Exception as e:
+            logger.error(e)
+            logger.error(e.response.json()["error"])
+            raise
+
 
 # create a cli interface for FeebackTask.create function
 @click.command()
@@ -64,5 +76,12 @@ def create_feedback_task(name, task_schema, instruction):
     click.echo(f"Use this task_id to add feedback: {task.json()['id']}")
 
 
+@click.command()
+@click.option("--limit", default=50, help="Number of feedback tasks to fetch")
+@click.option("--offset", default=0, help="Offset for the feedback tasks")
+def list_feedback_task(limit, offset):
+    res = FeedbackTask().list(limit=limit, offset=offset)
+    feedback_tasks = res.json()
+    rich.print(feedback_tasks)
 # def list():
 #     # http://localhost:3000/api/v1/feedback_task?organization_id=4ffbada7-a483-49f6-83c0-987d07c779ed&offset=0&limit=50

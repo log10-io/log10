@@ -1,8 +1,8 @@
 import click
 
-from log10.completions.completions import list_completions
-from log10.feedback.feedback import create_feedback
-from log10.feedback.feedback_task import create_feedback_task
+from log10.completions.completions import list_completions, get_completion
+from log10.feedback.feedback import create_feedback, list_feedback
+from log10.feedback.feedback_task import create_feedback_task, list_feedback_task
 
 
 @click.group()
@@ -36,11 +36,15 @@ def feedback_task():
 
 cli.add_command(completions)
 completions.add_command(list_completions, "list")
+completions.add_command(get_completion, "get")
 
 cli.add_command(feedback)
 feedback.add_command(create_feedback, "create")
+feedback.add_command(list_feedback, "list")
+
 cli.add_command(feedback_task)
 feedback_task.add_command(create_feedback_task, "create")
+feedback_task.add_command(list_feedback_task, "list")
 
 if __name__ == "__main__":
     cli()

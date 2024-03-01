@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 import click
 import httpx
+import rich
 from rich.console import Console
 from rich.table import Table
 
@@ -28,6 +29,25 @@ def _get_time_diff(created_at):
         return f"{diff.seconds//60} minutes ago"
 
 
+def _get_completion(id: str) -> httpx.Response:
+    with httpx.Client() as client:
+        client.headers = {
+            "x-log10-token": _log10_config.token,
+            "x-log10-organization-id": _log10_config.org_id,
+            "Content-Type": "application/json",
+        }
+        url = f"{_log10_config.url}/api/completions/{id}?organization_id={_log10_config.org_id}"
+        try:
+            res = client.get(url=url)
+            res.raise_for_status()
+            return res
+        except Exception as e:
+            click.echo(f"Error: {e}")
+            if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
+                click.echo(e.response.json()["error"])
+            return
+
+
 @click.command()
 @click.option("--limit", default=25, help="Number of completions to fetch")
 @click.option("--offset", default=0, help="Offset for the completions")
@@ -35,6 +55,9 @@ def _get_time_diff(created_at):
 @click.option("--timeout", default=10, help="Timeout for the http request")
 # def list_completions(ids=None, tagFilter=None, createdFilter=None, sort=None, desc=None, limit=25, offset=None):
 def list_completions(limit, offset, ids, timeout):
+    """
+    List completions
+    """
     base_url = _log10_config.url
     token = _log10_config.token
     org_id = _log10_config.org_id
@@ -48,11 +71,18 @@ def list_completions(limit, offset, ids, timeout):
         }
         url = f"{base_url}/api/completions?organization_id={org_id}&offset={offset}&limit={limit}&tagFilter=&createdFilter=%7B%7D&sort=created_at&desc=true&ids="
         httpx_timeout = httpx.Timeout(timeout)
-        res = client.get(url=url, timeout=httpx_timeout)
-        res.raise_for_status()
-        completions = res.json()
-        total_completions = completions["total"]
-        completions = completions["data"]
+        try:
+            res = client.get(url=url, timeout=httpx_timeout)
+            res.raise_for_status()
+        except Exception as e:
+            click.echo(f"Error: {e}")
+            if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
+                click.echo(e.response.json()["error"])
+            return
+
+    completions = res.json()
+    total_completions = completions["total"]
+    completions = completions["data"]
 
     # create a list of items, each item is a dictionary with the completion id, created_at, status, prompt, response, and tags
     data_for_table = []
@@ -93,3 +123,13 @@ def list_completions(limit, offset, ids, timeout):
     console = Console()
     console.print(table)
     console.print(f"{total_completions=}")
+
+
+@click.command()
+@click.option("--id", prompt="Enter completion id", help="Completion ID")
+def get_completion(id):
+    """
+    Get a completion by id
+    """
+    res = _get_completion(id)
+    rich.print(res.json())
