@@ -33,9 +33,7 @@ class Feedback:
         }
         json_payload["organization_id"] = self._log10_config.org_id
         try:
-            res = self._http_client.post(
-                self._log10_config.url + url, headers=headers, json=json_payload
-            )
+            res = self._http_client.post(self._log10_config.url + url, headers=headers, json=json_payload)
             res.raise_for_status()
             return res
         except Exception as e:
@@ -76,10 +74,9 @@ def create_feedback(task_id, values, completion_tags_selector, comment):
     click.echo("Creating feedback")
     tags = completion_tags_selector.split(",")
     values = json.loads(values)
-    feedback = Feedback().create(
-        task_id=task_id, values=values, completion_tags_selector=tags, comment=comment
-    )
+    feedback = Feedback().create(task_id=task_id, values=values, completion_tags_selector=tags, comment=comment)
     click.echo(feedback.json())
+
 
 def list():
     # http://localhost:3000/api/v1/feedback?organization_id=4ffbada7-a483-49f6-83c0-987d07c779ed&offset=0&limit=50

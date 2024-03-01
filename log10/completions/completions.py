@@ -1,40 +1,95 @@
+from datetime import datetime, timezone
+
 import click
-import os
-import requests
+import httpx
+from rich.console import Console
+from rich.table import Table
+
+from log10.llm import Log10Config
+
 
 # TODO: Support data filters
 # TODO: Support ranges
 # TODO: Support tag filters
 # TODO: Support jsonl output
-url = os.environ.get("LOG10_URL", "https://localhost:3000")
+_log10_config = Log10Config()
 
-from rich.console import Console
-from rich.table import Table
 
-console = Console()
+def _get_time_diff(created_at):
+    time = datetime.fromisoformat(created_at)
+    now = datetime.now(timezone.utc)
+    diff = now - time
+    # convert the time difference to human readable format
+    if diff.days > 0:
+        return f"{diff.days} days ago"
+    elif diff.seconds > 3600:
+        return f"{diff.seconds//3600} hours ago"
+    elif diff.seconds > 60:
+        return f"{diff.seconds//60} minutes ago"
+
 
 @click.command()
-def list_completions(ids=None, tagFilter=None, createdFilter=None, sort=None, desc=None, limit=None, offset=None):
-    print(os.environ.get("LOG10_URL"))
-    print(os.environ.get("LOG10_ORG_ID"))
-    print(os.environ.get("LOG10_TOKEN"))
+@click.option("--limit", default=25, help="Number of completions to fetch")
+@click.option("--offset", default=0, help="Offset for the completions")
+@click.option("--ids", default="", help="Comma separated list of completion ids")
+@click.option("--timeout", default=10, help="Timeout for the http request")
+# def list_completions(ids=None, tagFilter=None, createdFilter=None, sort=None, desc=None, limit=25, offset=None):
+def list_completions(limit, offset, ids, timeout):
+    base_url = _log10_config.url
+    token = _log10_config.token
+    org_id = _log10_config.org_id
 
     # Fetch completions
-    # TODO: Move to a helper function
-    response = requests.get(
-        f"{url}/api/completions?organization_id={os.environ.get('LOG10_ORG_ID')}&offset=0&limit=50&tagFilter=&createdFilter=%7B%7D&sort=created_at&desc=true&ids=",
-        headers={
-            "x-log10-token": os.environ.get("LOG10_TOKEN"),
-            "x-log10-organization-id": os.environ.get("LOG10_ORG_ID"),
+    with httpx.Client() as client:
+        client.headers = {
+            "x-log10-token": token,
+            "x-log10-organization-id": org_id,
             "Content-Type": "application/json",
-        },
-    )
-    response.raise_for_status()
-    completions = response.json()
+        }
+        url = f"{base_url}/api/completions?organization_id={org_id}&offset={offset}&limit={limit}&tagFilter=&createdFilter=%7B%7D&sort=created_at&desc=true&ids="
+        httpx_timeout = httpx.Timeout(timeout)
+        res = client.get(url=url, timeout=httpx_timeout)
+        res.raise_for_status()
+        completions = res.json()
+        total_completions = completions["total"]
+        completions = completions["data"]
 
-    # TODO: Render completions
+    # create a list of items, each item is a dictionary with the completion id, created_at, status, prompt, response, and tags
+    data_for_table = []
+    for completion in completions:
+        # loop thru completion['request']['messages'] and return the first message with 'role' == 'user'
+        # prompt =
+        prompt = completion["request"]["messages"][0]["content"]
+        response = completion["response"]["choices"][0]["message"]["content"]
+        data_for_table.append(
+            {
+                "id": completion["id"],
+                "status": "success" if completion["status"] == "finished" else completion["status"],
+                "created_at": _get_time_diff(completion["created_at"]),
+                "prompt": prompt,
+                "completion": response,
+                "tags": completion["tags"],
+            }
+        )
+    # render data_for_table with rich table
+    table = Table(show_header=True, header_style="bold magenta")
 
-    click.echo(completions)
-    click.echo("List completions")
+    table.add_column("ID", style="dim")
+    table.add_column("Status")
+    table.add_column("Created At")
+    table.add_column("Prompt", overflow="fold")
+    table.add_column("Completion", overflow="fold")
+    table.add_column("Tags", justify="right")
 
-# curl 'http://localhost:3000/api/completions?organization_id=4ffbada7-a483-49f6-83c0-987d07c779ed&offset=0&limit=50&tagFilter=&createdFilter=%7B%7D&sort=created_at&desc=true&ids='
+    max_len = 40
+    for item in data_for_table:
+        tags = ", ".join(item["tags"]) if item["tags"] else ""
+        short_prompt = item["prompt"][:max_len] + "..." if len(item["prompt"]) > max_len else item["prompt"]
+        short_completion = (
+            item["completion"][:max_len] + "..." if len(item["completion"]) > max_len else item["completion"]
+        )
+        table.add_row(item["id"], item["status"], item["created_at"], short_prompt, short_completion, tags)
+
+    console = Console()
+    console.print(table)
+    console.print(f"{total_completions=}")
