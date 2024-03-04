@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 
 import click
@@ -130,9 +131,13 @@ def list_completions(limit, offset, timeout, tags):
         if completion["response"]["object"] == "text_completion":
             prompt = completion["request"]["prompt"]
             response = completion["response"]["choices"][0]["text"]
+        elif "function_call" in completion["response"]["choices"][0]:
+            prompt = completion["request"]["messages"][0]["content"]
+            response = json.dumps(completion["response"]["choices"][0]["function_call"])
         else:
             prompt = completion["request"]["messages"][0]["content"]
             response = completion["response"]["choices"][0]["message"]["content"]
+        # import ipdb; ipdb.set_trace()
         data_for_table.append(
             {
                 "id": completion["id"],
