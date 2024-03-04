@@ -4,8 +4,6 @@ import logging
 import click
 import httpx
 import rich
-from rich.console import Console
-from rich.table import Table
 
 from log10.llm import Log10Config
 
@@ -38,7 +36,7 @@ class Feedback:
             return res
         except Exception as e:
             logger.error(e)
-            if hasattr(e, 'response') and hasattr(e.response, 'json') and 'error' in e.response.json():
+            if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
                 logger.error(e.response.json()["error"])
             raise
 
@@ -70,7 +68,7 @@ class Feedback:
             return res
         except Exception as e:
             logger.error(e)
-            if hasattr(e, 'response') and hasattr(e.response, 'json') and 'error' in e.response.json():
+            if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
                 logger.error(e.response.json()["error"])
             raise
 
@@ -94,6 +92,7 @@ def create_feedback(task_id, values, completion_tags_selector, comment):
     feedback = Feedback().create(task_id=task_id, values=values, completion_tags_selector=tags, comment=comment)
     click.echo(feedback.json())
 
+
 @click.command()
 @click.option("--offset", default=0, help="Offset for the feedback")
 @click.option("--limit", default=25, help="Number of feedback to fetch")
@@ -105,7 +104,7 @@ def list_feedback(offset, limit):
         res = Feedback().list(offset=offset, limit=limit)
     except Exception as e:
         click.echo(f"Error fetching feedback {e}")
-        if hasattr(e, 'response') and hasattr(e.response, 'json') and 'error' in e.response.json():
+        if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
             click.echo(e.response.json()["error"])
         return
 
@@ -113,7 +112,6 @@ def list_feedback(offset, limit):
     # save res.json() to a file all_feedback.txt
     with open("all_feedback.txt", "w") as f:
         f.write(json.dumps(res.json(), indent=4))
-
 
     # http://localhost:3000/api/v1/feedback?organization_id=4ffbada7-a483-49f6-83c0-987d07c779ed&offset=0&limit=50
     # click.echo("List feedback")

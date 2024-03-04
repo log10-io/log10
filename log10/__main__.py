@@ -1,6 +1,6 @@
 import click
 
-from log10.completions.completions import list_completions, get_completion
+from log10.completions.completions import get_completion, list_completions
 from log10.feedback.feedback import create_feedback, list_feedback
 from log10.feedback.feedback_task import create_feedback_task, list_feedback_task
 

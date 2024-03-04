@@ -48,13 +48,43 @@ def _get_completion(id: str) -> httpx.Response:
             return
 
 
+def _get_tag_id(tag: str) -> str:
+    with httpx.Client() as client:
+        client.headers = {
+            "x-log10-token": _log10_config.token,
+            "x-log10-organization-id": _log10_config.org_id,
+            "Content-Type": "application/json",
+        }
+        url = f"{_log10_config.url}/api/tags/search?organization_id={_log10_config.org_id}&query={tag}"
+        try:
+            res = client.get(url=url)
+            res.raise_for_status()
+        except Exception as e:
+            click.echo(f"Error: {e}")
+            if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
+                click.echo(e.response.json()["error"])
+            return
+
+        data = res.json()["data"]
+        if not data:
+            return []
+
+        if len(data) == 1:
+            return data[0]["id"]
+        else:
+            for item in data:
+                if item["name"] == tag:
+                    return item["id"]
+            return []
+
+
 @click.command()
 @click.option("--limit", default=25, help="Number of completions to fetch")
 @click.option("--offset", default=0, help="Offset for the completions")
-@click.option("--ids", default="", help="Comma separated list of completion ids")
 @click.option("--timeout", default=10, help="Timeout for the http request")
+@click.option("--tags", default="", help="Filter completions by tag")
 # def list_completions(ids=None, tagFilter=None, createdFilter=None, sort=None, desc=None, limit=25, offset=None):
-def list_completions(limit, offset, ids, timeout):
+def list_completions(limit, offset, timeout, tags):
     """
     List completions
     """
@@ -69,7 +99,17 @@ def list_completions(limit, offset, ids, timeout):
             "x-log10-organization-id": org_id,
             "Content-Type": "application/json",
         }
-        url = f"{base_url}/api/completions?organization_id={org_id}&offset={offset}&limit={limit}&tagFilter=&createdFilter=%7B%7D&sort=created_at&desc=true&ids="
+
+        tag_ids_str = ""
+        if tags:
+            tag_ids = []
+            for tag in tags.split(","):
+                tag_id = _get_tag_id(tag)
+                if tag_id:
+                    tag_ids.append(tag_id)
+            tag_ids_str = ",".join(tag_ids)
+        url = f"{base_url}/api/completions?organization_id={org_id}&offset={offset}&limit={limit}&tagFilter={tag_ids_str}&createdFilter=%7B%7D&sort=created_at&desc=true&ids="
+
         httpx_timeout = httpx.Timeout(timeout)
         try:
             res = client.get(url=url, timeout=httpx_timeout)
@@ -87,10 +127,12 @@ def list_completions(limit, offset, ids, timeout):
     # create a list of items, each item is a dictionary with the completion id, created_at, status, prompt, response, and tags
     data_for_table = []
     for completion in completions:
-        # loop thru completion['request']['messages'] and return the first message with 'role' == 'user'
-        # prompt =
-        prompt = completion["request"]["messages"][0]["content"]
-        response = completion["response"]["choices"][0]["message"]["content"]
+        if completion["response"]["object"] == "text_completion":
+            prompt = completion["request"]["prompt"]
+            response = completion["response"]["choices"][0]["text"]
+        else:
+            prompt = completion["request"]["messages"][0]["content"]
+            response = completion["response"]["choices"][0]["message"]["content"]
         data_for_table.append(
             {
                 "id": completion["id"],
@@ -114,6 +156,8 @@ def list_completions(limit, offset, ids, timeout):
     max_len = 40
     for item in data_for_table:
         tags = ", ".join(item["tags"]) if item["tags"] else ""
+        if isinstance(item["prompt"], list):
+            item["prompt"] = " ".join(item["prompt"])
         short_prompt = item["prompt"][:max_len] + "..." if len(item["prompt"]) > max_len else item["prompt"]
         short_completion = (
             item["completion"][:max_len] + "..." if len(item["completion"]) > max_len else item["completion"]
