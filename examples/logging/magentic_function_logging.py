@@ -21,8 +21,7 @@ def activate_oven(temperature: int, mode: Literal["broil", "bake", "roast"]) -> 
     "Prepare the oven so I can make {food}",
     functions=[activate_oven],
 )
-def configure_oven(food: str) -> FunctionCall[str]:
-    ...
+def configure_oven(food: str) -> FunctionCall[str]: ...
 
 
 output = configure_oven("cookies!")

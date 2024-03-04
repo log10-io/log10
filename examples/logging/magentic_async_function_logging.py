@@ -13,8 +13,7 @@ def add(x: int, y: int) -> int:
 
 
 @prompt("What is 1+1? Use tools", functions=[add])
-async def agent() -> AsyncStreamedStr:
-    ...
+async def agent() -> AsyncStreamedStr: ...
 
 
 # Define an async main function
