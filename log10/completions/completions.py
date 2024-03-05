@@ -1,10 +1,10 @@
 import json
 from datetime import datetime, timezone
 
-import tqdm
 import click
 import httpx
 import rich
+import tqdm
 from rich.console import Console
 from rich.table import Table
 
@@ -285,31 +285,27 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, outpu
         # dowlnoad completions
         batch_size = 10
 
-        # tqdm progress bar
-        with tqdm.tqdm(total=limit // batch_size) as pbar:
-            for batch in tqdm.tqdm(range(offset, limit, batch_size)):
-                download_url = f"{completion_url_prefix}&offset={batch}&limit={batch_size}&tagFilter={tag_ids_str}&createdFilter={json.dumps(date_range)}"
-                # rich.print(f"Downloading completions from {batch} to {batch + batch_size}")
-                # rich.print(f"URL: {download_url}")
-                # continue
+        for batch in tqdm.tqdm(range(offset, limit, batch_size)):
+            download_url = f"{completion_url_prefix}&offset={batch}&limit={batch_size}&tagFilter={tag_ids_str}&createdFilter={json.dumps(date_range)}"
 
-                try:
-                    res = client.get(url=download_url, timeout=timeout)
-                    res.raise_for_status()
-                except Exception as e:
-                    rich.print(f"Error: {e}")
-                    if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
-                        rich.print(e.response.json()["error"])
-                    return
+            try:
+                res = client.get(url=download_url, timeout=timeout)
+                res.raise_for_status()
+            except Exception as e:
+                rich.print(f"Error: {e}")
+                if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
+                    rich.print(e.response.json()["error"])
+                return
 
-                if compact:
-                    res = res.json()["data"]
+            if compact:
+                res = res.json()["data"]
+                with open(output, "a") as f:
+                    for completion in res:
+                        f.write(json.dumps(completion) + "\n")
+            else:
+                completions_id_list = [completion["id"] for completion in res.json()["data"]]
+                for id in completions_id_list:
+
+                    completion = _get_completion(id)
                     with open(output, "a") as f:
-                        for completion in res:
-                            f.write(json.dumps(completion) + "\n")
-                else:
-                    completions_id_list = [completion["id"] for completion in res.json()["data"]]
-                    for id in completions_id_list:
-                        completion = _get_completion(id)
-                        with open(output, "a") as f:
-                            f.write(json.dumps(completion.json()) + "\n")
+                        f.write(json.dumps(completion.json()["data"]) + "\n")
