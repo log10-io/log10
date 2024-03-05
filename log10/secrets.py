@@ -24,6 +24,10 @@ class SecretsManager:
         """Return the default secrets manager."""
         return _DEFAULT_SECRETS_MANAGER
 
+    def get(self, key: str, default: str = None) -> str:
+        """Return the value of the given key."""
+        return default if self[key] is None else self[key]
+
     def __getitem__(self, key: str) -> str:
         """Return the value of the given key."""
         return self.env.get(key, None)

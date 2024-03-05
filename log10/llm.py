@@ -5,9 +5,11 @@ import traceback
 from abc import ABC
 from enum import Enum
 from typing import List, Optional
+from log10.secrets import SecretsManager
 
 import requests
 
+env = SecretsManager.get_default()
 
 Role = Enum("Role", ["system", "assistant", "user"])
 Kind = Enum("Kind", ["chat", "text"])
@@ -22,9 +24,9 @@ class Log10Config:
         tags: List[str] = None,
         DEBUG: bool = False,
     ):
-        self.url = url if url else os.getenv("LOG10_URL")
-        self.token = token if token else os.getenv("LOG10_TOKEN")
-        self.org_id = org_id if org_id else os.getenv("LOG10_ORG_ID")
+        self.url = url if url else env["LOG10_URL"]
+        self.token = token if token else env["LOG10_TOKEN"]
+        self.org_id = org_id if org_id else env["LOG10_ORG_ID"]
         self.DEBUG = DEBUG
 
         # Get tags from env, if not set, use empty list
@@ -37,7 +39,9 @@ class Log10Config:
 
 
 class Message(ABC):
-    def __init__(self, role: Role, content: str, id: str = None, completion: str = None):
+    def __init__(
+        self, role: Role, content: str, id: str = None, completion: str = None
+    ):
         self.id = id
         self.role = role
         self.content = content
@@ -68,7 +72,9 @@ class Completion(ABC):
 
 
 class ChatCompletion(Completion):
-    def __init__(self, role: str, content: str, response: dict = None, completion_id: str = None):
+    def __init__(
+        self, role: str, content: str, response: dict = None, completion_id: str = None
+    ):
         self.role = role
         self.content = content
         self.response = response
@@ -178,7 +184,9 @@ class LLM(ABC):
         if not self.log10_config:
             return None
 
-        res = self.api_request("/api/completions", "POST", {"organization_id": self.log10_config.org_id})
+        res = self.api_request(
+            "/api/completions", "POST", {"organization_id": self.log10_config.org_id}
+        )
         self.last_completion_response = res.json()
         completion_id = res.json()["completionID"]
 
@@ -195,10 +203,16 @@ class LLM(ABC):
                 "kind": kind == Kind.text and "completion" or "chat",
                 "organization_id": self.log10_config.org_id,
                 "session_id": self.session_id,
-                "orig_module": "openai.api_resources.completion"
-                if kind == Kind.text
-                else "openai.api_resources.chat_completion",
-                "orig_qualname": "Completion.create" if kind == Kind.text else "ChatCompletion.create",
+                "orig_module": (
+                    "openai.api_resources.completion"
+                    if kind == Kind.text
+                    else "openai.api_resources.chat_completion"
+                ),
+                "orig_qualname": (
+                    "Completion.create"
+                    if kind == Kind.text
+                    else "ChatCompletion.create"
+                ),
                 "status": "started",
                 "tags": tags,
                 "request": json.dumps(request),

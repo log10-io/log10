@@ -2,7 +2,9 @@ import os
 
 from google.api_core.exceptions import NotFound
 from google.cloud import bigquery
+from log10.secrets import SecretsManager
 
+env = SecretsManager.get_default()
 
 # todo: add requirements.txt file
 # todo: add instructions for bigquery integration
@@ -10,9 +12,9 @@ from google.cloud import bigquery
 
 def initialize_bigquery(debug=False):
     # Configure the BigQuery client
-    project_id = os.environ.get("LOG10_BQ_PROJECT_ID")
-    dataset_id = os.environ.get("LOG10_BQ_DATASET_ID")
-    completions_table_id = os.environ.get("LOG10_BQ_COMPLETIONS_TABLE_ID")
+    project_id = env["LOG10_BQ_PROJECT_ID"]
+    dataset_id = env["LOG10_BQ_DATASET_ID"]
+    completions_table_id = env["LOG10_BQ_COMPLETIONS_TABLE_ID"]
 
     client = bigquery.Client(project=project_id)
 
@@ -56,7 +58,9 @@ def initialize_bigquery(debug=False):
             print(f"Table {completions_table_id} exists in dataset {dataset_id}.")
     else:
         if debug:
-            print(f"Table {completions_table_id} does not exist in dataset {dataset_id}. Creating...")
+            print(
+                f"Table {completions_table_id} does not exist in dataset {dataset_id}. Creating..."
+            )
         # Create the table
         table_ref = client_dataset.table(completions_table_id)
         script_dir = os.path.dirname(os.path.abspath(__file__))

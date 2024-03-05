@@ -30,7 +30,7 @@ org_id = env["LOG10_ORG_ID"]
 
 
 # log10, bigquery
-target_service = "log10" if env["LOG10_DATA_STORE"] is None else env["LOG10_DATA_STORE"]
+target_service = env.get("LOG10_DATA_STORE", "log10")
 
 if target_service == "bigquery":
     from log10.bigquery import initialize_bigquery
@@ -74,7 +74,7 @@ def post_request(url: str, json_payload: dict = {}) -> requests.Response:
     headers = {"x-log10-token": token, "Content-Type": "application/json"}
     json_payload["organization_id"] = org_id
     try:
-        timeout = int(os.environ.get("LOG10_REQUESTS_TIMEOUT", 10))
+        timeout = int(env.get("LOG10_REQUESTS_TIMEOUT", 10))
         assert isinstance(timeout, int)
         res = requests.post(url, headers=headers, json=json_payload, timeout=timeout)
         # raise_for_status() will raise an exception if the status is 4xx, 5xxx
@@ -696,7 +696,7 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         >>> print(completion)
     """
     global DEBUG, USE_ASYNC, sync_log_text
-    DEBUG = DEBUG_ or os.environ.get("LOG10_DEBUG", False)
+    DEBUG = DEBUG_ or env.get("LOG10_DEBUG", False)
     logger.setLevel(logging.DEBUG if DEBUG else logging.WARNING)
     USE_ASYNC = USE_ASYNC_
     sync_log_text = set_sync_log_text(USE_ASYNC=USE_ASYNC)
