@@ -84,8 +84,11 @@ def _get_tag_id(tag: str) -> str:
 @click.option("--offset", default=0, help="Offset for the completions")
 @click.option("--timeout", default=10, help="Timeout for the http request")
 @click.option("--tags", default="", help="Filter completions by tag")
-# def list_completions(ids=None, tagFilter=None, createdFilter=None, sort=None, desc=None, limit=25, offset=None):
-def list_completions(limit, offset, timeout, tags):
+@click.option(
+    "--from", "from_date", type=click.DateTime(), help="Start date of the range (inclusive). Format: YYYY-MM-DD"
+)
+@click.option("--to", "to_date", type=click.DateTime(), help="End date of the range (inclusive). Format: YYYY-MM-DD")
+def list_completions(limit, offset, timeout, tags, from_date, to_date):
     """
     List completions
     """
@@ -109,7 +112,24 @@ def list_completions(limit, offset, timeout, tags):
                 if tag_id:
                     tag_ids.append(tag_id)
             tag_ids_str = ",".join(tag_ids)
-        url = f"{base_url}/api/completions?organization_id={org_id}&offset={offset}&limit={limit}&tagFilter={tag_ids_str}&createdFilter=%7B%7D&sort=created_at&desc=true&ids="
+            rich.print(f"Filter with tags: {tags}")
+
+        if (from_date is None) != (to_date is None):  # Check if only one date is provided
+            raise click.UsageError("Both --from and --to must be set together.")
+
+        if from_date and to_date:
+            if from_date >= to_date:
+                raise click.UsageError(f"from_date {from_date} must be earlier than to_date {to_date}")
+
+            parsed_from_date = from_date.replace(hour=8).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+            parsed_to_date = to_date.replace(hour=8).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+
+            date_range = {"from": parsed_from_date, "to": parsed_to_date}
+            rich.print(f"Filter with created date: {date_range['from'][:10]} to {date_range['to'][:10]}")
+        else:
+            date_range = {}
+
+        url = f"{base_url}/api/completions?organization_id={org_id}&offset={offset}&limit={limit}&tagFilter={tag_ids_str}&createdFilter={json.dumps(date_range)}&sort=created_at&desc=true&ids="
 
         httpx_timeout = httpx.Timeout(timeout)
         try:
