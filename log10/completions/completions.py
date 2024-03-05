@@ -85,10 +85,8 @@ def _get_tag_id(tag: str) -> str:
 @click.option("--offset", default=0, help="Offset for the completions")
 @click.option("--timeout", default=10, help="Timeout for the http request")
 @click.option("--tags", default="", help="Filter completions by tag")
-@click.option(
-    "--from", "from_date", type=click.DateTime(), help="Start date of the range (inclusive). Format: YYYY-MM-DD"
-)
-@click.option("--to", "to_date", type=click.DateTime(), help="End date of the range (inclusive). Format: YYYY-MM-DD")
+@click.option("--from", "from_date", type=click.DateTime(), help="Start date of the range. Format: YYYY-MM-DD")
+@click.option("--to", "to_date", type=click.DateTime(), help="End date of the range. Format: YYYY-MM-DD")
 def list_completions(limit, offset, timeout, tags, from_date, to_date):
     """
     List completions
@@ -305,7 +303,6 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, outpu
             else:
                 completions_id_list = [completion["id"] for completion in res.json()["data"]]
                 for id in completions_id_list:
-
                     completion = _get_completion(id)
                     with open(output, "a") as f:
                         f.write(json.dumps(completion.json()["data"]) + "\n")
