@@ -1,6 +1,6 @@
 import click
 
-from log10.completions.completions import get_completion, list_completions
+from log10.completions.completions import download_completions, get_completion, list_completions
 from log10.feedback.feedback import create_feedback, list_feedback
 from log10.feedback.feedback_task import create_feedback_task, list_feedback_task
 
@@ -37,6 +37,7 @@ def feedback_task():
 cli.add_command(completions)
 completions.add_command(list_completions, "list")
 completions.add_command(get_completion, "get")
+completions.add_command(download_completions, "download")
 
 cli.add_command(feedback)
 feedback.add_command(create_feedback, "create")
