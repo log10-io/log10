@@ -1,12 +1,11 @@
 import logging
 from typing import List, Tuple
 
-from dotenv import load_dotenv
-
+from log10.secrets import SecretsManager
 from log10.llm import LLM, Message
 
 
-load_dotenv()
+env = SecretsManager.get_default()
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -131,7 +130,9 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
             #
             user_message = llm.chat(user_messages)
             user_messages.append(user_message)
-            assistant_messages.append(Message(role="user", content=user_message.content))
+            assistant_messages.append(
+                Message(role="user", content=user_message.content)
+            )
             logging.info(f"User turn {i}: {user_message}")
 
             #
@@ -139,7 +140,9 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
             #
             assistant_message = llm.chat(assistant_messages)
             assistant_messages.append(assistant_message)
-            user_messages.append(Message(role="user", content=assistant_message.content))
+            user_messages.append(
+                Message(role="user", content=assistant_message.content)
+            )
             logging.info(f"Assistant turn {i}: {assistant_message}")
 
             yield (user_messages, assistant_messages)
@@ -148,7 +151,10 @@ Never say <CAMEL_TASK_DONE> unless my responses have solved your task."""
             # Termination conditions.
             #
             for repeat_word in repeat_word_list:
-                if repeat_word in assistant_message.content.lower() or repeat_word in user_message.content.lower():
+                if (
+                    repeat_word in assistant_message.content.lower()
+                    or repeat_word in user_message.content.lower()
+                ):
                     repeat_word_counter += 1
                     repeated_word_current_turn = True
                     logging.info(f"Repeat word counter = {repeat_word_counter}")
@@ -189,7 +195,9 @@ Remember your task is not to summarize rather to extract the full solution."""
 Do not attempt to describe the solution, but try to answer in a way such that your answer will directly solve the task - not just describe the steps required to solve the task.
 Only use the provided context above and no other sources.
 Even if I told you that the task is completed in the context above you should still reply with a complete solution. Never tell me the task is completed or ask for the next request, but instead replay the final solution back to me."""
-                summary_prompt = f"Task:{task_prompt}\n" + summary_context + summary_closing_prompt
+                summary_prompt = (
+                    f"Task:{task_prompt}\n" + summary_context + summary_closing_prompt
+                )
                 summary_messages = [
                     Message(role="system", content=summary_system_prompt),
                     Message(

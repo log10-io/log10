@@ -3,12 +3,12 @@ import logging
 
 import click
 import httpx
-from dotenv import load_dotenv
+from log10.secrets import SecretsManager
 
 from log10.llm import Log10Config
 
 
-load_dotenv()
+env = SecretsManager.get_default()
 
 logging.basicConfig(
     format="[%(asctime)s - %(name)s - %(levelname)s] %(message)s",
@@ -33,7 +33,9 @@ class FeedbackTask:
         }
         json_payload["organization_id"] = self._log10_config.org_id
         try:
-            res = self._http_client.post(self._log10_config.url + url, headers=headers, json=json_payload)
+            res = self._http_client.post(
+                self._log10_config.url + url, headers=headers, json=json_payload
+            )
             res.raise_for_status()
             return res
         except Exception as e:
@@ -41,7 +43,9 @@ class FeedbackTask:
             logger.error(e.response.json()["error"])
             raise
 
-    def create(self, task_schema: dict, name: str = None, instruction: str = None) -> httpx.Response:
+    def create(
+        self, task_schema: dict, name: str = None, instruction: str = None
+    ) -> httpx.Response:
         json_payload = {"json_schema": task_schema}
         if name:
             json_payload["name"] = name
@@ -60,5 +64,7 @@ class FeedbackTask:
 def create_feedback_task(name, task_schema, instruction):
     click.echo("Creating feedback task")
     task_schema = json.loads(task_schema)
-    task = FeedbackTask().create(name=name, task_schema=task_schema, instruction=instruction)
+    task = FeedbackTask().create(
+        name=name, task_schema=task_schema, instruction=instruction
+    )
     click.echo(f"Use this task_id to add feedback: {task.json()['id']}")

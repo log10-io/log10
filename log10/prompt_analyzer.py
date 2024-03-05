@@ -2,12 +2,11 @@ import json
 import logging
 
 import httpx
-from dotenv import load_dotenv
-
+from log10.secrets import SecretsManager
 from log10.llm import Log10Config
 
 
-load_dotenv()
+env = SecretsManager.get_default()
 
 logging.basicConfig(
     format="[%(asctime)s - %(name)s - %(levelname)s] %(message)s",
@@ -35,12 +34,18 @@ class PromptAnalyzer:
         self.__session_id = None
 
     def _post_request(self, url: str, json_payload: dict) -> httpx.Response:
-        headers = {"x-log10-token": self._log10_config.token, "Content-Type": "application/json"}
+        headers = {
+            "x-log10-token": self._log10_config.token,
+            "Content-Type": "application/json",
+        }
         json_payload["organization_id"] = self._log10_config.org_id
         try:
             timeout = httpx.Timeout(timeout=5, connect=5, read=5 * 60, write=5)
             res = self._http_client.post(
-                self._log10_config.url + url, headers=headers, json=json_payload, timeout=timeout
+                self._log10_config.url + url,
+                headers=headers,
+                json=json_payload,
+                timeout=timeout,
             )
             res.raise_for_status()
             return res
@@ -65,7 +70,9 @@ class PromptAnalyzer:
 
         return converted
 
-    def _report(self, last_prompt: dict, current_prompt: dict, suggestions: dict) -> dict:
+    def _report(
+        self, last_prompt: dict, current_prompt: dict, suggestions: dict
+    ) -> dict:
         json_payload = {
             "base_prompt": json.dumps(last_prompt),
             "new_prompt": json.dumps(current_prompt),
@@ -125,7 +132,9 @@ class PromptAnalyzer:
 
                 last_converted_prompt = self._converted_prompt_history[-1]
                 last_suggestions = self._suggestions_history[-1]
-                report_dict = self._report(last_converted_prompt, converted_prompt, last_suggestions)
+                report_dict = self._report(
+                    last_converted_prompt, converted_prompt, last_suggestions
+                )
                 self._report_history.append(report_dict)
 
                 logger.debug(f"report: {report_dict}")
