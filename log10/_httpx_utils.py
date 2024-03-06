@@ -18,6 +18,33 @@ base_url = _log10_config.url
 httpx_client = httpx.Client()
 
 
+def _try_get(url: str, timeout: int = 10) -> httpx.Response:
+    httpx_client.headers = {
+        "x-log10-token": _log10_config.token,
+        "x-log10-organization-id": _log10_config.org_id,
+        "Content-Type": "application/json",
+    }
+    httpx_timeout = httpx.Timeout(timeout)
+    try:
+        res = httpx_client.get(url, timeout=httpx_timeout)
+        res.raise_for_status()
+        return res
+    except httpx.HTTPError as http_err:
+        if "401" in str(http_err):
+            logger.error(
+                "Failed anthorization. Please verify that LOG10_TOKEN and LOG10_ORG_ID are set correctly and try again."
+                + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
+            )
+        else:
+            logger.error(f"Failed with error: {http_err}")
+        raise
+    except Exception as e:
+        logger.error(f"Error: {e}")
+        if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
+            logger.error(e.response.json()["error"])
+        raise
+
+
 def _try_post_request(url: str, payload: dict = {}) -> httpx.Response:
     headers = {
         "x-log10-token": _log10_config.token,
