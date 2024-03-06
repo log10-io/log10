@@ -3,7 +3,8 @@ import logging
 
 import click
 import httpx
-import rich
+from rich.console import Console
+from rich.table import Table
 
 from log10.llm import Log10Config
 
@@ -96,7 +97,8 @@ def create_feedback(task_id, values, completion_tags_selector, comment):
 @click.command()
 @click.option("--offset", default=0, help="Offset for the feedback")
 @click.option("--limit", default=25, help="Number of feedback to fetch")
-def list_feedback(offset, limit):
+@click.option("--task_id", help="Task ID")
+def list_feedback(offset, limit, task_id):
     """
     List feedback
     """
@@ -107,11 +109,27 @@ def list_feedback(offset, limit):
         if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
             click.echo(e.response.json()["error"])
         return
+    feedback_data = res.json()["data"]
+    if task_id:
+        feedback_data = [feedback for feedback in feedback_data if feedback["task_id"] == task_id]
+    data_for_table = []
+    for feedback in feedback_data:
+        data_for_table.append(
+            {
+                "id": feedback["id"],
+                "task_name": feedback["task_name"],
+                "feedback": json.dumps(feedback["json_values"], ensure_ascii=False),
+                "matched_completion_ids": ",".join(feedback["matched_completion_ids"]),
+            }
+        )
+    table = Table(title="Feedback")
+    table.add_column("ID")
+    table.add_column("Task Name")
+    table.add_column("Feedback")
+    table.add_column("Completion ID")
 
-    rich.print(res.json())
-    # save res.json() to a file all_feedback.txt
-    with open("all_feedback.txt", "w") as f:
-        f.write(json.dumps(res.json(), indent=4))
-
-    # http://localhost:3000/api/v1/feedback?organization_id=4ffbada7-a483-49f6-83c0-987d07c779ed&offset=0&limit=50
-    # click.echo("List feedback")
+    for item in data_for_table:
+        table.add_row(item["id"], item["task_name"], item["feedback"], item["matched_completion_ids"])
+    console = Console()
+    console.print(table)
+    console.print(f"Total feedback: {len(feedback_data)}")

@@ -1,5 +1,4 @@
 import json
-from datetime import datetime, timezone
 
 import click
 import httpx
@@ -8,28 +7,12 @@ import tqdm
 from rich.console import Console
 from rich.table import Table
 
-from log10._httpx_utils import _try_get
+from log10._httpx_utils import _get_time_diff, _try_get
 from log10.llm import Log10Config
 
 
 # TODO: Support data filters
-# TODO: Support ranges
-# TODO: Support tag filters
-# TODO: Support jsonl output
 _log10_config = Log10Config()
-
-
-def _get_time_diff(created_at):
-    time = datetime.fromisoformat(created_at)
-    now = datetime.now(timezone.utc)
-    diff = now - time
-    # convert the time difference to human readable format
-    if diff.days > 0:
-        return f"{diff.days} days ago"
-    elif diff.seconds > 3600:
-        return f"{diff.seconds//3600} hours ago"
-    elif diff.seconds > 60:
-        return f"{diff.seconds//60} minutes ago"
 
 
 def _get_completion(id: str) -> httpx.Response:

@@ -2,6 +2,7 @@ import json
 import logging
 import time
 import traceback
+from datetime import datetime, timezone
 
 import httpx
 from httpx import Request, Response
@@ -16,6 +17,19 @@ logger: logging.Logger = logging.getLogger("LOG10")
 _log10_config = Log10Config()
 base_url = _log10_config.url
 httpx_client = httpx.Client()
+
+
+def _get_time_diff(created_at):
+    time = datetime.fromisoformat(created_at)
+    now = datetime.now(timezone.utc)
+    diff = now - time
+    # convert the time difference to human readable format
+    if diff.days > 0:
+        return f"{diff.days} days ago"
+    elif diff.seconds > 3600:
+        return f"{diff.seconds//3600} hours ago"
+    elif diff.seconds > 60:
+        return f"{diff.seconds//60} minutes ago"
 
 
 def _try_get(url: str, timeout: int = 10) -> httpx.Response:
