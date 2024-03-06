@@ -216,7 +216,7 @@ def _write_completions(res, output_file, compact_mode):
 )
 @click.option("--compact", is_flag=True, help="Enable to download only the compact version of the output.")
 @click.option("--file", "-f", default="completions.jsonl", help="Specify the filename and path for the output file.")
-def download_completions(limit, offset, timeout, tags, from_date, to_date, output, compact):
+def download_completions(limit, offset, timeout, tags, from_date, to_date, compact, file):
     """
     Download completions to a jsonl file
     """
@@ -230,22 +230,21 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, outpu
         return
 
     total_completions = res.json()["total"]
-    rich.print(f"Download total completions: {total_completions}")
+    offset = int(offset) if offset else 0
+    limit = int(limit) if limit else total_completions
+    rich.print(f"Download total completions: {limit}/{total_completions}")
     if not click.confirm("Do you want to continue?"):
         return
-
-    if not offset:
-        offset = 0
-    if not limit:
-        limit = total_completions
 
     # dowlnoad completions
     pbar = tqdm.tqdm(total=limit)
     batch_size = 10
-    for batch in range(offset, limit, batch_size):
+    end = offset + limit if offset + limit < total_completions else total_completions
+    for batch in range(offset, end, batch_size):
+        current_batch_size = batch_size if batch + batch_size < end else end - batch
         download_url = _get_completions_url(
-            batch_size, batch, tags, from_date, to_date, base_url, org_id, printout=False
+            current_batch_size, batch, tags, from_date, to_date, base_url, org_id, printout=False
         )
         res = _try_get(download_url, timeout)
-        _write_completions(res, output, compact)
-        pbar.update(batch_size if batch + batch_size < limit else limit - batch)
+        _write_completions(res, file, compact)
+        pbar.update(current_batch_size)
