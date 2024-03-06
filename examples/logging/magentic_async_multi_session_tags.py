@@ -11,7 +11,7 @@ log10(openai)
 
 @prompt("What is {a} * {b}?", model=OpenaiChatModel(model="gpt-4-turbo-preview"))
 async def do_math_with_llm_async(a: int, b: int) -> AsyncStreamedStr:  # ruff: ignore
-    ...  # ruff: ignore
+    ...
 
 
 async def main():

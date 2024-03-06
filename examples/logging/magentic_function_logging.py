@@ -1,6 +1,5 @@
 # taken from Magentic README
 # https://github.com/jackmpcollins/magentic/blob/2493419f2db3a3be58fb308d7df51a51bf1989c1/README.md#usage
-
 from typing import Literal
 
 import openai
@@ -21,7 +20,8 @@ def activate_oven(temperature: int, mode: Literal["broil", "bake", "roast"]) -> 
     "Prepare the oven so I can make {food}",
     functions=[activate_oven],
 )
-def configure_oven(food: str) -> FunctionCall[str]: ...
+def configure_oven(food: str) -> FunctionCall[str]:  # ruff: ignore
+    ...
 
 
 output = configure_oven("cookies!")
