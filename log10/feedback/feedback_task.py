@@ -5,10 +5,9 @@ import click
 import httpx
 from dotenv import load_dotenv
 from rich.console import Console
-from rich.panel import Panel
 from rich.table import Table
 
-from log10._httpx_utils import _get_time_diff
+from log10._httpx_utils import _get_time_diff, _try_get
 from log10.llm import Log10Config
 
 
@@ -66,6 +65,16 @@ class FeedbackTask:
             logger.error(e.response.json()["error"])
             raise
 
+    def get(self, id: str) -> httpx.Response:
+        based_url = self._log10_config.url
+        api_url = "/api/v1/feedback_task"
+        get_url = f"{based_url}{api_url}/{id}?organization_id={self._log10_config.org_id}"
+        res = _try_get(get_url)
+        res.raise_for_status()
+        if res.status_code != 200:
+            raise Exception(f"Error fetching feedback task {res.json()}")
+        return res
+
 
 # create a cli interface for FeebackTask.create function
 @click.command()
@@ -112,14 +121,17 @@ def list_feedback_task(limit, offset):
     console = Console()
     console.print(table)
 
-    # prompt user to put a id to get details info
-    while True:
-        task_id = click.prompt("Enter a task id to get details (ctl-c to abort)", type=str)
-        task = next((task for task in feedback_tasks["data"] if task["id"] == task_id), None)
-        if task:
-            console.print("id: ", task["id"])
-            console.print("name: ", task["name"])
-            json_schema = json.dumps(task["json_schema"], indent=2)
-            schema_panel = Panel(json_schema, title="Schema", border_style="green")
 
-            console.print(schema_panel)
+@click.command()
+@click.option("--id", help="Get feedback task by ID")
+def get_feedback_task(id):
+    try:
+        res = FeedbackTask().get(id)
+    except Exception as e:
+        click.echo(f"Error fetching feedback task {e}")
+        if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
+            click.echo(e.response.json()["error"])
+        return
+    task = json.dumps(res.json())
+    console = Console()
+    console.print_json(task)

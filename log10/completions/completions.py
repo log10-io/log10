@@ -11,7 +11,6 @@ from log10._httpx_utils import _get_time_diff, _try_get
 from log10.llm import Log10Config
 
 
-# TODO: Support data filters
 _log10_config = Log10Config()
 
 
@@ -79,17 +78,24 @@ def _get_valid_date_range(from_date, to_date):
 def _render_completions_table(completions_data, total_completions):
     data_for_table = []
     for completion in completions_data:
-        if completion["kind"] == "completion":
-            prompt = completion["request"]["prompt"] if completion.get("request", {}) else ""
-            response = completion["response"]["choices"][0]["text"] if completion.get("response", {}) else ""
-        elif completion["kind"] == "chat":
-            prompt = completion["request"]["messages"][0]["content"] if completion.get("request", {}) else ""
-            if "response" not in completion:
-                prompt = ""
-            elif "message" in completion["response"]["choices"][0]:
-                response = completion["response"]["choices"][0]["message"]["content"]
-            elif "function_call" in completion["response"]["choices"][0]:
-                response = json.dumps(completion["response"]["choices"][0]["function_call"])
+        prompt, response = "", ""
+        if completion.get("kind") == "completion":
+            prompt = completion.get("request", {}).get("prompt", "")
+            response_choices = completion.get("response", {}).get("choices", [])
+            if response_choices:
+                response = response_choices[0].get("text", "")
+        elif completion.get("kind") == "chat":
+            request_messages = completion.get("request", {}).get("messages", [])
+            prompt = request_messages[0].get("content", "") if request_messages else ""
+
+            response_choices = completion.get("response", {}).get("choices", [])
+            if response_choices:
+                # Handle 'message' and 'function_call' within the first choice safely
+                first_choice = response_choices[0]
+                if "message" in first_choice:
+                    response = first_choice["message"].get("content", "")
+                elif "function_call" in first_choice:
+                    response = json.dumps(first_choice.get("function_call", {}))
         else:
             rich.print(f"Unknown completion kind: {completion['kind']} for id: {completion['id']}")
 
@@ -130,12 +136,24 @@ def _render_completions_table(completions_data, total_completions):
 
 
 @click.command()
-@click.option("--limit", default=25, help="Number of completions to fetch")
-@click.option("--offset", default=0, help="Offset for the completions")
-@click.option("--timeout", default=10, help="Timeout for the http request")
-@click.option("--tags", default="", help="Filter completions by tag")
-@click.option("--from", "from_date", type=click.DateTime(), help="Start date of the range. Format: YYYY-MM-DD")
-@click.option("--to", "to_date", type=click.DateTime(), help="End date of the range. Format: YYYY-MM-DD")
+@click.option("--limit", default=25, help="Specify the maximum number of completions to retrieve.")
+@click.option("--offset", default=0, help="Set the starting point (offset) from where to begin fetching completions.")
+@click.option(
+    "--timeout", default=10, help="Set the maximum time (in seconds) allowed for the HTTP request to complete."
+)
+@click.option("--tags", default="", help="Filter completions by specific tags. Separate multiple tags with commas.")
+@click.option(
+    "--from",
+    "from_date",
+    type=click.DateTime(),
+    help="Define the start date for fetching completions (inclusive). Use the format: YYYY-MM-DD.",
+)
+@click.option(
+    "--to",
+    "to_date",
+    type=click.DateTime(),
+    help="Set the end date for fetching completions (inclusive). Use the format: YYYY-MM-DD.",
+)
 def list_completions(limit, offset, timeout, tags, from_date, to_date):
     """
     List completions
@@ -178,16 +196,26 @@ def _write_completions(res, output_file, compact_mode):
 
 
 @click.command()
-@click.option("--limit", default="", help="Number of completions to fetch")
-@click.option("--offset", default="", help="Offset for the completions")
-@click.option("--timeout", default=10, help="Timeout for the http request")
-@click.option("--tags", default="", help="Filter completions by tag")
+@click.option("--limit", default="", help="Specify the maximum number of completions to retrieve.")
+@click.option("--offset", default="", help="Set the starting point (offset) from where to begin fetching completions.")
 @click.option(
-    "--from", "from_date", type=click.DateTime(), help="Start date of the range (inclusive). Format: YYYY-MM-DD"
+    "--timeout", default=10, help="Set the maximum time (in seconds) allowed for the HTTP request to complete."
 )
-@click.option("--to", "to_date", type=click.DateTime(), help="End date of the range (inclusive). Format: YYYY-MM-DD")
-@click.option("--compact", is_flag=True, help="Download the compact output only")
-@click.option("--output", default="completions.jsonl", help="Output file")
+@click.option("--tags", default="", help="Filter completions by specific tags. Separate multiple tags with commas.")
+@click.option(
+    "--from",
+    "from_date",
+    type=click.DateTime(),
+    help="Define the start date for fetching completions (inclusive). Use the format: YYYY-MM-DD.",
+)
+@click.option(
+    "--to",
+    "to_date",
+    type=click.DateTime(),
+    help="Set the end date for fetching completions (inclusive). Use the format: YYYY-MM-DD.",
+)
+@click.option("--compact", is_flag=True, help="Enable to download only the compact version of the output.")
+@click.option("--file", "-f", default="completions.jsonl", help="Specify the filename and path for the output file.")
 def download_completions(limit, offset, timeout, tags, from_date, to_date, output, compact):
     """
     Download completions to a jsonl file

@@ -5,7 +5,9 @@ import click
 import httpx
 from rich.console import Console
 from rich.table import Table
+from tqdm import tqdm
 
+from log10._httpx_utils import _try_get
 from log10.llm import Log10Config
 
 
@@ -73,6 +75,16 @@ class Feedback:
                 logger.error(e.response.json()["error"])
             raise
 
+    def get(self, id: str) -> httpx.Response:
+        base_url = self._log10_config.url
+        api_url = "/api/v1/feedback"
+        get_url = f"{base_url}{api_url}/{id}?organization_id={self._log10_config.org_id}"
+        res = _try_get(get_url)
+        res.raise_for_status()
+        if res.status_code != 200:
+            raise Exception(f"Error fetching feedback: {res.json()}")
+        return res
+
 
 @click.command()
 @click.option("--task_id", prompt="Enter task id", help="Task ID")
@@ -94,14 +106,7 @@ def create_feedback(task_id, values, completion_tags_selector, comment):
     click.echo(feedback.json())
 
 
-@click.command()
-@click.option("--offset", default=0, help="Offset for the feedback")
-@click.option("--limit", default=25, help="Number of feedback to fetch")
-@click.option("--task_id", help="Task ID")
-def list_feedback(offset, limit, task_id):
-    """
-    List feedback
-    """
+def _get_feedback_list(offset, limit, task_id):
     try:
         res = Feedback().list(offset=offset, limit=limit)
     except Exception as e:
@@ -110,8 +115,31 @@ def list_feedback(offset, limit, task_id):
             click.echo(e.response.json()["error"])
         return
     feedback_data = res.json()["data"]
+    # TODO: update when api support filtering by task_id
     if task_id:
         feedback_data = [feedback for feedback in feedback_data if feedback["task_id"] == task_id]
+    return feedback_data
+
+
+@click.command()
+@click.option(
+    "--offset", default=0, type=int, help="The starting index from which to begin the feedback fetch. Defaults to 0."
+)
+@click.option(
+    "--limit", default=25, type=int, help="The maximum number of feedback items to retrieve. Defaults to 25."
+)
+@click.option(
+    "--task_id",
+    required=False,
+    type=str,
+    help="The specific Task ID to filter feedback. If not provided, feedback for all tasks will be fetched.",
+)
+def list_feedback(offset, limit, task_id):
+    """
+    List feedback based on the provided criteria. This command allows fetching feedback for a specific task or across all tasks,
+    with control over the starting point and the number of items to retrieve.
+    """
+    feedback_data = _get_feedback_list(offset, limit, task_id)
     data_for_table = []
     for feedback in feedback_data:
         data_for_table.append(
@@ -133,3 +161,62 @@ def list_feedback(offset, limit, task_id):
     console = Console()
     console.print(table)
     console.print(f"Total feedback: {len(feedback_data)}")
+
+
+@click.command()
+@click.option("--id", help="Get feedback by ID")
+def get_feedback(id):
+    """
+    Get feedback based on provided ID.
+    """
+    try:
+        res = Feedback().get(id)
+    except Exception as e:
+        click.echo(f"Error fetching feedback {e}")
+        if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
+            click.echo(e.response.json()["error"])
+        return
+    console = Console()
+    feedback = json.dumps(res.json(), indent=4)
+    console.print_json(feedback)
+
+
+@click.command()
+@click.option(
+    "--offset",
+    default="",
+    help="The starting index from which to begin the feedback fetch. Leave empty to start from the beginning.",
+)
+@click.option(
+    "--limit", default="", help="The maximum number of feedback items to retrieve. Leave empty to retrieve all."
+)
+@click.option(
+    "--task_id",
+    required=False,
+    type=str,
+    help="The specific Task ID to filter feedback. If not provided, feedback for all tasks will be fetched.",
+)
+@click.option(
+    "--file",
+    "-f",
+    type=str,
+    required=False,
+    help="Path to the file where the feedback will be saved. The feedback data is saved in JSON Lines (jsonl) format. If not specified, feedback will be printed to stdout.",
+)
+def download_feedback(offset, limit, task_id, file):
+    """
+    Download feedback based on the provided criteria. This command allows fetching feedback for a specific task or across all tasks,
+    with control over the starting point and the number of items to retrieve.
+    """
+    feedback_data = _get_feedback_list(offset, limit, task_id)
+
+    console = Console()
+    if not file:
+        for feedback in feedback_data:
+            console.print_json(json.dumps(feedback, indent=4))
+        return
+
+    with open(file, "w") as f:
+        console.print(f"Saving feedback to {file}")
+        for feedback in tqdm(feedback_data):
+            f.write(json.dumps(feedback) + "\n")
