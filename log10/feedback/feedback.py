@@ -107,6 +107,11 @@ def create_feedback(task_id, values, completion_tags_selector, comment):
 
 
 def _get_feedback_list(offset, limit, task_id):
+    # TODO: update when api support filtering by task_id
+    # get all feedback and then filter by task_id
+    if task_id:
+        offset = ""
+        limit = ""
     try:
         res = Feedback().list(offset=offset, limit=limit)
     except Exception as e:
