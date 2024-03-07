@@ -179,7 +179,7 @@ def get_completion(id):
     Get a completion by id
     """
     res = _get_completion(id)
-    rich.print(res.json())
+    rich.print_json(json.dumps(res.json(), indent=4))
 
 
 def _write_completions(res, output_file, compact_mode):
