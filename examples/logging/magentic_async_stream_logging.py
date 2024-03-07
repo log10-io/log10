@@ -10,7 +10,7 @@ log10(openai)
 
 
 @prompt("Tell me a 200-word story about {topic}")
-async def tell_story(topic: str) -> AsyncStreamedStr:
+async def tell_story(topic: str) -> AsyncStreamedStr:  # ruff: ignore
     ...
 
 

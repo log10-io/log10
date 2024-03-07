@@ -2,6 +2,7 @@ import json
 import logging
 import time
 import traceback
+from datetime import datetime, timezone
 
 import httpx
 from httpx import Request, Response
@@ -16,6 +17,46 @@ logger: logging.Logger = logging.getLogger("LOG10")
 _log10_config = Log10Config()
 base_url = _log10_config.url
 httpx_client = httpx.Client()
+
+
+def _get_time_diff(created_at):
+    time = datetime.fromisoformat(created_at)
+    now = datetime.now(timezone.utc)
+    diff = now - time
+    # convert the time difference to human readable format
+    if diff.days > 0:
+        return f"{diff.days} days ago"
+    elif diff.seconds > 3600:
+        return f"{diff.seconds//3600} hours ago"
+    elif diff.seconds > 60:
+        return f"{diff.seconds//60} minutes ago"
+
+
+def _try_get(url: str, timeout: int = 10) -> httpx.Response:
+    httpx_client.headers = {
+        "x-log10-token": _log10_config.token,
+        "x-log10-organization-id": _log10_config.org_id,
+        "Content-Type": "application/json",
+    }
+    httpx_timeout = httpx.Timeout(timeout)
+    try:
+        res = httpx_client.get(url, timeout=httpx_timeout)
+        res.raise_for_status()
+        return res
+    except httpx.HTTPError as http_err:
+        if "401" in str(http_err):
+            logger.error(
+                "Failed anthorization. Please verify that LOG10_TOKEN and LOG10_ORG_ID are set correctly and try again."
+                + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
+            )
+        else:
+            logger.error(f"Failed with error: {http_err}")
+        raise
+    except Exception as e:
+        logger.error(f"Error: {e}")
+        if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
+            logger.error(e.response.json()["error"])
+        raise
 
 
 def _try_post_request(url: str, payload: dict = {}) -> httpx.Response:
