@@ -77,5 +77,16 @@ SUMMARY_USER_MESSAGE = escape_braces(SUMMARY_USER_MESSAGE)
 def summary_feedback_llm_call(examples, prompt) -> str: ...
 
 
-if __name__ == "__main__":
-    print(summary_feedback_llm_call(examples="", prompt=""))
+def get_prompt_response(completion: dict) -> dict:
+    request_messages = completion.get("request", {}).get("messages", [])
+    if len(request_messages) > 1 and request_messages[1].get("content", ""):
+        prompt = request_messages[1].get("content")
+    else:
+        prompt = ""
+
+    response_choices = completion.get("response", {}).get("choices", [])
+    if response_choices and response_choices[0].get("message", {}):
+        response = response_choices[0].get("message", {}).get("content", "")
+    else:
+        response = ""
+    return {"prompt": prompt, "response": response}

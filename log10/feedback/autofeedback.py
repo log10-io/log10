@@ -7,7 +7,7 @@ import click
 import openai
 
 from log10.completions.completions import _get_completion
-from log10.feedback._summary_feedback_utils import summary_feedback_llm_call
+from log10.feedback._summary_feedback_utils import get_prompt_response, summary_feedback_llm_call
 from log10.feedback.feedback import _get_feedback_list
 from log10.load import log10, log10_session
 
@@ -63,10 +63,9 @@ class AutoFeedbackICL:
 
         # Here assumps the completion is summary, prompt is article, response is summary
         if completion_id and not text:
-            completion = _get_completion(completion_id).json()["data"]
-            prompt = completion["request"]["messages"][1]["content"]
-            response = completion["response"]["choices"][0]["message"]["content"]
-            text = json.dumps({"prompt": prompt, "response": response})
+            completion = _get_completion(completion_id)
+            pr = get_prompt_response(completion.json()["data"])
+            text = json.dumps(pr)
 
         logger.info(f"{text=}")
 

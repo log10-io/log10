@@ -62,6 +62,7 @@ class Feedback:
     def list(self, offset: int = 0, limit: int = 25, task_id: str = None) -> httpx.Response:
         base_url = self._log10_config.url
         api_url = "/api/v1/feedback"
+        # TODO update api with task_id filter when available
         url = f"{base_url}{api_url}?organization_id={self._log10_config.org_id}&offset={offset}&limit={limit}"
 
         # GET feedback
