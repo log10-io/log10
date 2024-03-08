@@ -34,7 +34,7 @@ class AutoFeedbackICL:
 
     def _get_examples(self):
         logger.info(f"Getting {self.num_samples} feedback for task {self.task_id}")
-        feedback_data = _get_feedback_list(offset="", limit="", task_id=self.task_id)
+        feedback_data = _get_feedback_list(offset=0, limit="", task_id=self.task_id)
         sampled_feedback = random.sample(feedback_data, self.num_samples)
         few_shot_examples = []
         for fb in sampled_feedback:
