@@ -59,11 +59,10 @@ class Feedback:
         res = self._post_request(self.feedback_create_url, json_payload)
         return res
 
-    def list(self, offset: int = 0, limit: int = 25, task_id: str = None) -> httpx.Response:
+    def list(self, offset: int = 0, limit: int = 50, task_id: str = None) -> httpx.Response:
         base_url = self._log10_config.url
         api_url = "/api/v1/feedback"
-        # TODO update api with task_id filter when available
-        url = f"{base_url}{api_url}?organization_id={self._log10_config.org_id}&offset={offset}&limit={limit}"
+        url = f"{base_url}{api_url}?organization_id={self._log10_config.org_id}&offset={offset}&limit={limit}&task_id={task_id}"
 
         # GET feedback
         try:
@@ -108,22 +107,34 @@ def create_feedback(task_id, values, completion_tags_selector, comment):
 
 
 def _get_feedback_list(offset, limit, task_id):
-    # TODO: update when api support filtering by task_id
-    # get all feedback and then filter by task_id
-    if task_id:
-        offset = ""
-        limit = ""
+    total_fetched = 0
+    feedback_data = []
+    total_feedback = 0
+    if limit:
+        limit = int(limit)
+
     try:
-        res = Feedback().list(offset=offset, limit=limit)
+        while True:
+            fetch_limit = limit - total_fetched if limit else 50
+            res = Feedback().list(offset=offset, limit=fetch_limit, task_id=task_id)
+            new_data = res.json().get("data", [])
+            if total_feedback == 0:
+                total_feedback = res.json().get("total", 0)
+            if not limit:
+                limit = total_feedback
+            feedback_data.extend(new_data)
+
+            current_fetched = len(new_data)
+            total_fetched += current_fetched
+            offset += current_fetched
+            if total_fetched >= limit or total_fetched >= total_feedback:
+                break
     except Exception as e:
         click.echo(f"Error fetching feedback {e}")
         if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
             click.echo(e.response.json()["error"])
-        return
-    feedback_data = res.json()["data"]
-    # TODO: update when api support filtering by task_id
-    if task_id:
-        feedback_data = [feedback for feedback in feedback_data if feedback["task_id"] == task_id]
+        return []
+
     return feedback_data
 
 
@@ -136,7 +147,7 @@ def _get_feedback_list(offset, limit, task_id):
 )
 @click.option(
     "--task_id",
-    required=False,
+    default="",
     type=str,
     help="The specific Task ID to filter feedback. If not provided, feedback for all tasks will be fetched.",
 )
@@ -190,7 +201,7 @@ def get_feedback(id):
 @click.command()
 @click.option(
     "--offset",
-    default="",
+    default=0,
     help="The starting index from which to begin the feedback fetch. Leave empty to start from the beginning.",
 )
 @click.option(
@@ -198,7 +209,7 @@ def get_feedback(id):
 )
 @click.option(
     "--task_id",
-    required=False,
+    default="",
     type=str,
     help="The specific Task ID to filter feedback. If not provided, feedback for all tasks will be fetched.",
 )
