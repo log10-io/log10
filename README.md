@@ -148,6 +148,15 @@ Optimizing prompts requires a lot of manual effort. Log10 provides a copilot tha
 Add feedback to your completions. Checkout the Python [example](/examples/feedback/simple_feedback.py)
 or use CLI `log10 feedback-task create` and `log10 feedback create`. Please check our [doc](https://log10.io/docs/feedback) for more details.
 
+#### AutoFeedback
+Leverage your current feedback and AI by using our AutoFeedback feature to generate feedback automatically. Here’s a quick guide:
+
+* Summary feedback: Use [TLDR summary feedback](/log10/feedback/_summary_feedback_utils.py) rubics to rate summarization.
+* Custom Feedback Rubrics: Integrate your own feedback criteria for personalized assessments.
+* Getting Started: To explore all options and usage details, use CLI `log10 feedback predict --help`.
+
+Feel free to integrate AutoFeedback into your workflow to enhance the feedback and evaluation process.
+
 ### 🔍🐞 Prompt chain debugging
 
 Prompt chains such as those in [Langchain](https://github.com/hwchase17/langchain) can be difficult to debug. Log10 provides prompt provenance, session tracking and call stack functionality to help debug chains.
