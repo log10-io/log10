@@ -72,12 +72,12 @@ SUMMARY_USER_MESSAGE = escape_braces(SUMMARY_USER_MESSAGE)
     SystemMessage(SUMMARY_SYSTEM_PROMPT),
     UserMessage(SUMMARY_USER_MESSAGE),
     UserMessage("Examples: \n{examples}\n\nTest: \n{prompt}"),
-    model=OpenaiChatModel("gpt-3.5-turbo", temperature=0.2),
+    model=OpenaiChatModel("gpt-4-0125-preview", temperature=0.2),
 )
 def summary_feedback_llm_call(examples, prompt) -> str: ...
 
 
-def get_prompt_response(completion: dict) -> dict:
+def flatten_messages(completion: dict) -> dict:
     request_messages = completion.get("request", {}).get("messages", [])
     if len(request_messages) > 1 and request_messages[1].get("content", ""):
         prompt = request_messages[1].get("content")

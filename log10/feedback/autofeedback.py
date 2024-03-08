@@ -5,9 +5,10 @@ from types import FunctionType
 
 import click
 import openai
+from rich.console import Console
 
 from log10.completions.completions import _get_completion
-from log10.feedback._summary_feedback_utils import get_prompt_response, summary_feedback_llm_call
+from log10.feedback._summary_feedback_utils import flatten_messages, summary_feedback_llm_call
 from log10.feedback.feedback import _get_feedback_list
 from log10.load import log10, log10_session
 
@@ -55,6 +56,7 @@ class AutoFeedbackICL:
                     "feedback": json.dumps(feedback_values),
                 }
             )
+        logger.info(f"Sampled completion ids: {[d['completion_id'] for d in few_shot_examples]}")
         return few_shot_examples
 
     def predict(self, text: str = None, completion_id: str = None) -> str:
@@ -64,7 +66,7 @@ class AutoFeedbackICL:
         # Here assumps the completion is summary, prompt is article, response is summary
         if completion_id and not text:
             completion = _get_completion(completion_id)
-            pr = get_prompt_response(completion.json()["data"])
+            pr = flatten_messages(completion.json()["data"])
             text = json.dumps(pr)
 
         logger.info(f"{text=}")
@@ -88,14 +90,15 @@ def auto_feedback_icl(task_id: str, content: str, file: str, completion_id: str,
         click.echo("Only one of --content, --file, or --completion_id should be provided.")
         return
 
+    console = Console()
     auto_feedback_icl = AutoFeedbackICL(task_id, num_samples=num_samples)
     if completion_id:
         results = auto_feedback_icl.predict(completion_id=completion_id)
-        click.echo(results)
+        console.print_json(results)
         return
 
     if file:
         with open(file, "r") as f:
             content = f.read()
     results = auto_feedback_icl.predict(text=content)
-    click.echo(results)
+    console.print_json(results)
