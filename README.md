@@ -141,7 +141,7 @@ Read more here for options for logging using library wrapper, langchain callback
 
 ### 🤖👷 Prompt engineering copilot
 
-Optimizing prompts requires a lot of manual effort. Log10 provides a copilot that can help you with suggestions on how to [optimize your prompt](https://log10.io/docs/prompt_engineering/auto_prompt#how-to-use-auto-prompting-in-log10-python-library). 
+Optimizing prompts requires a lot of manual effort. Log10 provides a copilot that can help you with suggestions on how to [optimize your prompt](https://log10.io/docs/prompt_engineering/auto_prompt#how-to-use-auto-prompting-in-log10-python-library).
 
 ### 👷🔢 Feedback
 
@@ -151,7 +151,8 @@ or use CLI `log10 feedback-task create` and `log10 feedback create`. Please chec
 #### AutoFeedback
 Leverage your current feedback and AI by using our AutoFeedback feature to generate feedback automatically. Here’s a quick guide:
 
-* Summary feedback: Use [TLDR summary feedback](/log10/feedback/_summary_feedback_utils.py) rubics to rate summarization.
+* Summary feedback: Use [TLDR summary feedback](/log10/feedback/_summary_feedback_utils.py) rubics to rate summarization. E.g. `log10 feedback predict --task_id $FEEDBACK_TASK_ID --content '{"prompt": "this is article", "response": "summary of the article."}'`.
+  * You can pass a file containing the context with `--file` or pass a completion from your Log10 logs with `--completion_id`.
 * Custom Feedback Rubrics: Integrate your own feedback criteria for personalized assessments.
 * Getting Started: To explore all options and usage details, use CLI `log10 feedback predict --help`.
 
