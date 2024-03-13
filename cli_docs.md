@@ -85,7 +85,7 @@ output (only showing part of the full raw output):
 ### Feedback Tasks and Feedback
 To start adding feedback, first you need to define a feedback task with [`log10 feedback-task create`](#log10-feedback-task-create). Then you can add feedback to a logged completions with [`log10 feedback create`](#log10-feedback-create). For more details, please refer to this [doc](https://log10.io/docs/feedback/feedback#add-feedback).
 
-To list all feedback tasks, use [`log10 feedback-task list`](#log10-feedback-task-list) and to check the details of a certain feedback task, use [`log10 feedback-task get`](#log10-feedback-task-get)
+To list all feedback tasks, use [`log10 feedback-task list`](#log10-feedback-task-list)
 
 ```bash
 $ log10 feedback-task list
