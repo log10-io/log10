@@ -214,9 +214,14 @@ async def log_async(completion_url, func, **kwargs):
         if "messages" in kwargs:
             kwargs["messages"] = flatten_messages(kwargs["messages"])
 
+        if "anthropic" in func.__module__:
+            if "system" in kwargs:
+                kwargs["messages"].insert(0, {"role": "system", "content": kwargs["system"]})
+
         log_row = {
             # do we want to also store args?
             "status": "started",
+            "kind": "chat" if "chat" in func.__module__ or "messages" in func.__module__ else "completion",
             "orig_module": func.__module__,
             "orig_qualname": func.__qualname__,
             "request": json.dumps(kwargs),
@@ -384,6 +389,69 @@ class StreamingResponseWrapper:
             raise se
 
 
+class AnthropicStreamingResponseWrapper:
+    """
+    Wraps a streaming response object to log the final result and duration to log10.
+    """
+
+    def __init__(self, completion_url, completionID, response, partial_log_row):
+        self.completionID = completionID
+        self.completion_url = completion_url
+        self.partial_log_row = partial_log_row
+        self.response = response
+        self.final_result = ""
+        self.start_time = time.perf_counter()
+        self.message_id = None
+        self.model = None
+        self.finish_reason = None
+        self.input_tokens = 0
+        self.output_tokens = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        chunk = next(self.response)
+        if chunk.type == "message_start":
+            self.model = chunk.message.model
+            self.message_id = chunk.message.id
+            self.input_tokens = chunk.message.usage.input_tokens
+        elif chunk.type == "message_delta":
+            self.finish_reason = chunk.delta.stop_reason
+            self.output_tokens = chunk.usage.output_tokens
+        elif chunk.type == "content_block_delta":
+            self.final_result += chunk.delta.text
+        elif chunk.type == "message_stop":
+            response = {
+                "id": self.message_id,
+                "object": "chat",
+                "model": self.model,
+                "choices": [
+                    {
+                        "index": 0,
+                        "finish_reason": self.finish_reason,
+                        "message": {
+                            "role": "assistant",
+                            "content": self.final_result,
+                        },
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": self.input_tokens,
+                    "completion_tokens": self.output_tokens,
+                    "total_tokens": self.input_tokens + self.output_tokens,
+                },
+            }
+            self.partial_log_row["response"] = json.dumps(response)
+            self.partial_log_row["duration"] = int((time.perf_counter() - self.start_time) * 1000)
+
+            res = post_request(self.completion_url + "/" + self.completionID, self.partial_log_row)
+            if res.status_code != 200:
+                logger.error(f"Failed to insert in log10: {self.partial_log_row} with error {res.text}. Skipping")
+
+        return chunk
+
+
 def flatten_messages(messages):
     flat_messages = []
     for message in messages:
@@ -491,30 +559,50 @@ def intercepting_decorator(func):
                 response = output
                 # Adjust the Anthropic output to match OAI completion output
                 if "anthropic" in type(output).__module__:
+                    if type(output).__name__ == "Stream":
+                        kind = "chat"
+                        return AnthropicStreamingResponseWrapper(
+                            completion_url=completion_url,
+                            completionID=completionID,
+                            response=response,
+                            partial_log_row={
+                                "response": response,
+                                "status": "finished",
+                                "stacktrace": json.dumps(stacktrace),
+                                "kind": kind,
+                                "orig_module": func.__module__,
+                                "orig_qualname": func.__qualname__,
+                                "request": json.dumps(kwargs),
+                                "session_id": sessionID,
+                                "tags": global_tags,
+                            },
+                        )
                     from log10.anthropic import Anthropic
 
-                    response = Anthropic.prepare_response(kwargs["prompt"], output, "text")
-                    kind = "completion"
-                elif type(output).__name__ == "Stream":
-                    kind = "chat"  # Should be "stream", but we don't have that kind yet.
-                    return StreamingResponseWrapper(
-                        completion_url=completion_url,
-                        completionID=completionID,
-                        response=response,
-                        partial_log_row={
-                            "response": response,
-                            "status": "finished",
-                            "stacktrace": json.dumps(stacktrace),
-                            "kind": kind,
-                            "orig_module": func.__module__,
-                            "orig_qualname": func.__qualname__,
-                            "request": json.dumps(kwargs),
-                            "session_id": sessionID,
-                            "tags": global_tags,
-                        },
-                    )
+                    kind = "chat" if response.type == "message" else "completion"
+                    response = Anthropic.prepare_response(output, input_prompt=kwargs.get("prompt", ""))
 
+                    if "system" in kwargs:
+                        kwargs["messages"].insert(0, {"role": "system", "content": kwargs["system"]})
                 else:
+                    if type(output).__name__ == "Stream":
+                        kind = "chat"
+                        return StreamingResponseWrapper(
+                            completion_url=completion_url,
+                            completionID=completionID,
+                            response=response,
+                            partial_log_row={
+                                "response": response,
+                                "status": "finished",
+                                "stacktrace": json.dumps(stacktrace),
+                                "kind": kind,
+                                "orig_module": func.__module__,
+                                "orig_qualname": func.__qualname__,
+                                "request": json.dumps(kwargs),
+                                "session_id": sessionID,
+                                "tags": global_tags,
+                            },
+                        )
                     response = output
                     kind = "chat" if output.object == "chat.completion" else "completion"
 
@@ -690,6 +778,11 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
 
     if module.__name__ == "anthropic":
         attr = module.resources.completions.Completions
+        method = getattr(attr, "create")
+        setattr(attr, "create", intercepting_decorator(method))
+
+        # anthropic Messages completion
+        attr = module.resources.messages.Messages
         method = getattr(attr, "create")
         setattr(attr, "create", intercepting_decorator(method))
     elif module.__name__ == "openai":
