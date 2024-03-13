@@ -1,13 +1,13 @@
 # CLI
 
-Use `log10` CLI to list and download the completions, feedback, and feedback task data at [log10.io](https://log10.io). 
+Use the `log10` CLI to list and download the completions, feedback, and feedback task data at [log10.io](https://log10.io).
 Here's a [demo video](https://www.loom.com/share/4f5da34df6e94b7083b1e33c707deb53?sid=6b48acc4-72f1-49f2-b9ec-99905552781f).
 
 ## Get Started
 
-Install log10-io python package (version >= 0.6.7) and [setup Log10](README.md#⚙️-setup)
+Install the `log10-io` python package (version >= 0.6.7) and [setup Log10](README.md#⚙️-setup)
 ```bash
-pip install log10-io
+$ pip install log10-io
 ```
 
 
@@ -17,7 +17,7 @@ You can list all your completions using [`log10 completions list`](#log10-comple
 ```bash
 $ log10 completions list --tags foo,bar --from 2024-2-1 --to 2024-2-29
 ```
-Output:
+#### Output:
 ```bash
 Filter with tags: foo,bar
 Filter with created date: 2024-02-01 to 2024-02-29
@@ -32,9 +32,9 @@ Filter with created date: 2024-02-01 to 2024-02-29
 │ eb5ee140-6d93-4908-837f-9872345f1677 │ success │ 19 days ago │ You are a ping pong machine. │ Pong!                                     │ bar, foo │
 │                                      │         │             │ Ping?                        │                                           │          │
 │                                      │         │             │                              │                                           │          │
-│ 98250940-bd7c-4b1d-9834-12b8a2fdec73 │ success │ 19 days ago │ Where is the Eiffel Tower?   │ The Eiffel Tower is located in Paris, ... │ bar, foo │                                           
+│ 98250940-bd7c-4b1d-9834-12b8a2fdec73 │ success │ 19 days ago │ Where is the Eiffel Tower?   │ The Eiffel Tower is located in Paris, ... │ bar, foo │
 │                                      │         │             │                              │                                           │          │
-│ b922d686-4aae-42ef-815e-60987sdfge16 │ success │ 19 days ago │ Where is the Eiffel Tower?   │ The Eiffel Tower is located in Paris, ... │ bar, foo │                                           
+│ b922d686-4aae-42ef-815e-60987sdfge16 │ success │ 19 days ago │ Where is the Eiffel Tower?   │ The Eiffel Tower is located in Paris, ... │ bar, foo │
 │                                      │         │             │                              │                                           │          │
 └──────────────────────────────────────┴─────────┴─────────────┴──────────────────────────────┴───────────────────────────────────────────┴──────────┘
 total_completions=5
@@ -50,10 +50,10 @@ Do you want to continue? [y/N]: y
 100%|███████████████████████████████████████████████████████████████████████████| 5/5 [00:03<00:00,  1.31it/s]
 ```
 
-To check the details of a certain completions, use [`log10 completions get`](#log10-completions-get).
-For instance, 
+To retrieve details for a specific completion, use [`log10 completions get`](#log10-completions-get).
+For instance,
 ```bash
- log10 completions get --id 497974e8-c1ed-4de7-90ab-8f104eb870te
+$ log10 completions get --id 497974e8-c1ed-4de7-90ab-8f104eb870te
 ```
 output (only showing part of the full raw output):
 ```
@@ -83,7 +83,7 @@ output (only showing part of the full raw output):
 ```
 
 ### Feedback Tasks and Feedback
-To start adding feedback, first you need to define a feedback task with [`log10 feedback-task create`](#log10-feedback-task-create). Then you can add feedback to a logged completions with [`log10 feedback create`](#log10-feedback-create). For more details, please refer to this [doc](https://log10.io/docs/feedback/feedback#add-feedback).
+To start adding feedback, first you need to define a feedback task with [`log10 feedback-task create`](#log10-feedback-task-create). Then you can add feedback to a logged completions with [`log10 feedback create`](#log10-feedback-create). For more details, you can read more in [log10's user documentation](https://log10.io/docs/feedback/feedback#add-feedback).
 
 To list all feedback tasks, use [`log10 feedback-task list`](#log10-feedback-task-list)
 
@@ -97,12 +97,12 @@ $ log10 feedback-task list
 │ 15a5e099-a56a-49d0-b488 │ 29 days ago │ emoji_feedback_task                        │ feedback                                   │ Provide feedback using emojis                     │
 └─────────────────────────┴─────────────┴────────────────────────────────────────────┴────────────────────────────────────────────┴───────────────────────────────────────────────────┘
 ```
-and check the detail of a task with [`log10 feedback-task get --id`](#log10-feedback-task-get)
+and retrieve details about a specific task with [`log10 feedback-task get --id`](#log10-feedback-task-get)
 
-To list and download your current feedback, use [`log10 feedback list`](#log10-feedback-list) and [`log10 feedback download`](#log10-feedback-download). 
+To list and download your current feedback, use [`log10 feedback list`](#log10-feedback-list) and [`log10 feedback download`](#log10-feedback-download).
 For instance you can list all feedback filtered by a feedback task `--task_id`:
 ```bash
-❯ log10 feedback list --task_id 04405cbc-3420-4901-97b6
+$ log10 feedback list --task_id 04405cbc-3420-4901-97b6
                                                                                                            Feedback
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ ID                      ┃ Task Name                                 ┃ Feedback                                                                                         ┃ Completion ID            ┃
@@ -121,7 +121,7 @@ For instance you can list all feedback filtered by a feedback task `--task_id`:
 ```
 And to download to a JSONL file, use `log10 feedback download --task_id 04405cbc-3420-4901-97b6 --file feedback.jsonl`
 
-To leverage your feedback and use AI to generate more feedback automatically, use [`log10 feedback predict`](#log10-feedback-predict). Please refer to this [doc](https://log10.io/docs/feedback/auto_feedback) for more details. 
+To leverage your feedback and use AI to generate more feedback automatically, use [`log10 feedback predict`](#log10-feedback-predict). Please refer to this [doc](https://log10.io/docs/feedback/auto_feedback) for more details.
 
 ## CLI References
 
