@@ -225,6 +225,9 @@ And provide the following configuration in either a `.env` file, or as environme
 
 **Note** that your environment should have been setup with google cloud credentials. Read more [here](https://cloud.google.com/sdk/gcloud/reference/auth/login) about authenticating.
 
+## CLI for completions and feedback
+We add CLI to manage your completions and feedback. Read more [here](cli_docs.md).
+
 ## 💬 Community
 
 We welcome community participation and feedback. Please leave an issue, submit a PR or join our [Discord](https://discord.gg/CZQvnuRV94). For enterprise use cases, please [contact us](mailto:support@log10.io) to set up a shared slack channel.
