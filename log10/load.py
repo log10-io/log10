@@ -877,3 +877,36 @@ if is_openai_v1():
             if not getattr(openai, "_log10_patched", False):
                 log10(openai)
                 openai._log10_patched = True
+
+
+try:
+    import anthropic
+except ImportError:
+    logger.warning("Anthropic not found. Skipping defining log10.load.Anthropic client.")
+else:
+    from anthropic import Anthropic
+
+    class Anthropic(Anthropic):
+        """
+        Example:
+            >>> from log10.load import Anthropic
+            >>> client = Anthropic(tags=["test", "load_anthropic"])
+            >>> message = client.messages.create(
+            ...     model="claude-3-haiku-20240307",
+            ...     max_tokens=100,
+            ...     temperature=0.9,
+            ...     system="Respond only in Yoda-speak.",
+            ...     messages=[{"role": "user", "content": "How are you today?"}],
+            ... )
+            >>> print(message.content[0].text)
+        """
+
+        def __init__(self, *args, **kwargs):
+            if "tags" in kwargs:
+                global global_tags
+                global_tags = kwargs.pop("tags")
+            super().__init__(*args, **kwargs)
+
+            if not getattr(anthropic, "_log10_patched", False):
+                log10(anthropic)
+                anthropic._log10_patched = True
