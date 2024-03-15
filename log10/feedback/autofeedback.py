@@ -50,13 +50,13 @@ class AutoFeedbackICL:
                 print(e)
                 continue
             completion = res.json()["data"]
-            prompt = completion["request"]["messages"][1]["content"]
-            response = completion["response"]["choices"][0]["message"]["content"]
+            fm = flatten_messages(completion)
+
             few_shot_examples.append(
                 {
                     "completion_id": completion_id,
-                    "prompt": prompt,
-                    "response": response,
+                    "prompt": fm["prompt"],
+                    "response": fm["response"],
                     "feedback": json.dumps(feedback_values),
                 }
             )
