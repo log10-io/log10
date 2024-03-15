@@ -43,7 +43,7 @@ class Anthropic(LLM):
         completion = self.client.completions.create(**chat_request)
         content = completion.completion
 
-        response = Anthropic.prepare_response(chat_request["prompt"], completion, "chat")
+        response = Anthropic.prepare_response(completion, chat_request["prompt"])
 
         self.log_end(
             completion_id,
@@ -83,7 +83,7 @@ class Anthropic(LLM):
         completion = self.client.completions.create(**text_request)
         text = completion.completion
 
-        response = Anthropic.prepare_response(text_request["prompt"], completion, "text")
+        response = Anthropic.prepare_response(completion, text_request["prompt"])
 
         self.log_end(
             completion_id,
@@ -132,30 +132,35 @@ class Anthropic(LLM):
         }
 
     @staticmethod
-    def prepare_response(prompt: str, completion: anthropic.types.Completion, type: str = "text") -> dict:
-        if completion.stop_reason == "stop_sequence":
+    def prepare_response(
+        response: anthropic.types.Completion | anthropic.types.Message, input_prompt: str = ""
+    ) -> dict:
+        if response.stop_reason in ["stop_sequence", "end_turn"]:
             reason = "stop"
-        elif completion.stop_reason == "max_tokens":
+        elif response.stop_reason == "max_tokens":
             reason = "length"
 
-        tokens_usage = Anthropic.create_tokens_usage(prompt, completion.completion)
-        response = {
-            "id": completion.model_extra["log_id"],
+        ret_response = {
+            "id": response.id,
             "object": "completion",
-            "model": completion.model,
+            "model": response.model,
             "choices": [
                 {
                     "index": 0,
                     "finish_reason": reason,
                 }
             ],
-            "usage": tokens_usage,
         }
-        if type == "text":
-            response["choices"][0]["text"] = completion.completion
-        elif type == "chat":
-            response["choices"][0]["message"] = {
-                "role": "assistant",
-                "content": completion.completion,
+        if isinstance(response, anthropic.types.Message):
+            tokens_usage = {
+                "prompt_tokens": response.usage.input_tokens,
+                "completion_tokens": response.usage.output_tokens,
+                "total_tokens": response.usage.input_tokens + response.usage.output_tokens,
             }
-        return response
+            ret_response["choices"][0]["message"] = {"role": response.role, "content": response.content[0].text}
+        elif isinstance(response, anthropic.types.Completion):
+            tokens_usage = Anthropic.create_tokens_usage(input_prompt, response.completion)
+            ret_response["choices"][0]["text"] = response.completion
+        ret_response["usage"] = tokens_usage
+
+        return ret_response

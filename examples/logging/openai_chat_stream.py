@@ -6,7 +6,7 @@ client = OpenAI()
 
 response = client.chat.completions.create(
     model="gpt-3.5-turbo",
-    messages=[{"role": "user", "content": "Count to 200"}],
+    messages=[{"role": "user", "content": "Count to 20"}],
     temperature=0,
     stream=True,
 )
