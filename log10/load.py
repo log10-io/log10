@@ -267,6 +267,7 @@ def log_sync(completion_url, func, **kwargs):
             kwargs.pop("api_key")
         log_row = {
             # do we want to also store args?
+            "kind": "chat" if "chat" in func.__module__ or "messages" in func.__module__ else "completion",
             "status": "started",
             "orig_module": func.__module__,
             "orig_qualname": func.__qualname__,
