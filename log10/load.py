@@ -198,6 +198,7 @@ def log_url(res, completionID):
 async def log_async(completion_url, func, **kwargs):
     global last_completion_response
 
+    kwargs = kwargs.copy()
     res = None
     try:
         res = post_request(completion_url)
@@ -217,6 +218,19 @@ async def log_async(completion_url, func, **kwargs):
         if "anthropic" in func.__module__:
             if "system" in kwargs:
                 kwargs["messages"].insert(0, {"role": "system", "content": kwargs["system"]})
+            if "messages" in kwargs:
+                for m in kwargs["messages"]:
+                    new_content = []
+                    for c in m.get("content", []):
+                        if c.get("type") == "image":
+                            image_type = c.get("source", {}).get("media_type", "")
+                            image_data = c.get("source", {}).get("data", "")
+                            new_content.append(
+                                {"type": "image_url", "image_url": f"data:{image_type};base64,{image_data}"}
+                            )
+                        else:
+                            new_content.append(c)
+                    m["content"] = new_content
 
         log_row = {
             # do we want to also store args?
