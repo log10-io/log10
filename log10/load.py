@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import inspect
 import json
 import logging
 import os
@@ -195,10 +196,9 @@ def log_url(res, completionID):
     logger.debug(f"Completion URL: {full_url}")
 
 
-async def log_async(completion_url, func, **kwargs):
+async def log_async(completion_url, log_row):
     global last_completion_response
 
-    kwargs = kwargs.copy()
     res = None
     try:
         res = post_request(completion_url)
@@ -207,41 +207,6 @@ async def log_async(completion_url, func, **kwargs):
 
         if DEBUG:
             log_url(res, completionID)
-
-        # in case the usage of load(openai) and langchain.ChatOpenAI
-        if "api_key" in kwargs:
-            kwargs.pop("api_key")
-
-        if "messages" in kwargs:
-            kwargs["messages"] = flatten_messages(kwargs["messages"])
-
-        if "anthropic" in func.__module__:
-            if "system" in kwargs:
-                kwargs["messages"].insert(0, {"role": "system", "content": kwargs["system"]})
-            if "messages" in kwargs:
-                for m in kwargs["messages"]:
-                    new_content = []
-                    for c in m.get("content", []):
-                        if c.get("type") == "image":
-                            image_type = c.get("source", {}).get("media_type", "")
-                            image_data = c.get("source", {}).get("data", "")
-                            new_content.append(
-                                {"type": "image_url", "image_url": f"data:{image_type};base64,{image_data}"}
-                            )
-                        else:
-                            new_content.append(c)
-                    m["content"] = new_content
-
-        log_row = {
-            # do we want to also store args?
-            "status": "started",
-            "kind": "chat" if "chat" in func.__module__ or "messages" in func.__module__ else "completion",
-            "orig_module": func.__module__,
-            "orig_qualname": func.__qualname__,
-            "request": json.dumps(kwargs),
-            "session_id": sessionID,
-            "tags": global_tags,
-        }
 
         if target_service == "log10":
             try:
@@ -261,12 +226,12 @@ async def log_async(completion_url, func, **kwargs):
     return completionID
 
 
-def run_async_in_thread(completion_url, func, result_queue, **kwargs):
-    result = asyncio.run(log_async(completion_url=completion_url, func=func, **kwargs))
+def run_async_in_thread(completion_url, log_row, result_queue):
+    result = asyncio.run(log_async(completion_url=completion_url, log_row=log_row))
     result_queue.put(result)
 
 
-def log_sync(completion_url, func, **kwargs):
+def log_sync(completion_url, log_row):
     global last_completion_response
     completionID = None
 
@@ -276,19 +241,6 @@ def log_sync(completion_url, func, **kwargs):
         completionID = res.json()["completionID"]
         if DEBUG:
             log_url(res, completionID)
-        # in case the usage of load(openai) and langchain.ChatOpenAI
-        if "api_key" in kwargs:
-            kwargs.pop("api_key")
-        log_row = {
-            # do we want to also store args?
-            "kind": "chat" if "chat" in func.__module__ or "messages" in func.__module__ else "completion",
-            "status": "started",
-            "orig_module": func.__module__,
-            "orig_qualname": func.__qualname__,
-            "request": json.dumps(kwargs),
-            "session_id": sessionID,
-            "tags": global_tags,
-        }
         res = post_request(completion_url + "/" + completionID, log_row)
     except Exception as e:
         logging.warn(f"LOG10: failed to get completionID from log10: {e}")
@@ -337,7 +289,6 @@ class StreamingResponseWrapper:
     def __next__(self):
         try:
             chunk = next(self.response)
-            # import ipdb; ipdb.set_trace()
             if chunk.choices[0].delta.content:
                 # Here you can intercept and modify content if needed
                 content = chunk.choices[0].delta.content
@@ -486,6 +437,85 @@ def flatten_response(response):
     return response
 
 
+def _get_stack_trace():
+    current_stack_frame = traceback.extract_stack()
+    return [
+        {
+            "file": frame.filename,
+            "line": frame.line,
+            "lineno": frame.lineno,
+            "name": frame.name,
+        }
+        for frame in current_stack_frame
+    ]
+
+
+def _init_log_row(func, **kwargs):
+    kwargs_copy = kwargs.copy()
+
+    log_row = {
+        "status": "started",
+        "orig_module": func.__module__,
+        "orig_qualname": func.__qualname__,
+        "stacktrace": json.dumps(_get_stack_trace()),
+        "session_id": sessionID,
+        "tags": global_tags,
+    }
+
+    # in case the usage of load(openai) and langchain.ChatOpenAI
+    if "api_key" in kwargs_copy:
+        kwargs_copy.pop("api_key")
+
+    # We may have to flatten messages from their ChatCompletionMessage with nested ChatCompletionMessageToolCall to json serializable format
+    # Rewrite in-place
+    if "messages" in kwargs_copy:
+        kwargs_copy["messages"] = flatten_messages(kwargs_copy["messages"])
+
+    # kind and request are set based on the module and qualname
+    # request is based on openai schema
+    if "anthropic" in func.__module__:
+        kind = "chat" if "message" in func.__module__ else "completion"
+        log_row["kind"] = kind
+        # set system message
+        if "system" in kwargs_copy:
+            kwargs_copy["messages"].insert(0, {"role": "system", "content": kwargs_copy["system"]})
+        if "messages" in kwargs_copy:
+            for m in kwargs_copy["messages"]:
+                new_content = []
+                for c in m.get("content", []):
+                    if c.get("type") == "image":
+                        image_type = c.get("source", {}).get("media_type", "")
+                        image_data = c.get("source", {}).get("data", "")
+                        new_content.append(
+                            {"type": "image_url", "image_url": f"data:{image_type};base64,{image_data}"}
+                        )
+                    else:
+                        new_content.append(c)
+                m["content"] = new_content
+    elif "vertexai" in func.__module__:
+        if func.__name__ == "_send_message":
+            # get model name save in ChatSession instance
+            chat_session_instance = inspect.currentframe().f_back.f_back.f_locals["self"]
+            model_name = chat_session_instance._model._model_name.split("/")[-1]
+
+            chat_history = chat_session_instance.history
+            kwargs_copy.update(
+                {"model": model_name, "messages": [{"role": "user", "content": kwargs_copy["content"]}]}
+            )
+            if kwargs_copy.get("generation_config"):
+                for key, value in kwargs_copy["generation_config"].to_dict().items():
+                    if key == "max_output_tokens":
+                        kwargs_copy["max_tokens"] = value
+                    else:
+                        kwargs_copy[key] = value
+    elif "openai" in func.__module__:
+        kind = "chat" if "chat" in func.__module__ else "completion"
+        log_row["kind"] = kind
+    log_row["request"] = json.dumps(kwargs_copy)
+
+    return log_row
+
+
 def intercepting_decorator(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -494,35 +524,24 @@ def intercepting_decorator(func):
         result_queue = queue.Queue()
 
         try:
+            log_row = _init_log_row(func, kwargs)
             with timed_block(sync_log_text + " call duration"):
                 if USE_ASYNC:
                     threading.Thread(
                         target=run_async_in_thread,
                         kwargs={
                             "completion_url": completion_url,
-                            "func": func,
+                            "log_row": log_row,
                             "result_queue": result_queue,
-                            **kwargs,
                         },
                     ).start()
                 else:
-                    completionID = log_sync(completion_url=completion_url, func=func, **kwargs)
+                    completionID = log_sync(completion_url=completion_url, log_row=log_row)
 
                     if completionID is None:
                         logging.warn("LOG10: failed to get completionID from log10. Skipping log.")
                         func_with_backoff(func, *args, **kwargs)
                         return
-
-            current_stack_frame = traceback.extract_stack()
-            stacktrace = [
-                {
-                    "file": frame.filename,
-                    "line": frame.line,
-                    "lineno": frame.lineno,
-                    "name": frame.name,
-                }
-                for frame in current_stack_frame
-            ]
 
             start_time = time.perf_counter()
             output = func_with_backoff(func, *args, **kwargs)
@@ -546,17 +565,9 @@ def intercepting_decorator(func):
             else:
                 failure_kind = type(e).__name__
             failure_reason = str(e)
-            log_row = {
-                "status": "failed",
-                "failure_kind": failure_kind,
-                "failure_reason": failure_reason,
-                "stacktrace": json.dumps(stacktrace),
-                "kind": "completion",
-                "orig_module": func.__module__,
-                "orig_qualname": func.__qualname__,
-                "session_id": sessionID,
-                "tags": global_tags,
-            }
+            log_row["status"] = "failed"
+            log_row["failure_kind"] = failure_kind
+            log_row["failure_reason"] = failure_reason
             try:
                 res = post_request(completion_url + "/" + completionID, log_row)
             except Exception as le:
@@ -573,83 +584,65 @@ def intercepting_decorator(func):
             with timed_block("result call duration (sync)"):
                 response = output
                 # Adjust the Anthropic output to match OAI completion output
-                if "anthropic" in type(output).__module__:
+                if "anthropic" in func.__module__:
                     if type(output).__name__ == "Stream":
-                        kind = "chat"
+                        log_row["response"] = response
+                        log_row["status"] = "finished"
                         return AnthropicStreamingResponseWrapper(
                             completion_url=completion_url,
                             completionID=completionID,
                             response=response,
-                            partial_log_row={
-                                "response": response,
-                                "status": "finished",
-                                "stacktrace": json.dumps(stacktrace),
-                                "kind": kind,
-                                "orig_module": func.__module__,
-                                "orig_qualname": func.__qualname__,
-                                "request": json.dumps(kwargs),
-                                "session_id": sessionID,
-                                "tags": global_tags,
-                            },
+                            partial_log_row=log_row,
                         )
                     from log10.anthropic import Anthropic
 
-                    kind = "chat" if response.type == "message" else "completion"
                     response = Anthropic.prepare_response(output, input_prompt=kwargs.get("prompt", ""))
+                elif "vertexai" in func.__module__:
+                    response = output
+                    reason = response.candidates[0].finish_reason.name
+                    import uuid
 
-                    if "system" in kwargs:
-                        kwargs["messages"].insert(0, {"role": "system", "content": kwargs["system"]})
-                else:
+                    ret_response = {
+                        "id": str(uuid.uuid4()),
+                        "object": "completion",
+                        "choices": [
+                            {
+                                "index": 0,
+                                "finish_reason": str(reason).lower(),
+                                "message": {"role": "assistant", "content": response.text},
+                            }
+                        ],
+                    }
+                    response_dict = response.to_dict()
+                    tokens_usage = {
+                        "prompt_tokens": response_dict["usage_metadata"]["prompt_token_count"],
+                        "completion_tokens": response_dict["usage_metadata"]["candidates_token_count"],
+                        "total_tokens": response_dict["usage_metadata"]["total_token_count"],
+                    }
+                    ret_response["usage"] = tokens_usage
+                    response = ret_response
+                elif "openai" in func.__module__:
                     if type(output).__name__ == "Stream":
-                        kind = "chat"
+                        log_row["response"] = response
                         return StreamingResponseWrapper(
                             completion_url=completion_url,
                             completionID=completionID,
                             response=response,
-                            partial_log_row={
-                                "response": response,
-                                "status": "finished",
-                                "stacktrace": json.dumps(stacktrace),
-                                "kind": kind,
-                                "orig_module": func.__module__,
-                                "orig_qualname": func.__qualname__,
-                                "request": json.dumps(kwargs),
-                                "session_id": sessionID,
-                                "tags": global_tags,
-                            },
+                            partial_log_row=log_row,
                         )
                     response = output
-                    kind = "chat" if output.object == "chat.completion" else "completion"
-
-                    # We may have to flatten messages from their ChatCompletionMessage with nested ChatCompletionMessageToolCall to json serializable format
-                    # Rewrite in-place
-                    if "messages" in kwargs:
-                        kwargs["messages"] = flatten_messages(kwargs["messages"])
 
                     if "choices" in response:
                         response = flatten_response(response)
-
-                # in case the usage of load(openai) and langchain.ChatOpenAI
-                if "api_key" in kwargs:
-                    kwargs.pop("api_key")
 
                 if hasattr(response, "model_dump_json"):
                     response = response.model_dump_json()
                 else:
                     response = json.dumps(response)
 
-                log_row = {
-                    "response": response,
-                    "status": "finished",
-                    "duration": int(duration * 1000),
-                    "stacktrace": json.dumps(stacktrace),
-                    "kind": kind,
-                    "orig_module": func.__module__,
-                    "orig_qualname": func.__qualname__,
-                    "request": json.dumps(kwargs),
-                    "session_id": sessionID,
-                    "tags": global_tags,
-                }
+                log_row["status"] = "finished"
+                log_row["duration"] = int(duration * 1000)
+                log_row["response"] = response
 
                 if target_service == "log10":
                     try:
@@ -849,6 +842,11 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
             attr = module.api_resources.chat_completion.ChatCompletion
             mothod = getattr(attr, "create")
             setattr(attr, "create", intercepting_decorator(mothod))
+    elif module.__name__ == "vertexai":
+        # patch chat send_message function
+        attr = module.generative_models._generative_models.ChatSession
+        method = getattr(attr, "_send_message")
+        setattr(attr, "_send_message", intercepting_decorator(method))
 
         # For future reference:
         # if callable(attr) and isinstance(attr, types.FunctionType):
