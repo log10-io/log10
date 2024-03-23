@@ -9,6 +9,7 @@ import threading
 import time
 import traceback
 from contextlib import contextmanager
+from copy import deepcopy
 from importlib.metadata import version
 
 import backoff
@@ -451,7 +452,7 @@ def _get_stack_trace():
 
 
 def _init_log_row(func, **kwargs):
-    kwargs_copy = kwargs.copy()
+    kwargs_copy = deepcopy(kwargs)
 
     log_row = {
         "status": "started",
@@ -474,27 +475,28 @@ def _init_log_row(func, **kwargs):
     # kind and request are set based on the module and qualname
     # request is based on openai schema
     if "anthropic" in func.__module__:
-        kind = "chat" if "message" in func.__module__ else "completion"
-        log_row["kind"] = kind
+        log_row["kind"] = "chat" if "message" in func.__module__ else "completion"
         # set system message
         if "system" in kwargs_copy:
             kwargs_copy["messages"].insert(0, {"role": "system", "content": kwargs_copy["system"]})
         if "messages" in kwargs_copy:
             for m in kwargs_copy["messages"]:
-                new_content = []
-                for c in m.get("content", []):
-                    if c.get("type") == "image":
-                        image_type = c.get("source", {}).get("media_type", "")
-                        image_data = c.get("source", {}).get("data", "")
-                        new_content.append(
-                            {"type": "image_url", "image_url": f"data:{image_type};base64,{image_data}"}
-                        )
-                    else:
-                        new_content.append(c)
-                m["content"] = new_content
+                if isinstance(m.get("content"), list):
+                    new_content = []
+                    for c in m.get("content", ""):
+                        if c.get("type") == "image":
+                            image_type = c.get("source", {}).get("media_type", "")
+                            image_data = c.get("source", {}).get("data", "")
+                            new_content.append(
+                                {"type": "image_url", "image_url": {"url": f"data:{image_type};base64,{image_data}"}}
+                            )
+                        else:
+                            new_content.append(c)
+                    m["content"] = new_content
     elif "vertexai" in func.__module__:
         if func.__name__ == "_send_message":
             # get model name save in ChatSession instance
+            log_row["kind"] = "chat"
             chat_session_instance = inspect.currentframe().f_back.f_back.f_locals["self"]
             model_name = chat_session_instance._model._model_name.split("/")[-1]
 
@@ -508,6 +510,7 @@ def _init_log_row(func, **kwargs):
                         kwargs_copy["max_tokens"] = value
                     else:
                         kwargs_copy[key] = value
+                kwargs_copy.pop("generation_config")
     elif "openai" in func.__module__:
         kind = "chat" if "chat" in func.__module__ else "completion"
         log_row["kind"] = kind
@@ -524,7 +527,8 @@ def intercepting_decorator(func):
         result_queue = queue.Queue()
 
         try:
-            log_row = _init_log_row(func, kwargs)
+            log_row = _init_log_row(func, **kwargs)
+
             with timed_block(sync_log_text + " call duration"):
                 if USE_ASYNC:
                     threading.Thread(
