@@ -629,6 +629,7 @@ def intercepting_decorator(func):
                 elif "openai" in func.__module__:
                     if type(output).__name__ == "Stream":
                         log_row["response"] = response
+                        log_row["status"] = "finished"
                         return StreamingResponseWrapper(
                             completion_url=completion_url,
                             completionID=completionID,
