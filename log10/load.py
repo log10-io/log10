@@ -500,7 +500,8 @@ def _init_log_row(func, **kwargs):
             chat_session_instance = inspect.currentframe().f_back.f_back.f_locals["self"]
             model_name = chat_session_instance._model._model_name.split("/")[-1]
 
-            chat_history = chat_session_instance.history
+            # TODO how to handle chat history
+            # chat_history = chat_session_instance.history
             kwargs_copy.update(
                 {"model": model_name, "messages": [{"role": "user", "content": kwargs_copy["content"]}]}
             )
