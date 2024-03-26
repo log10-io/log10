@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 name = "log10-io"
 
-version = "0.7.1"
+version = "0.7.2"
 authors = ["log10 team"]
 license = "MIT"
 description = "Unified LLM data management"
@@ -49,6 +49,7 @@ anthropic = "<1"
 mosaicml-cli = "^0.5.30"
 together = "^0.2.7"
 magentic = "^0.17.0"
+google-cloud-aiplatform = "^1.44.0"
 
 [tool.ruff]
 # Never enforce `E501` (line length violations).
