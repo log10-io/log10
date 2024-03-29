@@ -1,6 +1,16 @@
-from magentic import SystemMessage, UserMessage, chatprompt
-from magentic.chat_model.openai_chat_model import OpenaiChatModel
-from magentic.chatprompt import escape_braces
+import sys
+
+
+if sys.version_info < (3, 10):
+    raise RuntimeError("Python 3.10 or higher is required to run summary feedback llm call.")
+
+try:
+    from magentic import SystemMessage, UserMessage, chatprompt
+    from magentic.chat_model.openai_chat_model import OpenaiChatModel
+    from magentic.chatprompt import escape_braces
+except ImportError as error:
+    msg = "To use summary feedback llm call, you need to install magentic package. Please install it using 'pip install log10-io[autofeedback_icl]'"
+    raise ImportError(msg) from error
 
 
 # define prompts for tldr dataset
