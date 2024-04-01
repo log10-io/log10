@@ -59,7 +59,7 @@ class Feedback:
         res = self._post_request(self.feedback_create_url, json_payload)
         return res
 
-    def list(self, offset: int = 0, limit: int = 50, task_id: str = None) -> httpx.Response:
+    def list(self, offset: int = 0, limit: int = 50, task_id: str = "") -> httpx.Response:
         base_url = self._log10_config.url
         api_url = "/api/v1/feedback"
         url = f"{base_url}{api_url}?organization_id={self._log10_config.org_id}&offset={offset}&limit={limit}&task_id={task_id}"
