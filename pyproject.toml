@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 name = "log10-io"
 
-version = "0.7.2"
+version = "0.7.3"
 authors = ["log10 team"]
 license = "MIT"
 description = "Unified LLM data management"
@@ -27,13 +27,14 @@ build = "^0.10.0"
 pytest = "^8.0.0"
 requests-mock = "^1.11.0"
 respx = "^0.20.2"
+ruff = "^0.3.2"
 
 [project.urls]
 "Homepage" = "https://github.com/log10-io/log10"
 "Bug Tracker" = "https://github.com/log10-io/log10/issues"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<4.0"
+python = ">=3.9,<4.0"
 langchain = "<0.2.0"
 openai = "<2"
 requests = "^2.31.0"
@@ -48,8 +49,12 @@ backoff = "^2.2.1"
 anthropic = "<1"
 mosaicml-cli = "^0.5.30"
 together = "^0.2.7"
-magentic = "^0.17.0"
-google-cloud-aiplatform = "^1.44.0"
+google-cloud-aiplatform = ">=1.44.0"
+
+magentic = {version = ">=0.17.0", optional = true, markers = "python_version >= '3.10'"}
+
+[tool.poetry.extras]
+autofeedback_icl = ["magentic"]
 
 [tool.ruff]
 # Never enforce `E501` (line length violations).
