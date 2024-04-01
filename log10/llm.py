@@ -1,13 +1,14 @@
 import json
 import logging
 import os
+import time
 import traceback
 from abc import ABC
+from copy import deepcopy
 from enum import Enum
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 import requests
-
 
 Role = Enum("Role", ["system", "assistant", "user"])
 Kind = Enum("Kind", ["chat", "text"])
@@ -250,3 +251,64 @@ class NoopLLM(LLM):
     def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
         logging.info("Received text completion requst: " + prompt)
         return TextCompletion(text="I'm not a real LLM")
+
+
+class MockLLM(LLM):
+    '''
+    MockLLM is an LLM interface that allows you to mock the behavior of an LLM using any Python function. 
+    It is useful for log10 testing and development without having to setup or call a real LLM.
+    See examples/feedback/echo for an example.
+    '''
+    def __init__(self, hparams: dict = {}, log10_config=None, mock_function: Callable = None):
+        '''
+        hparams: dict = {}
+        log10_config: Log10Config = None
+        mock_function: Callable = None
+        If mock_function is not provided, it is assigned to an identity function.
+        '''
+        super().__init__(hparams, log10_config)
+        self.mock_function = mock_function if mock_function else lambda x: x
+
+    def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
+        request = self.chat_request(messages, hparams)
+
+        start_time = time.perf_counter()
+        content = self.mock_function(messages[-1].content)
+
+        self.completion_id = self.log_start(request, Kind.chat)
+        completion = {
+            "choices": [
+                {
+                    "message": {
+                        "role": "assistant",
+                        "content": content,
+                    }
+                }
+            ]
+        }
+        response = ChatCompletion(
+            role=Role.assistant,
+            content=content,
+            response=completion,
+        )
+
+        self.log_end(
+            self.completion_id,
+            completion,
+            time.perf_counter() - start_time,
+        )
+
+        return response
+
+    def chat_request(self, messages: List[Message], hparams: dict = None) -> dict:
+        merged_hparams = deepcopy(self.hparams)
+        if hparams:
+            merged_hparams.update(hparams)
+
+        return {
+            "messages": [message.to_dict() for message in messages],
+            **merged_hparams,
+        }
+
+    def text(self, prompt: str, hparams: dict = None) -> TextCompletion:
+        return TextCompletion(text="Not implemented in MockLLM")
