@@ -514,12 +514,10 @@ def _init_log_row(func, *args, **kwargs):
                 kwargs_copy.pop("generation_config")
     elif "mistralai" in func.__module__:
         log_row["kind"] = "chat"
-        # get the args[2] is the request arg in self._request("post", request, "v1/chat/completions")
-        # args[0] is the self instance
-        kwargs_copy = deepcopy(args[2])
     elif "openai" in func.__module__:
         kind = "chat" if "chat" in func.__module__ else "completion"
         log_row["kind"] = kind
+
     log_row["request"] = json.dumps(kwargs_copy)
 
     return log_row
@@ -646,10 +644,7 @@ def intercepting_decorator(func):
                     if "choices" in response:
                         response = flatten_response(response)
                 elif "mistralai" in func.__module__:
-                    for o in output:
-                        response = o.copy()
-                        # save to yield mistral response
-                        mistral_response = o
+                    response = output.copy()
 
                 if hasattr(response, "model_dump_json"):
                     response = response.model_dump_json()
@@ -687,9 +682,6 @@ def intercepting_decorator(func):
 
                     except Exception as e:
                         logging.error(f"LOG10: failed to insert in Bigquery: {log_row} with error {e}")
-
-        if "mistralai" in func.__module__:
-            yield mistral_response
 
         return output
 
@@ -814,8 +806,8 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         setattr(attr, "create", intercepting_decorator(method))
     if module.__name__ == "mistralai":
         attr = module.client.MistralClient
-        method = getattr(attr, "_request")
-        setattr(attr, "_request", intercepting_decorator(method))
+        method = getattr(attr, "chat")
+        setattr(attr, "chat", intercepting_decorator(method))
     elif module.__name__ == "openai":
         openai_version = parse(version("openai"))
         global OPENAI_V1
