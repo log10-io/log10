@@ -451,7 +451,7 @@ def _get_stack_trace():
     ]
 
 
-def _init_log_row(func, **kwargs):
+def _init_log_row(func, *args, **kwargs):
     kwargs_copy = deepcopy(kwargs)
 
     log_row = {
@@ -512,6 +512,11 @@ def _init_log_row(func, **kwargs):
                     else:
                         kwargs_copy[key] = value
                 kwargs_copy.pop("generation_config")
+    elif "mistralai" in func.__module__:
+        log_row["kind"] = "chat"
+        # get the args[2] is the request arg in self._request("post", request, "v1/chat/completions")
+        # args[0] is the self instance
+        kwargs_copy = deepcopy(args[2])
     elif "openai" in func.__module__:
         kind = "chat" if "chat" in func.__module__ else "completion"
         log_row["kind"] = kind
@@ -528,7 +533,7 @@ def intercepting_decorator(func):
         result_queue = queue.Queue()
 
         try:
-            log_row = _init_log_row(func, **kwargs)
+            log_row = _init_log_row(func, *args, **kwargs)
 
             with timed_block(sync_log_text + " call duration"):
                 if USE_ASYNC:
@@ -636,10 +641,15 @@ def intercepting_decorator(func):
                             response=response,
                             partial_log_row=log_row,
                         )
-                    response = output
+                    response = output.copy()
 
                     if "choices" in response:
                         response = flatten_response(response)
+                elif "mistralai" in func.__module__:
+                    for o in output:
+                        response = o.copy()
+                        # save to yield mistral response
+                        mistral_response = o
 
                 if hasattr(response, "model_dump_json"):
                     response = response.model_dump_json()
@@ -678,6 +688,9 @@ def intercepting_decorator(func):
                     except Exception as e:
                         logging.error(f"LOG10: failed to insert in Bigquery: {log_row} with error {e}")
 
+        if "mistralai" in func.__module__:
+            yield mistral_response
+
         return output
 
     return wrapper
@@ -689,7 +702,7 @@ def set_sync_log_text(USE_ASYNC=True):
 
 def log10(module, DEBUG_=False, USE_ASYNC_=True):
     """Intercept and overload module for logging purposes
-    support both openai V0 and V1, and anthropic
+    support both openai V0 and V1, anthropic, vertexai, and mistralai
 
     Keyword arguments:
     module -- the module to be intercepted (e.g. openai)
@@ -799,6 +812,10 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         attr = module.resources.messages.Messages
         method = getattr(attr, "create")
         setattr(attr, "create", intercepting_decorator(method))
+    if module.__name__ == "mistralai":
+        attr = module.client.MistralClient
+        method = getattr(attr, "_request")
+        setattr(attr, "_request", intercepting_decorator(method))
     elif module.__name__ == "openai":
         openai_version = parse(version("openai"))
         global OPENAI_V1
