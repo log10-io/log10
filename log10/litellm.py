@@ -81,8 +81,8 @@ class Log10LitellmLogger(CustomLogger, LLM):
     def log_failure_event(self, kwargs, response_obj, start_time, end_time):
         update_log_row = {
             "status": "failed",
-            "failure_kind": type(kwargs['exception']).__name__,
-            "failure_reason": kwargs['exception'].message,
+            "failure_kind": type(kwargs["exception"]).__name__,
+            "failure_reason": kwargs["exception"].message,
         }
 
         litellm_call_id = kwargs.get("litellm_call_id")
