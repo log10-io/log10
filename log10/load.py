@@ -283,6 +283,7 @@ class StreamingResponseWrapper:
         self.gpt_id = None
         self.model = None
         self.finish_reason = None
+        self.usage = None
 
     def __iter__(self):
         return self
@@ -290,7 +291,7 @@ class StreamingResponseWrapper:
     def __next__(self):
         try:
             chunk = next(self.response)
-            if chunk.choices[0].delta.content:
+            if hasattr(chunk.choices[0].delta, "content") and chunk.choices[0].delta.content is not None:
                 # Here you can intercept and modify content if needed
                 content = chunk.choices[0].delta.content
                 self.final_result += content  # Save the content
@@ -298,6 +299,14 @@ class StreamingResponseWrapper:
 
                 self.model = chunk.model
                 self.gpt_id = chunk.id
+
+                # for mistral stream
+                if chunk.choices[0].finish_reason:
+                    self.finish_reason = chunk.choices[0].finish_reason
+
+                # for mistral stream
+                if getattr(chunk, "usage", None):
+                    self.usage = chunk.usage
             elif chunk.choices[0].delta.function_call:
                 arguments = chunk.choices[0].delta.function_call.arguments
                 self.function_arguments += arguments
@@ -342,6 +351,8 @@ class StreamingResponseWrapper:
                         }
                     ],
                 }
+            if self.usage:
+                response["usage"] = self.usage.dict()
             self.partial_log_row["response"] = json.dumps(response)
             self.partial_log_row["duration"] = int((time.perf_counter() - self.start_time) * 1000)
 
@@ -451,7 +462,7 @@ def _get_stack_trace():
     ]
 
 
-def _init_log_row(func, *args, **kwargs):
+def _init_log_row(func, **kwargs):
     kwargs_copy = deepcopy(kwargs)
 
     log_row = {
@@ -531,7 +542,7 @@ def intercepting_decorator(func):
         result_queue = queue.Queue()
 
         try:
-            log_row = _init_log_row(func, *args, **kwargs)
+            log_row = _init_log_row(func, **kwargs)
 
             with timed_block(sync_log_text + " call duration"):
                 if USE_ASYNC:
@@ -644,6 +655,15 @@ def intercepting_decorator(func):
                     if "choices" in response:
                         response = flatten_response(response)
                 elif "mistralai" in func.__module__:
+                    if "stream" in func.__qualname__:
+                        log_row["response"] = response
+                        log_row["status"] = "finished"
+                        return StreamingResponseWrapper(
+                            completion_url=completion_url,
+                            completionID=completionID,
+                            response=response,
+                            partial_log_row=log_row,
+                        )
                     response = output.copy()
 
                 if hasattr(response, "model_dump_json"):
@@ -808,6 +828,9 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         attr = module.client.MistralClient
         method = getattr(attr, "chat")
         setattr(attr, "chat", intercepting_decorator(method))
+
+        method = getattr(attr, "chat_stream")
+        setattr(attr, "chat_stream", intercepting_decorator(method))
     elif module.__name__ == "openai":
         openai_version = parse(version("openai"))
         global OPENAI_V1
