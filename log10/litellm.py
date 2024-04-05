@@ -79,7 +79,19 @@ class Log10LitellmLogger(CustomLogger, LLM):
         self.log_end(run["completion_id"], response_obj.dict(), duration)
 
     def log_failure_event(self, kwargs, response_obj, start_time, end_time):
-        pass
+        update_log_row = {
+            "status": "failed",
+            "failure_kind": type(kwargs['exception']).__name__,
+            "failure_reason": kwargs['exception'].message,
+        }
+
+        litellm_call_id = kwargs.get("litellm_call_id")
+        run = self.runs.get(litellm_call_id, None)
+        self.api_request(
+            f"/api/completions/{run['completion_id']}",
+            "POST",
+            update_log_row,
+        )
 
     #### ASYNC #### - for acompletion/aembeddings
 
@@ -90,10 +102,7 @@ class Log10LitellmLogger(CustomLogger, LLM):
         logger.debug(
             f"**\n**async_log_success_event**\n**\n: kwargs:\n {kwargs} response_obj:\n {response_obj} \n\n {start_time} \n\n duration: {end_time - start_time}"
         )
-        litellm_call_id = kwargs.get("litellm_call_id")
-        run = self.runs.get(litellm_call_id, None)
-        duration = (end_time - start_time).total_seconds()
-        self.log_end(run["completion_id"], response_obj.dict(), duration)
+        self.log_success_event(kwargs, response_obj, start_time, end_time)
 
     async def async_log_failure_event(self, kwargs, response_obj, start_time, end_time):
-        pass
+        self.log_failure_event(kwargs, response_obj, start_time, end_time)
