@@ -172,6 +172,7 @@ class _LogResponse(Response):
             full_content = ""
             function_name = ""
             full_argument = ""
+            tool_calls = []
             responses = full_response.split("\n\n")
             for r in responses:
                 if "data: [DONE]" in r:
@@ -196,24 +197,33 @@ class _LogResponse(Response):
                     if "arguments" in delta["function_call"]:
                         full_argument += delta["function_call"]["arguments"]
 
+                if tc := delta.get("tool_calls", []):
+                    if tc[0].get("id", ""):
+                        tool_calls.append(tc[0])
+                    elif tc[0].get("function", {}).get("arguments", ""):
+                        idx = tc[0].get("index")
+                        tool_calls[idx]["function"]["arguments"] += tc[0]["function"]["arguments"]
+
             response_json = r_json.copy()
             response_json["object"] = "completion"
+            # r_json is the last response before "data: [DONE]"
+            # it contains the finish_reason
+            finish_reason = response_json["choices"][0]["finish_reason"]
 
             # If finish_reason is function_call - don't log the response
             if not (
                 "choices" in response_json
                 and response_json["choices"]
-                and response_json["choices"][0]["finish_reason"] == "function_call"
+                and response_json["choices"][0]["finish_reason"] in ["function_call", "tool_calls"]
             ):
-                response_json["choices"][0]["message"] = {
-                    "role": "assistant",
-                    "content": full_content,
-                }
-            else:
+                response_json["choices"][0]["message"] = {"role": "assistant", "content": full_content}
+            elif finish_reason == "function_call":
                 response_json["choices"][0]["function_call"] = {
                     "name": function_name,
                     "arguments": full_argument,
                 }
+            elif finish_reason == "tool_calls":
+                response_json["choices"][0]["tool_calls"] = tool_calls
 
             log_row = {
                 "response": json.dumps(response_json),
