@@ -17,6 +17,7 @@ logger: logging.Logger = logging.getLogger("LOG10")
 _log10_config = Log10Config()
 base_url = _log10_config.url
 httpx_client = httpx.Client()
+httpx_async_client = httpx.AsyncClient()
 
 
 def _get_time_diff(created_at):
@@ -91,10 +92,9 @@ async def _try_post_request_async(url: str, payload: dict = {}) -> httpx.Respons
     }
     payload["organization_id"] = _log10_config.org_id
     try:
-        async with httpx.AsyncClient() as client:
-            res = await client.post(url, headers=headers, json=payload)
-            res.raise_for_status()
-            return res
+        res = await httpx_async_client.post(url, headers=headers, json=payload)
+        res.raise_for_status()
+        return res
     except httpx.HTTPStatusError as http_err:
         if "401" in str(http_err):
             logger.error(
