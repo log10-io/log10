@@ -258,6 +258,7 @@ class StreamingResponseWrapper:
         self.model = None
         self.finish_reason = None
         self.usage = None
+        self.tool_calls = []
 
     def __iter__(self):
         return self
@@ -286,8 +287,18 @@ class StreamingResponseWrapper:
                 self.function_arguments += arguments
                 if not self.function_name and chunk.choices[0].delta.function_call.name:
                     self.function_name = chunk.choices[0].delta.function_call.name
-            else:
+            elif tc := chunk.choices[0].delta.tool_calls:
+                # self.tool_calls is a list
+                if tc[0].id:
+                    self.tool_calls.append(tc[0].dict())
+                elif tc[0].function.arguments:
+                    self.tool_calls[tc[0].index]["function"]["arguments"] += tc[0].function.arguments
+            elif chunk.choices[0].finish_reason:
                 self.finish_reason = chunk.choices[0].finish_reason
+
+                # in Magentic stream, this is reached instead of StopIteration
+                if self.finish_reason == "stop":
+                    raise StopIteration
 
             return chunk
         except StopIteration as se:
@@ -322,6 +333,19 @@ class StreamingResponseWrapper:
                                 "name": self.function_name,
                                 "arguments": self.function_arguments,
                             },
+                        }
+                    ],
+                }
+            elif self.tool_calls:
+                response = {
+                    "id": self.gpt_id,
+                    "object": "completion",
+                    "model": self.model,
+                    "choices": [
+                        {
+                            "index": 0,
+                            "finish_reason": self.finish_reason,
+                            "tool_calls": self.tool_calls,
                         }
                     ],
                 }
