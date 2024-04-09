@@ -6,6 +6,7 @@ import logging
 import os
 import queue
 import threading
+import uuid
 import time
 import traceback
 from contextlib import contextmanager
@@ -38,7 +39,6 @@ if target_service == "bigquery":
     from log10.bigquery import initialize_bigquery
 
     bigquery_client, bigquery_table = initialize_bigquery()
-    import uuid
     from datetime import datetime, timezone
 elif target_service is None:
     target_service = "log10"  # default to log10
@@ -130,7 +130,7 @@ def get_session_id():
             + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
         )
 
-    return session_id
+    return str(uuid.uuid4())
 
 
 # Global variable to store the current sessionID.

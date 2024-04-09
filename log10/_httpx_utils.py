@@ -2,6 +2,7 @@ import json
 import logging
 import time
 import traceback
+import uuid
 from datetime import datetime, timezone
 
 import httpx
@@ -112,14 +113,7 @@ async def get_completion_id(request: Request):
         logger.warning("Currently logging is only available for v1/chat/completions.")
         return
 
-    completion_url = "/api/completions"
-    res = await _try_post_request_async(url=f"{base_url}{completion_url}")
-    try:
-        completion_id = res.json().get("completionID")
-    except Exception as e:
-        logger.error(f"Failed to get completion ID. Error: {e}. Skipping completion recording.")
-    else:
-        request.headers["x-log10-completion-id"] = completion_id
+    request.headers["x-log10-completion-id"] = str(uuid.uuid4())
 
 
 async def log_request(request: Request):
