@@ -252,12 +252,16 @@ class NoopLLM(LLM):
         logging.info("Received text completion requst: " + prompt)
         return TextCompletion(text="I'm not a real LLM")
 
-
 class MockLLM(LLM):
     '''
     MockLLM is an LLM interface that allows you to mock the behavior of an LLM using any Python function. 
     It is useful for log10 testing and development without having to setup or call a real LLM.
-    See examples/feedback/echo for an example.
+    Example:
+    >>> from log10.llm import MockLLM, Message, Log10Config
+    >>> # a mock llm that reverses that reverses any input
+    >>> client = MockLLM(mock_function=lambda x: str(x)[::-1], log10_config=config)
+    >>> response = client.chat([Message(role="user", content="hello world")])
+    For a longer example, see examples/feedback/echo
     '''
     def __init__(self, hparams: dict = {}, log10_config=None, mock_function: Callable = None):
         '''
@@ -266,14 +270,16 @@ class MockLLM(LLM):
         mock_function: Callable = None
         If mock_function is not provided, it is assigned to an identity function.
         '''
+        hparams["model"] = hparams.get("model", "MockLLM")
         super().__init__(hparams, log10_config)
-        self.mock_function = mock_function if mock_function else lambda x: x
+        self.mock_function = mock_function
 
     def chat(self, messages: List[Message], hparams: dict = None) -> ChatCompletion:
         request = self.chat_request(messages, hparams)
 
         start_time = time.perf_counter()
-        content = self.mock_function(messages[-1].content)
+        content = messages[-1].content if len(messages) > 0 else ""
+        content = self.mock_function(content)
 
         self.completion_id = self.log_start(request, Kind.chat)
         completion = {
@@ -298,6 +304,17 @@ class MockLLM(LLM):
             time.perf_counter() - start_time,
         )
 
+        return response
+    
+    def chat_expected(self, messages: List[Message], expected: Message, hparams: dict = None) -> ChatCompletion:
+        '''
+        Similar to chat, except it takes a list of messages and a single expected message.
+        It will return the expected message. 
+        '''
+        tmp_mock_func = self.mock_function
+        self.mock_function = lambda _: expected.content
+        response = self.chat(messages, hparams)
+        self.mock_function = tmp_mock_func
         return response
 
     def chat_request(self, messages: List[Message], hparams: dict = None) -> dict:
