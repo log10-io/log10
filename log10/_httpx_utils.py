@@ -155,7 +155,6 @@ class _LogResponse(Response):
 
             if "data: [DONE]" in full_response:
                 finished = True
-                print(full_response)
 
                 completion_id = self.request.headers.get("x-log10-completion-id", "")
                 if finished and completion_id:
