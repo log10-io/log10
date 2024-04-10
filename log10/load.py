@@ -6,9 +6,9 @@ import logging
 import os
 import queue
 import threading
-import uuid
 import time
 import traceback
+import uuid
 from contextlib import contextmanager
 from copy import deepcopy
 from importlib.metadata import version
@@ -102,35 +102,9 @@ post_session_request = functools.partial(post_request, url + "/api/sessions", {}
 
 
 def get_session_id():
-    if target_service == "bigquery":
-        return str(uuid.uuid4())
-
-    session_id = None
-    try:
-        res = post_session_request()
-        session_id = res.json()["sessionID"]
-    except requests.HTTPError as http_err:
-        if "401" in str(http_err):
-            logging.warn(
-                "Failed anthorization. Please verify that LOG10_TOKEN and LOG10_ORG_ID are set correctly and try again."
-                + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
-            )
-        else:
-            logging.warn(f"Failed to create LOG10 session. Error: {http_err}")
-    except requests.ConnectionError:
-        logging.warn(
-            "Invalid LOG10_URL. Please verify that LOG10_URL is set correctly and try again."
-            + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
-        )
-    except Exception as e:
-        logging.warn(
-            "Failed to create LOG10 session: "
-            + str(e)
-            + "\nLikely cause: LOG10 env vars missing or not picked up correctly!"
-            + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
-        )
-
-    return str(uuid.uuid4())
+    id = str(uuid.uuid4())
+    logger.debug(f"Session ID: {id}")
+    return id
 
 
 # Global variable to store the current sessionID.
