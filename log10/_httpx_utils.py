@@ -2,6 +2,7 @@ import json
 import logging
 import time
 import traceback
+import uuid
 from datetime import datetime, timezone
 
 import httpx
@@ -17,6 +18,7 @@ logger: logging.Logger = logging.getLogger("LOG10")
 _log10_config = Log10Config()
 base_url = _log10_config.url
 httpx_client = httpx.Client()
+httpx_async_client = httpx.AsyncClient()
 
 
 def _get_time_diff(created_at):
@@ -83,19 +85,35 @@ def _try_post_request(url: str, payload: dict = {}) -> httpx.Response:
         logger.error(f"Failed to insert in log10: {payload} with error {err}")
 
 
+async def _try_post_request_async(url: str, payload: dict = {}) -> httpx.Response:
+    headers = {
+        "x-log10-token": _log10_config.token,
+        "x-log10-organization-id": _log10_config.org_id,
+        "Content-Type": "application/json",
+    }
+    payload["organization_id"] = _log10_config.org_id
+    try:
+        res = await httpx_async_client.post(url, headers=headers, json=payload)
+        res.raise_for_status()
+        return res
+    except httpx.HTTPStatusError as http_err:
+        if "401" in str(http_err):
+            logger.error(
+                "Failed authorization. Please verify that LOG10_TOKEN and LOG10_ORG_ID are set correctly and try again."
+                + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
+            )
+        else:
+            logger.error(f"Failed with error: {http_err}")
+    except Exception as err:
+        logger.error(f"Failed to insert in log10: {payload} with error {err}")
+
+
 async def get_completion_id(request: Request):
     if "v1/chat/completions" not in str(request.url):
         logger.warning("Currently logging is only available for v1/chat/completions.")
         return
 
-    completion_url = "/api/completions"
-    res = _try_post_request(url=f"{base_url}{completion_url}")
-    try:
-        completion_id = res.json().get("completionID")
-    except Exception as e:
-        logger.error(f"Failed to get completion ID. Error: {e}. Skipping completion recording.")
-    else:
-        request.headers["x-log10-completion-id"] = completion_id
+    request.headers["x-log10-completion-id"] = str(uuid.uuid4())
 
 
 async def log_request(request: Request):
@@ -125,7 +143,7 @@ async def log_request(request: Request):
     }
     if get_log10_session_tags():
         log_row["tags"] = get_log10_session_tags()
-    _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+    await _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
 
 
 class _LogResponse(Response):
@@ -205,7 +223,7 @@ class _LogResponse(Response):
             }
             if get_log10_session_tags():
                 log_row["tags"] = get_log10_session_tags()
-            _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+            await _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
 
 
 class _LogTransport(httpx.AsyncBaseTransport):
@@ -246,7 +264,7 @@ class _LogTransport(httpx.AsyncBaseTransport):
             }
             if get_log10_session_tags():
                 log_row["tags"] = get_log10_session_tags()
-            _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+            await _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
             return response
         elif response.headers.get("content-type") == "text/event-stream":
             return _LogResponse(

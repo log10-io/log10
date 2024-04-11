@@ -8,6 +8,7 @@ import queue
 import threading
 import time
 import traceback
+import uuid
 from contextlib import contextmanager
 from copy import deepcopy
 from importlib.metadata import version
@@ -38,7 +39,6 @@ if target_service == "bigquery":
     from log10.bigquery import initialize_bigquery
 
     bigquery_client, bigquery_table = initialize_bigquery()
-    import uuid
     from datetime import datetime, timezone
 elif target_service is None:
     target_service = "log10"  # default to log10
@@ -102,35 +102,9 @@ post_session_request = functools.partial(post_request, url + "/api/sessions", {}
 
 
 def get_session_id():
-    if target_service == "bigquery":
-        return str(uuid.uuid4())
-
-    session_id = None
-    try:
-        res = post_session_request()
-        session_id = res.json()["sessionID"]
-    except requests.HTTPError as http_err:
-        if "401" in str(http_err):
-            logging.warn(
-                "Failed anthorization. Please verify that LOG10_TOKEN and LOG10_ORG_ID are set correctly and try again."
-                + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
-            )
-        else:
-            logging.warn(f"Failed to create LOG10 session. Error: {http_err}")
-    except requests.ConnectionError:
-        logging.warn(
-            "Invalid LOG10_URL. Please verify that LOG10_URL is set correctly and try again."
-            + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
-        )
-    except Exception as e:
-        logging.warn(
-            "Failed to create LOG10 session: "
-            + str(e)
-            + "\nLikely cause: LOG10 env vars missing or not picked up correctly!"
-            + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
-        )
-
-    return session_id
+    id = str(uuid.uuid4())
+    logger.debug(f"Session ID: {id}")
+    return id
 
 
 # Global variable to store the current sessionID.
@@ -283,6 +257,7 @@ class StreamingResponseWrapper:
         self.gpt_id = None
         self.model = None
         self.finish_reason = None
+        self.usage = None
 
     def __iter__(self):
         return self
@@ -290,7 +265,7 @@ class StreamingResponseWrapper:
     def __next__(self):
         try:
             chunk = next(self.response)
-            if chunk.choices[0].delta.content:
+            if hasattr(chunk.choices[0].delta, "content") and chunk.choices[0].delta.content is not None:
                 # Here you can intercept and modify content if needed
                 content = chunk.choices[0].delta.content
                 self.final_result += content  # Save the content
@@ -298,6 +273,14 @@ class StreamingResponseWrapper:
 
                 self.model = chunk.model
                 self.gpt_id = chunk.id
+
+                # for mistral stream
+                if chunk.choices[0].finish_reason:
+                    self.finish_reason = chunk.choices[0].finish_reason
+
+                # for mistral stream
+                if getattr(chunk, "usage", None):
+                    self.usage = chunk.usage
             elif chunk.choices[0].delta.function_call:
                 arguments = chunk.choices[0].delta.function_call.arguments
                 self.function_arguments += arguments
@@ -342,6 +325,8 @@ class StreamingResponseWrapper:
                         }
                     ],
                 }
+            if self.usage:
+                response["usage"] = self.usage.dict()
             self.partial_log_row["response"] = json.dumps(response)
             self.partial_log_row["duration"] = int((time.perf_counter() - self.start_time) * 1000)
 
@@ -512,9 +497,12 @@ def _init_log_row(func, **kwargs):
                     else:
                         kwargs_copy[key] = value
                 kwargs_copy.pop("generation_config")
+    elif "mistralai" in func.__module__:
+        log_row["kind"] = "chat"
     elif "openai" in func.__module__:
         kind = "chat" if "chat" in func.__module__ else "completion"
         log_row["kind"] = kind
+
     log_row["request"] = json.dumps(kwargs_copy)
 
     return log_row
@@ -636,10 +624,21 @@ def intercepting_decorator(func):
                             response=response,
                             partial_log_row=log_row,
                         )
-                    response = output
+                    response = output.copy()
 
                     if "choices" in response:
                         response = flatten_response(response)
+                elif "mistralai" in func.__module__:
+                    if "stream" in func.__qualname__:
+                        log_row["response"] = response
+                        log_row["status"] = "finished"
+                        return StreamingResponseWrapper(
+                            completion_url=completion_url,
+                            completionID=completionID,
+                            response=response,
+                            partial_log_row=log_row,
+                        )
+                    response = output.copy()
 
                 if hasattr(response, "model_dump_json"):
                     response = response.model_dump_json()
@@ -689,7 +688,7 @@ def set_sync_log_text(USE_ASYNC=True):
 
 def log10(module, DEBUG_=False, USE_ASYNC_=True):
     """Intercept and overload module for logging purposes
-    support both openai V0 and V1, and anthropic
+    support both openai V0 and V1, anthropic, vertexai, and mistralai
 
     Keyword arguments:
     module -- the module to be intercepted (e.g. openai)
@@ -799,6 +798,13 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         attr = module.resources.messages.Messages
         method = getattr(attr, "create")
         setattr(attr, "create", intercepting_decorator(method))
+    if module.__name__ == "mistralai":
+        attr = module.client.MistralClient
+        method = getattr(attr, "chat")
+        setattr(attr, "chat", intercepting_decorator(method))
+
+        method = getattr(attr, "chat_stream")
+        setattr(attr, "chat_stream", intercepting_decorator(method))
     elif module.__name__ == "openai":
         openai_version = parse(version("openai"))
         global OPENAI_V1
