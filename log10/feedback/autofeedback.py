@@ -8,10 +8,16 @@ import openai
 from rich.console import Console
 
 from log10.completions.completions import _get_completion
-from log10.feedback._summary_feedback_utils import flatten_messages, summary_feedback_llm_call
 from log10.feedback.feedback import _get_feedback_list
 from log10.load import log10, log10_session
 
+
+try:
+    from log10.feedback._summary_feedback_utils import flatten_messages, summary_feedback_llm_call
+
+    Magentic_imported = True
+except ImportError:
+    Magentic_imported = False
 
 log10(openai)
 
@@ -28,6 +34,10 @@ class AutoFeedbackICL:
     _predict_func: FunctionType = None
 
     def __init__(self, task_id: str, num_samples: int = 5, predict_func: FunctionType = summary_feedback_llm_call):
+        if not Magentic_imported:
+            raise ImportError(
+                "Log10 feedback predict requires magentic package. Please install using 'pip install log10-io[autofeedback_icl]'"
+            )
         self.num_samples = num_samples
         self.task_id = task_id
         self._predict_func = predict_func
