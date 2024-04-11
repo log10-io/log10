@@ -1,10 +1,14 @@
+import asyncio
 import json
 
+import openai
 from openai import AsyncOpenAI
 from rich import print
 
+from log10.load import log10
 
-# log10(openai)
+
+log10(openai)
 
 client = AsyncOpenAI()
 
@@ -69,9 +73,6 @@ async def run_conversation():
                     tool_calls[-1].function.arguments += tc[0].function.arguments
     print(tool_calls)
     return
-
-
-import asyncio
 
 
 asyncio.run(run_conversation())

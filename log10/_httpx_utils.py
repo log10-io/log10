@@ -222,7 +222,11 @@ class _LogResponse(Response):
                             "arguments": full_argument,
                         }
                     elif finish_reason == "tool_calls":
-                        response_json["choices"][0]["tool_calls"] = tool_calls
+                        response_json["choices"][0]["message"] = {
+                            "content": None,
+                            "role": "assistant",
+                            "tool_calls": tool_calls,
+                        }
 
                     log_row = {
                         "response": json.dumps(response_json),

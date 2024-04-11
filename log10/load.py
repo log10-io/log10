@@ -345,7 +345,11 @@ class StreamingResponseWrapper:
                         {
                             "index": 0,
                             "finish_reason": self.finish_reason,
-                            "tool_calls": self.tool_calls,
+                            "message": {
+                                "content": "",
+                                "role": "assistant",
+                                "tool_calls": self.tool_calls,
+                            },
                         }
                     ],
                 }
