@@ -99,10 +99,16 @@ class Log10LitellmLogger(CustomLogger, LLM):
         pass
 
     async def async_log_success_event(self, kwargs, response_obj, start_time, end_time):
+        if kwargs["call_type"] == "completion":
+            return
+
         logger.debug(
             f"**\n**async_log_success_event**\n**\n: kwargs:\n {kwargs} response_obj:\n {response_obj} \n\n {start_time} \n\n duration: {end_time - start_time}"
         )
         self.log_success_event(kwargs, response_obj, start_time, end_time)
 
     async def async_log_failure_event(self, kwargs, response_obj, start_time, end_time):
+        if kwargs["call_type"] == "completion":
+            return
+
         self.log_failure_event(kwargs, response_obj, start_time, end_time)
