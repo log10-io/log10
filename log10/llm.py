@@ -309,7 +309,7 @@ class MockLLM(LLM):
     def chat_expected(self, messages: List[Message], expected: Message, hparams: dict = None) -> ChatCompletion:
         '''
         Similar to chat, except it takes a list of messages and a single expected message.
-        It will return the expected message. 
+        It will return the expected message. If any `mock_function` is set previously, it will be ignored.
         '''
         tmp_mock_func = self.mock_function
         self.mock_function = lambda _: expected.content
