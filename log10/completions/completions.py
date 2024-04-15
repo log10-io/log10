@@ -8,10 +8,11 @@ import rich
 import tqdm
 from rich.console import Console
 from rich.table import Table
-from tabulate import tabulate
 
 from log10._httpx_utils import _get_time_diff, _try_get
 from log10.llm import Log10Config
+from log10.prompt_analyzer import PromptAnalyzer, convert_suggestion_to_markdown, display_prompt_analyzer_suggestions
+from log10.utils import generate_markdown_report, generate_results_table
 
 
 _log10_config = Log10Config()
@@ -327,9 +328,6 @@ def _render_comparison_table(data):
 
 
 def _create_dataframe_from_comparison_data(data):
-    # return dataframe with columns: completion_id, prompt_messages,model, content, prompt_tokens, completion_tokens, total_tokens, duration
-    # prompt_message is original_request["messages"], dumps to json with indent=4
-
     completion_id = data["completion_id"]
     original_request = data["original_request"]
     rows = []
@@ -372,35 +370,20 @@ def _create_dataframe_from_comparison_data(data):
     return df
 
 
-def _compare(id: str, models: list[str], temperature: float = 0.2, max_tokens: float = 256, top_p: float = 1.0):
-    res = _get_completion(id)
-    data = res.json()["data"]
-    original_model_request = data["request"]
-    original_model_response = data["response"]
-    original_model = original_model_response["model"]
-
-    ret = {
-        "completion_id": id,
-        "original_request": original_model_request,
-        original_model: {
-            "content": original_model_response["choices"][0]["message"]["content"],
-            "usage": original_model_response["usage"],
-            "duration": data["duration"],
-        },
-    }
+def _compare(models: list[str], messages: dict, temperature: float = 0.2, max_tokens: float = 256, top_p: float = 1.0):
+    ret = {}
     if models:
         for model in models:
             rich.print(f"Running {model}")
             response = _get_llm_repsone(
                 model,
-                original_model_request["messages"],
+                messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
                 top_p=top_p,
             )
 
             ret[model] = response
-
     return ret
 
 
@@ -413,9 +396,9 @@ def _compare(id: str, models: list[str], temperature: float = 0.2, max_tokens: f
 @click.option("--temperature", default=0.2, help="Temperature")
 @click.option("--max_tokens", default=512, help="Max tokens")
 @click.option("--top_p", default=1.0, help="Top p")
-# add a option to specify the output file --file
+@click.option("--analyze_prompt", is_flag=True, help="Run prompt analyzer on the messages.")
 @click.option("--file", "-f", help="Specify the filename for the report in markdown format.")
-def report(ids, tags, limit, offset, models, temperature, max_tokens, top_p, file):
+def benchmark_models(ids, tags, limit, offset, models, temperature, max_tokens, top_p, file, analyze_prompt):
     if ids and tags:
         raise click.UsageError("--ids and --tags cannot be set together.")
     if (limit or offset) and not tags:
@@ -439,11 +422,39 @@ def report(ids, tags, limit, offset, models, temperature, max_tokens, top_p, fil
         completion_ids = [completion["id"] for completion in completions]
 
     compare_models = models.split(",")
+
     # TODO verify all models are supported
     data = []
     for id in completion_ids:
-        ret = _compare(id, compare_models, temperature, max_tokens, top_p)
-        data.append(ret)
+        # get message from id
+        completion_data = _get_completion(id).json()["data"]
+        original_model_request = completion_data["request"]
+        original_model_response = completion_data["response"]
+        original_model = original_model_response["model"]
+        benchmark_data = {
+            "completion_id": id,
+            "original_request": original_model_request,
+            original_model: {
+                "content": original_model_response["choices"][0]["message"]["content"],
+                "usage": original_model_response["usage"],
+                "duration": completion_data["duration"],
+            },
+        }
+        messages = original_model_request["messages"]
+        compare_models_data = _compare(compare_models, messages, temperature, max_tokens, top_p)
+        benchmark_data.update(compare_models_data)
+        data.append(benchmark_data)
+
+    prompt_analysis_data = {}
+    if analyze_prompt:
+        rich.print("Analyzing prompts")
+        for item in data:
+            completion_id = item["completion_id"]
+            prompt_messages = item["original_request"]["messages"]
+            all_messages = "\n\n".join([m["content"] for m in prompt_messages])
+            analyzer = PromptAnalyzer()
+            suggestions = analyzer.analyze(all_messages)
+            prompt_analysis_data[completion_id] = suggestions
 
     # create an empty dataframe
     all_df = pd.DataFrame(
@@ -458,28 +469,21 @@ def report(ids, tags, limit, offset, models, temperature, max_tokens, top_p, fil
             "Duration (ms)",
         ]
     )
-    # render data
+
+    #
+    # Display or save the results
+    #
     if not file:
+        # display in terminal using rich
         for ret in data:
             _render_comparison_table(ret)
+            if analyze_prompt:
+                completion_id = ret["completion_id"]
+                suggestions = prompt_analysis_data[completion_id]
+                rich.print(f"Prompt Analysis for completion_id: {completion_id}")
+                display_prompt_analyzer_suggestions(suggestions)
     else:
-
-        def generate_results_table(
-            dataframe: pd.DataFrame, column_list: list[str] = None, section_name: str = ""
-        ) -> str:
-            selected_df = dataframe[column_list] if column_list else dataframe
-            section_name = f"## {section_name}" if section_name else "## Test Results"
-
-            table = tabulate(selected_df, headers="keys", tablefmt="pipe", showindex=True)
-            ret_str = f"{section_name}\n{table}"
-            return ret_str
-
-        def generate_markdown_report(test_name: str, report_strings: list[str]):
-            with open(test_name, "w") as f:
-                f.write(f"Generated from {test_name}.\n\n")
-                for report_string in report_strings:
-                    f.write(report_string + "\n\n")
-
+        # generate markdown report and save to file
         for ret in data:
             df = _create_dataframe_from_comparison_data(ret)
             all_df = pd.concat([all_df, df])
@@ -492,5 +496,16 @@ def report(ids, tags, limit, offset, models, temperature, max_tokens, top_p, fil
 
         pivot_table = generate_results_table(pivot_df, section_name="model comparison")
         all_results_table = generate_results_table(all_df, section_name="All Results")
-        generate_markdown_report(file, [pivot_table, all_results_table])
+
+        prompt_analysis_markdown = ""
+        if analyze_prompt:
+            prompt_analysis_markdown = "## Prompt Analysis\n\n"
+            for completion_id, suggestions in prompt_analysis_data.items():
+                prompt_messages = all_df[all_df["Completion ID"] == completion_id]["Prompt Messages"].values[0]
+                prompt_analysis_markdown += (
+                    f"### Prompt Analysis for completion_id: {completion_id}\n\n{prompt_messages}\n\n"
+                )
+                prompt_analysis_markdown += convert_suggestion_to_markdown(suggestions)
+
+        generate_markdown_report(file, [pivot_table, prompt_analysis_markdown, all_results_table])
         rich.print(f"Report saved to {file}")
