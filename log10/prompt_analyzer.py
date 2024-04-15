@@ -83,7 +83,7 @@ class PromptAnalyzer:
             report = json.dumps(report)
 
         json_payload = {
-            "base_prompt": prompt_json,
+            "base_prompt": json.dumps(prompt_json),
             "report": report,
             "session_id": self.__session_id,
         }
