@@ -265,22 +265,22 @@ def _get_llm_repsone(
     # TODO: use log10 llm abstraction
     start_time = time.perf_counter()
     if "gpt-4" in model or "gpt-3.5" in model:
-        import openai
+        from log10.load import OpenAI
 
-        client = openai.OpenAI()
+        client = OpenAI()
         response = client.chat.completions.create(
             model=model, messages=messages, temperature=temperature, max_tokens=max_tokens, top_p=top_p
         )
         ret["content"] = response.choices[0].message.content
         ret["usage"] = response.usage.dict()
     elif "claude-3" in model:
-        import anthropic
+        from log10.load import Anthropic
 
         system_messages = [m["content"] for m in messages if m["role"] == "system"]
         other_messages = [m for m in messages if m["role"] != "system"]
         system_prompt = ("\n").join(system_messages)
 
-        client = anthropic.Anthropic()
+        client = Anthropic()
         response = client.messages.create(
             model=model,
             system=system_prompt,
@@ -295,13 +295,18 @@ def _get_llm_repsone(
         ret["usage"]["total_tokens"] = response.usage.input_tokens + response.usage.output_tokens
     elif "mistral" in model:
         import mistralai
+        from mistralai.client import MistralClient
 
-        client = mistralai.client.MistralClient()
+        from log10.load import log10
+
+        log10(mistralai)
+
+        client = MistralClient()
         response = client.chat(
             model=model, messages=messages, temperature=temperature, max_tokens=max_tokens, top_p=top_p
         )
         ret["content"] = response.choices[0].message.content
-        ret["usage"] = response.usage.dict()
+        ret["usage"] = response.usage.model_dump()
     else:
         raise ValueError(f"Model {model} not supported.")
     ret["duration"] = int((time.perf_counter() - start_time) * 1000)
@@ -388,12 +393,50 @@ def _compare(models: list[str], messages: dict, temperature: float = 0.2, max_to
     return ret
 
 
+_SUPPORTED_MODELS = [
+    # openai chat models
+    "gpt-4-turbo",
+    "gpt-4-turbo-2024-04-09",
+    "gpt-4-0125-preview",
+    "gpt-4-turbo-preview",
+    "gpt-4-1106-preview",
+    "gpt-4-vision-preview",
+    "gpt-4",
+    "gpt-4-0314",
+    "gpt-4-0613",
+    "gpt-4-32k",
+    "gpt-4-32k-0314",
+    "gpt-4-32k-0613",
+    "gpt-3.5-turbo",
+    "gpt-3.5-turbo-16k",
+    "gpt-3.5-turbo-0301",
+    "gpt-3.5-turbo-0613",
+    "gpt-3.5-turbo-1106",
+    "gpt-3.5-turbo-0125",
+    "gpt-3.5-turbo-16k-0613",
+    # anthropic claude
+    "claude-3-opus-20240229",
+    "claude-3-sonnet-20240229",
+    "claude-3-haiku-20240307",
+    # mistral
+    "mistral-small-latest",
+    "mistral-medium-latest",
+    "mistral-large-latest",
+]
+
+
+def _check_model_support(model: str) -> bool:
+    return model in _SUPPORTED_MODELS
+
+
 @click.command()
-@click.option("--ids", default="", help="Completion ID")
+@click.option("--ids", default="", help="Completion IDs. Separate multiple ids with commas.")
 @click.option("--tags", default="", help="Filter completions by specific tags. Separate multiple tags with commas.")
-@click.option("--limit", help="Specify the maximum number of completions to retrieve.")
-@click.option("--offset", help="Set the starting point (offset) from where to begin fetching completions.")
-@click.option("--models", default="claude-3-haiku-20240307", help="Comma separated list of models to compare")
+@click.option("--limit", help="Specify the maximum number of completions to retrieve filtered by tags.")
+@click.option(
+    "--offset", help="Set the starting point (offset) from where to begin fetching completions filtered by tags."
+)
+@click.option("--models", default="", help="Comma separated list of models to compare")
 @click.option("--temperature", default=0.2, help="Temperature")
 @click.option("--max_tokens", default=512, help="Max tokens")
 @click.option("--top_p", default=1.0, help="Top p")
@@ -409,6 +452,13 @@ def benchmark_models(ids, tags, limit, offset, models, temperature, max_tokens, 
             limit = 5
         if not offset:
             offset = 0
+
+    if not models:
+        raise click.UsageError("--models must be set to compare.")
+    else:
+        for model in models.split(","):
+            if not _check_model_support(model):
+                raise click.UsageError(f"Model {model} is not supported.")
 
     # get completions ids
     completion_ids = []
