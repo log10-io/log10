@@ -293,14 +293,15 @@ def _get_llm_repsone(
         ret["usage"]["prompt_tokens"] = response.usage.input_tokens
         ret["usage"]["completion_tokens"] = response.usage.output_tokens
         ret["usage"]["total_tokens"] = response.usage.input_tokens + response.usage.output_tokens
-    # elif "mistral" in model:
-    #     import mistralai
-    #     client = mistralai.client.MistralClient()
-    #     response = client.chat(
-    #         model=model, messages=messages, temperature=temperature, max_tokens=max_tokens, top_p=top_p
-    #     )
-    #     ret["content"] = response.choices[0].message.content
-    #     ret["usage"] = response.usage.dict()
+    elif "mistral" in model:
+        import mistralai
+
+        client = mistralai.client.MistralClient()
+        response = client.chat(
+            model=model, messages=messages, temperature=temperature, max_tokens=max_tokens, top_p=top_p
+        )
+        ret["content"] = response.choices[0].message.content
+        ret["usage"] = response.usage.dict()
     else:
         raise ValueError(f"Model {model} not supported.")
     ret["duration"] = int((time.perf_counter() - start_time) * 1000)
