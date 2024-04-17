@@ -41,7 +41,7 @@ def _get_tag_id(tag: str) -> str:
 
 def _get_tag_ids(tags):
     tag_ids = []
-    for tag in tags.split(","):
+    for tag in [t for t in tags.split(",") if t]:
         tag_id = _get_tag_id(tag)
         if tag_id:
             tag_ids.append(tag_id)
