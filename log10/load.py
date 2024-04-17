@@ -789,6 +789,9 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
     #         elif inspect.isclass(method):  # Handle nested classes
     #             intercept_class_methods(method)
 
+    if getattr(module, "_log10_patched", False):
+        return
+
     if module.__name__ == "anthropic":
         attr = module.resources.completions.Completions
         method = getattr(attr, "create")
@@ -798,7 +801,7 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         attr = module.resources.messages.Messages
         method = getattr(attr, "create")
         setattr(attr, "create", intercepting_decorator(method))
-    if module.__name__ == "mistralai":
+    elif module.__name__ == "mistralai" and getattr(module, "_log10_patched", False) is False:
         attr = module.client.MistralClient
         method = getattr(attr, "chat")
         setattr(attr, "chat", intercepting_decorator(method))
@@ -868,6 +871,8 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         #     intercept_class_methods(attr)
         # # else: # uncomment if we want to include nested function support
         # #     intercept_nested_functions(attr)
+
+    module._log10_patched = True
 
 
 if is_openai_v1():

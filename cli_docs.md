@@ -82,6 +82,64 @@ output (only showing part of the full raw output):
 }
 ```
 
+You can load completions' prompt messages and compare with other LLM models by using [`log10 completions benchmark_models`](#log10-completions-benchmark_models).
+For instance,
+```bash
+log10 completions benchmark_models --ids 25572f3c-c2f1-45b0-9de8-d96be4c4e544 --models=gpt-3.5-turbo,mistral-small-latest,claude-3-haiku-20240307
+```
+output
+```
+Running gpt-3.5-turbo
+Running mistral-small-latest
+Running claude-3-haiku-20240307
+completion_id: 25572f3c-c2f1-45b0-9de8-d96be4c4e544
+original_request:
+{
+  "model": "gpt-4-0125-preview",
+  "messages": [
+    {
+      "role": "system",
+      "content": "Summarize the article in 30 words."
+    },
+    {
+      "role": "user",
+      "content": "\"Story of Your Life\" is a science fiction novella by American writer Ted Chiang, first published in Starlight 2 in 1998, and in 2002 in Chiang's collection of short stories, Stories of Your Life and Others. Its major themes are language and determinism. \"Story of Your Life\" won the 2000 Nebula Award for Best Novella, as well as the 1999 Theodore Sturgeon Award. It was nominated for the 1999 Hugo Award for Best Novella. The novella has been translated into Italian, Japanese, French and German.[1] A film adaptation of the story, Arrival, was conceived and adapted by Eric Heisserer. Titled and directed by Denis Villeneuve, it was released in 2016. It stars Amy Adams, Jeremy Renner, and Forest Whitaker and was nominated for eight Academy Awards, including Best Picture and Best Adapted Screenplay; it won the award for Best Sound Editing.[2][3][4] The film also won the 2017 Ray Bradbury Award for Outstanding Dramatic Presentation and the Hugo Award for Best Dramatic Presentation."
+    }
+  ],
+  "temperature": 0.2
+}
+╭─────────────────────────┬───────────────────────────────────────────────────────┬──────────────────────────────────┬───────────────╮
+│ Model                   │ Content                                               │ Total Token Usage (Input/Output) │ Duration (ms) │
+├─────────────────────────┼───────────────────────────────────────────────────────┼──────────────────────────────────┼───────────────┤
+│ gpt-4-0125-preview      │ "Story of Your Life" by Ted Chiang explores language  │ 323 (255/68)                     │ 2527          │
+│                         │ and determinism, winning the 2000 Nebula and 1999     │                                  │               │
+│                         │ Theodore Sturgeon Awards. Adapted into the film       │                                  │               │
+│                         │ "Arrival" by Denis Villeneuve in 2016, it received    │                                  │               │
+│                         │ critical acclaim and multiple awards, including an    │                                  │               │
+│                         │ Academy Award for Best Sound Editing.                 │                                  │               │
+├─────────────────────────┼───────────────────────────────────────────────────────┼──────────────────────────────────┼───────────────┤
+│ gpt-3.5-turbo           │ "Story of Your Life" is a science fiction novella by  │ 295 (255/40)                     │ 2345          │
+│                         │ Ted Chiang, exploring themes of language and          │                                  │               │
+│                         │ determinism. It won awards and was adapted into the   │                                  │               │
+│                         │ film Arrival in 2016.                                 │                                  │               │
+├─────────────────────────┼───────────────────────────────────────────────────────┼──────────────────────────────────┼───────────────┤
+│ mistral-small-latest    │ "Story of Your Life" is a Ted Chiang novella          │ 342 (282/60)                     │ 2087          │
+│                         │ exploring language and determinism, winning Nebula    │                                  │               │
+│                         │ and Sturgeon Awards. It was adapted into the 2016     │                                  │               │
+│                         │ film "Arrival," which received multiple Academy Award │                                  │               │
+│                         │ nominations and won for Best Sound Editing.           │                                  │               │
+├─────────────────────────┼───────────────────────────────────────────────────────┼──────────────────────────────────┼───────────────┤
+│ claude-3-haiku-20240307 │ "Story of Your Life" is a science fiction novella by  │ 320 (274/46)                     │ 1944          │
+│                         │ Ted Chiang, exploring themes of language and          │                                  │               │
+│                         │ determinism, winning multiple awards and inspiring a  │                                  │               │
+│                         │ film adaptation, Arrival, which was critically        │                                  │               │
+│                         │ acclaimed.                                            │                                  │               │
+╰─────────────────────────┴───────────────────────────────────────────────────────┴──────────────────────────────────┴───────────────╯
+```
+
+You can also filter the completions by tags and generate a report in markdown file using `--file` or `-f`. And run our prompt analyzer (auto-prompt) using `--analyze_prompt`.
+
+
 ### Feedback Tasks and Feedback
 To start adding feedback, first you need to define a feedback task with [`log10 feedback-task create`](#log10-feedback-task-create). Then you can add feedback to a logged completions with [`log10 feedback create`](#log10-feedback-create). For more details, you can read more in [log10's user documentation](https://log10.io/docs/feedback/feedback#add-feedback).
 
@@ -132,10 +190,39 @@ Usage: log10 completions [OPTIONS] COMMAND [ARGS]...
 
   Manage logs from completions i.e. logs from users
 
+Options:
+  --help  Show this message and exit.
+
 Commands:
-  download  Download completions to a jsonl file
-  get       Get a completion by id
-  list      List completions
+  benchmark_models  Compare completions using different models and...
+  download          Download completions to a jsonl file
+  get               Get a completion by id
+  list              List completions
+```
+
+#### log10 completions benchmark_models
+```bash
+log10 completions benchmark_models --help
+Usage: log10 completions benchmark_models [OPTIONS]
+
+  Compare completions using different models and generate report
+
+Options:
+  --ids TEXT            Completion IDs. Separate multiple ids with commas.
+  --tags TEXT           Filter completions by specific tags. Separate multiple
+                        tags with commas.
+  --limit TEXT          Specify the maximum number of completions to retrieve
+                        filtered by tags.
+  --offset TEXT         Set the starting point (offset) from where to begin
+                        fetching completions filtered by tags.
+  --models TEXT         Comma separated list of models to compare
+  --temperature FLOAT   Temperature
+  --max_tokens INTEGER  Max tokens
+  --top_p FLOAT         Top p
+  --analyze_prompt      Run prompt analyzer on the messages.
+  -f, --file TEXT       Specify the filename for the report in markdown
+                        format.
+  --help                Show this message and exit.
 ```
 
 #### log10 completions download

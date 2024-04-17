@@ -4,12 +4,11 @@ import random
 from types import FunctionType
 
 import click
-import openai
 from rich.console import Console
 
 from log10.completions.completions import _get_completion
 from log10.feedback.feedback import _get_feedback_list
-from log10.load import log10, log10_session
+from log10.load import log10_session
 
 
 try:
@@ -19,7 +18,6 @@ try:
 except ImportError:
     Magentic_imported = False
 
-log10(openai)
 
 logger = logging.getLogger("LOG10")
 logger.setLevel(logging.INFO)
@@ -33,7 +31,7 @@ class AutoFeedbackICL:
     _examples: list[dict] = []
     _predict_func: FunctionType = None
 
-    def __init__(self, task_id: str, num_samples: int = 5, predict_func: FunctionType = summary_feedback_llm_call):
+    def __init__(self, task_id: str, num_samples: int = 5, predict_func: FunctionType = summary_feedback_llm_call if Magentic_imported else None):
         if not Magentic_imported:
             raise ImportError(
                 "Log10 feedback predict requires magentic package. Please install using 'pip install log10-io[autofeedback_icl]'"

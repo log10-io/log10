@@ -262,7 +262,7 @@ def _get_llm_repsone(
     top_p: float = 1.0,
 ):
     ret = {"content": "", "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}, "duration": 0.0}
-    # TODO: use log10 llm abstraction
+
     start_time = time.perf_counter()
     if "gpt-4" in model or "gpt-3.5" in model:
         from log10.load import OpenAI
@@ -314,31 +314,31 @@ def _get_llm_repsone(
     return ret
 
 
-def _render_comparison_table(data):
-    rich.print(f"completion_id: {data['completion_id']}")
+def _render_comparison_table(model_response_raw_data):
+    rich.print(f"completion_id: {model_response_raw_data['completion_id']}")
     rich.print("original_request:")
-    rich.print_json(json.dumps(data["original_request"], indent=4))
+    rich.print_json(json.dumps(model_response_raw_data["original_request"], indent=4))
 
     table = rich.table.Table(show_header=True, header_style="bold magenta", box=rich.box.ROUNDED, show_lines=True)
     table.add_column("Model")
     table.add_column("Content")
-    table.add_column("Usage (prompt/completion)")
+    table.add_column("Total Token Usage (Input/Output)")
     table.add_column("Duration (ms)")
 
-    for model, data in data.items():
-        if model not in ["completion_id", "original_request"]:
+    for model, data in model_response_raw_data.items():
+        if model in _SUPPORTED_MODELS:
             usage = data["usage"]
             formatted_usage = f"{usage['total_tokens']} ({usage['prompt_tokens']}/{usage['completion_tokens']})"
             table.add_row(model, data["content"], formatted_usage, str(data["duration"]))
     rich.print(table)
 
 
-def _create_dataframe_from_comparison_data(data):
-    completion_id = data["completion_id"]
-    original_request = data["original_request"]
+def _create_dataframe_from_comparison_data(model_response_raw_data):
+    completion_id = model_response_raw_data["completion_id"]
+    original_request = model_response_raw_data["original_request"]
     rows = []
-    for model, model_data in data.items():
-        if model not in ["completion_id", "original_request"]:
+    for model, model_data in model_response_raw_data.items():
+        if model in _SUPPORTED_MODELS:
             content = model_data["content"]
             usage = model_data["usage"]
             prompt_tokens = usage["prompt_tokens"]
@@ -443,6 +443,9 @@ def _check_model_support(model: str) -> bool:
 @click.option("--analyze_prompt", is_flag=True, help="Run prompt analyzer on the messages.")
 @click.option("--file", "-f", help="Specify the filename for the report in markdown format.")
 def benchmark_models(ids, tags, limit, offset, models, temperature, max_tokens, top_p, file, analyze_prompt):
+    """
+    Compare completions using different models and generate report
+    """
     if ids and tags:
         raise click.UsageError("--ids and --tags cannot be set together.")
     if (limit or offset) and not tags:
@@ -457,6 +460,8 @@ def benchmark_models(ids, tags, limit, offset, models, temperature, max_tokens, 
         raise click.UsageError("--models must be set to compare.")
     else:
         for model in models.split(","):
+            if not model:
+                raise click.UsageError("Format error. Likely --models ends with a comma.")
             if not _check_model_support(model):
                 raise click.UsageError(f"Model {model} is not supported.")
 
@@ -474,11 +479,18 @@ def benchmark_models(ids, tags, limit, offset, models, temperature, max_tokens, 
 
     compare_models = models.split(",")
 
-    # TODO verify all models are supported
     data = []
+    skipped_completion_ids = []
     for id in completion_ids:
         # get message from id
         completion_data = _get_completion(id).json()["data"]
+
+        # check status is finished, skip unfinished completions
+        if completion_data["status"] != "finished":
+            rich.print(f"Skip completion {id}. Status is not finished.")
+            skipped_completion_ids.append(id)
+            continue
+
         original_model_request = completion_data["request"]
         original_model_response = completion_data["response"]
         original_model = original_model_response["model"]
@@ -558,5 +570,12 @@ def benchmark_models(ids, tags, limit, offset, models, temperature, max_tokens, 
                 )
                 prompt_analysis_markdown += convert_suggestion_to_markdown(suggestions)
 
-        generate_markdown_report(file, [pivot_table, prompt_analysis_markdown, all_results_table])
+        # generate the list of skipped completions ids
+        skipped_completion_markdown = ""
+        if skipped_completion_ids:
+            skipped_completion_ids_str = ", ".join(skipped_completion_ids)
+            skipped_completion_markdown += "## Skipped Completion IDs\n\n"
+            skipped_completion_markdown += f"Skipped completions: {skipped_completion_ids_str}\n\n"
+
+        generate_markdown_report(file, [pivot_table, prompt_analysis_markdown, all_results_table, skipped_completion_markdown])
         rich.print(f"Report saved to {file}")

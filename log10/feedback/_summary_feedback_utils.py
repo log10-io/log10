@@ -1,5 +1,11 @@
 import sys
 
+import openai
+
+from log10.load import log10
+
+
+log10(openai)
 
 if sys.version_info < (3, 10):
     raise RuntimeError("Python 3.10 or higher is required to run summary feedback llm call.")
