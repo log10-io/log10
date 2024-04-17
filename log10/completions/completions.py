@@ -577,5 +577,7 @@ def benchmark_models(ids, tags, limit, offset, models, temperature, max_tokens, 
             skipped_completion_markdown += "## Skipped Completion IDs\n\n"
             skipped_completion_markdown += f"Skipped completions: {skipped_completion_ids_str}\n\n"
 
-        generate_markdown_report(file, [pivot_table, prompt_analysis_markdown, all_results_table, skipped_completion_markdown])
+        generate_markdown_report(
+            file, [pivot_table, prompt_analysis_markdown, all_results_table, skipped_completion_markdown]
+        )
         rich.print(f"Report saved to {file}")

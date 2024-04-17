@@ -31,7 +31,12 @@ class AutoFeedbackICL:
     _examples: list[dict] = []
     _predict_func: FunctionType = None
 
-    def __init__(self, task_id: str, num_samples: int = 5, predict_func: FunctionType = summary_feedback_llm_call if Magentic_imported else None):
+    def __init__(
+        self,
+        task_id: str,
+        num_samples: int = 5,
+        predict_func: FunctionType = summary_feedback_llm_call if Magentic_imported else None,
+    ):
         if not Magentic_imported:
             raise ImportError(
                 "Log10 feedback predict requires magentic package. Please install using 'pip install log10-io[autofeedback_icl]'"
