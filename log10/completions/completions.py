@@ -326,7 +326,8 @@ def _render_comparison_table(model_response_raw_data):
     table.add_column("Duration (ms)")
 
     for model, data in model_response_raw_data.items():
-        if model in _SUPPORTED_MODELS:
+        # only display model data
+        if model not in ["completion_id", "original_request"]:
             usage = data["usage"]
             formatted_usage = f"{usage['total_tokens']} ({usage['prompt_tokens']}/{usage['completion_tokens']})"
             table.add_row(model, data["content"], formatted_usage, str(data["duration"]))
@@ -338,7 +339,8 @@ def _create_dataframe_from_comparison_data(model_response_raw_data):
     original_request = model_response_raw_data["original_request"]
     rows = []
     for model, model_data in model_response_raw_data.items():
-        if model in _SUPPORTED_MODELS:
+        # only display model data
+        if model not in ["completion_id", "original_request"]:
             content = model_data["content"]
             usage = model_data["usage"]
             prompt_tokens = usage["prompt_tokens"]
@@ -497,7 +499,7 @@ def benchmark_models(ids, tags, limit, offset, models, temperature, max_tokens, 
         benchmark_data = {
             "completion_id": id,
             "original_request": original_model_request,
-            original_model: {
+            f"{original_model} (original model)": {
                 "content": original_model_response["choices"][0]["message"]["content"],
                 "usage": original_model_response["usage"],
                 "duration": completion_data["duration"],
