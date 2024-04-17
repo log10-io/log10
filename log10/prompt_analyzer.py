@@ -3,6 +3,9 @@ import logging
 
 import httpx
 from dotenv import load_dotenv
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
 
 from log10.llm import Log10Config
 
@@ -143,3 +146,40 @@ class PromptAnalyzer:
             return suggestions_dict
         except Exception as e:
             logger.error(e)
+
+
+def convert_suggestion_to_markdown(suggestion):
+    markdown_text = ""
+
+    markdown_text += "| Category | Recommendation |\n"
+    markdown_text += "| --- | --- |\n"
+    for category, contents in suggestion.items():
+        for subcategory, details in contents.items():
+            color = details["color"]  # Assuming 'color' is always provided
+            recommendation = details["recommendation"]
+
+            # Using HTML to colorize the subcategory title if 'color' is specified
+            colored_subcategory = (
+                f'<span style="color:{color};">{subcategory}</span> <br> <span style="color:{color};"></span>'
+            )
+
+            # Add each subcategory and its recommendation to the table
+            markdown_text += f"| **{colored_subcategory}** | {recommendation} |\n"
+
+        # markdown_text += "\n"  # Add a newline for spacing before the next section
+
+    return markdown_text
+
+
+def display_prompt_analyzer_suggestions(data, title=""):
+    console = Console()
+    console.print(f"[bold magenta]{title}[/bold magenta]")
+    for key, value in data.items():
+        for sub_key, sub_value in value.items():
+            text = Text(justify="left")
+            text.append(f"Recommendation: {sub_value['recommendation']}", style="white")
+            console.print(
+                Panel(
+                    text, title=f"[bold {sub_value['color']}]{sub_key}[/]", border_style=f"bold {sub_value['color']}"
+                )
+            )
