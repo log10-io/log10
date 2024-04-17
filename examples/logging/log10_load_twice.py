@@ -1,10 +1,10 @@
-# from log10.load import OpenAI
 import openai
 from openai import OpenAI
 
 from log10.load import log10
 
 
+# log10 load twice should not expect to log the completion twice
 log10(openai)
 log10(openai)
 
