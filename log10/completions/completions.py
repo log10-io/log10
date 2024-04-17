@@ -461,16 +461,14 @@ def benchmark_models(ids, tags, limit, offset, models, temperature, max_tokens, 
     if not models:
         raise click.UsageError("--models must be set to compare.")
     else:
-        for model in models.split(","):
-            if not model:
-                raise click.UsageError("Format error. Likely --models ends with a comma.")
+        for model in [m for m in models.split(",") if m]:
             if not _check_model_support(model):
                 raise click.UsageError(f"Model {model} is not supported.")
 
     # get completions ids
     completion_ids = []
     if ids:
-        completion_ids = ids.split(",")
+        completion_ids = [id for id in ids.split(",") if id]
     elif tags:
         base_url = _log10_config.url
         org_id = _log10_config.org_id
@@ -479,7 +477,7 @@ def benchmark_models(ids, tags, limit, offset, models, temperature, max_tokens, 
         completions = res.json()["data"]
         completion_ids = [completion["id"] for completion in completions]
 
-    compare_models = models.split(",")
+    compare_models = [m for m in models.split(",") if m]
 
     data = []
     skipped_completion_ids = []
