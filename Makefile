@@ -38,9 +38,6 @@ logging:
 	python examples/logging/langchain_qa.py
 	python examples/logging/langchain_simple_sequential.py
 	python examples/logging/langchain_sqlagent.py
-	python examples/logging/multiple_sessions.py
-	python examples/logging/tags_mixed.py
-	python examples/logging/tags_openai.py
 
 evals:
 	(cd examples/evals && python basic_eval.py)
@@ -48,3 +45,42 @@ evals:
 	(cd examples/evals && python fuzzy.py)
 
 examples: agents evals logging
+
+logging-completion:
+	python examples/logging/openai_completions.py
+	python examples/logging/anthropic_completion.py
+
+logging-chat:
+	python examples/logging/anthropic_messages.py
+	python examples/logging/mistralai_chat_no_streaming.py
+	python examples/logging/openai_chat.py
+	# python examples/logging/vertexai_gemini_chat.py
+
+logging-chat-stream:
+	python examples/logging/openai_chat_stream.py
+	python examples/logging/anthropic_messages_stream.py
+	python examples/logging/mistralai_chat_with_streaming.py
+	python examples/logging/litellm_completion_stream.py
+
+logging-image:
+	python examples/logging/openai_chat_image.py
+	python examples/logging/anthropic_messages_image.py
+	python examples/logging/litellm_image.py
+
+logging-tools:
+	python examples/logging/openai_tools.py
+
+logging-tags:
+	python examples/logging/multiple_sessions.py
+	python examples/logging/tags_mixed.py
+	python examples/logging/tags_openai.py
+
+logging-magentic:
+	python examples/logging/magentic_async_stream_logging.py
+	python examples/logging/magentic_function_logging.py
+	python examples/logging/magentic_async_function_logging.py
+	python examples/logging/magentic_async_multi_session_tags.py
+
+logging-langchain:
+	python -m xdoctest log10/load.py log10:2
+	python -m xdoctest log10/load.py log10:4
