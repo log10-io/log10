@@ -45,6 +45,9 @@ def _get_tag_ids(tags):
         tag_id = _get_tag_id(tag)
         if tag_id:
             tag_ids.append(tag_id)
+        else:
+            raise SystemExit(f"Cannot found tag: {tag}.")
+
     tag_ids_str = ",".join(tag_ids)
     return tag_ids_str
 
@@ -476,6 +479,8 @@ def benchmark_models(ids, tags, limit, offset, models, temperature, max_tokens, 
         res = _try_get(url)
         completions = res.json()["data"]
         completion_ids = [completion["id"] for completion in completions]
+        if not completion_ids:
+            SystemExit(f"No completions found for tags: {tags}")
 
     compare_models = [m for m in models.split(",") if m]
 
