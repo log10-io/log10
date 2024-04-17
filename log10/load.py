@@ -790,6 +790,7 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
     #             intercept_class_methods(method)
 
     if getattr(module, "_log10_patched", False):
+        logger.warning(f"{module.__name__} already patched. Skipping.")
         return
 
     if module.__name__ == "anthropic":
