@@ -485,9 +485,9 @@ def benchmark_models(ids, tags, limit, offset, models, temperature, max_tokens, 
         # get message from id
         completion_data = _get_completion(id).json()["data"]
 
-        # check status is finished, skip unfinished completions
-        if completion_data["status"] != "finished":
-            rich.print(f"Skip completion {id}. Status is not finished.")
+        # skip completion if status is not finished or kind is not chat
+        if completion_data["status"] != "finished" or completion_data["kind"] != "chat":
+            rich.print(f"Skip completion {id}. Status is not finished or kind is not chat.")
             skipped_completion_ids.append(id)
             continue
 
