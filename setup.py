@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
 from distutils.core import setup
-from setuptools import setup, find_packages
+
+from setuptools import find_packages, setup
+
 
 setup(
     name="Log10",
-    version="0.7.5",
+    version="0.8.0",
     description="Log10 LLM data management",
     author="Log10 team",
     author_email="team@log10.io",

@@ -54,7 +54,10 @@ logging-chat:
 	python examples/logging/anthropic_messages.py
 	python examples/logging/mistralai_chat_no_streaming.py
 	python examples/logging/openai_chat.py
+	python examples/logging/lamini_generate.py
 	# python examples/logging/vertexai_gemini_chat.py
+	python examples/logging/openai_async_logging.py
+	python examples/logging/openai_async_stream_logging.py
 
 logging-chat-stream:
 	python examples/logging/openai_chat_stream.py
@@ -71,7 +74,6 @@ logging-tools:
 	python examples/logging/openai_tools.py
 
 logging-tags:
-	python examples/logging/multiple_sessions.py
 	python examples/logging/tags_mixed.py
 	python examples/logging/tags_openai.py
 
@@ -84,3 +86,8 @@ logging-magentic:
 logging-langchain:
 	python -m xdoctest log10/load.py log10:2
 	python -m xdoctest log10/load.py log10:4
+
+logging-litellm:
+	python examples/logging/litellm_async_stream_completion.py
+	python examples/logging/litellm_image_stream.py
+	python examples/logging/litellm_image_async_stream.py
