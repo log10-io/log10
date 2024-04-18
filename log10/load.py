@@ -436,7 +436,7 @@ def _get_stack_trace():
     ]
 
 
-def _init_log_row(func, **kwargs):
+def _init_log_row(func, *args, **kwargs):
     kwargs_copy = deepcopy(kwargs)
 
     log_row = {
@@ -497,6 +497,11 @@ def _init_log_row(func, **kwargs):
                     else:
                         kwargs_copy[key] = value
                 kwargs_copy.pop("generation_config")
+    elif "lamini" in func.__module__:
+        log_row["kind"] = "chat"
+        kwargs_copy.update(
+            {"model": args[1]["model_name"], "messages": [{"role": "user", "content": args[1]["prompt"]}]}
+        )
     elif "mistralai" in func.__module__:
         log_row["kind"] = "chat"
     elif "openai" in func.__module__:
@@ -516,7 +521,7 @@ def intercepting_decorator(func):
         result_queue = queue.Queue()
 
         try:
-            log_row = _init_log_row(func, **kwargs)
+            log_row = _init_log_row(func, *args, **kwargs)
 
             with timed_block(sync_log_text + " call duration"):
                 if USE_ASYNC:
@@ -593,11 +598,9 @@ def intercepting_decorator(func):
                 elif "vertexai" in func.__module__:
                     response = output
                     reason = response.candidates[0].finish_reason.name
-                    import uuid
-
                     ret_response = {
                         "id": str(uuid.uuid4()),
-                        "object": "completion",
+                        "object": "chat.completion",
                         "choices": [
                             {
                                 "index": 0,
@@ -628,6 +631,19 @@ def intercepting_decorator(func):
 
                     if "choices" in response:
                         response = flatten_response(response)
+                elif "lamini" in func.__module__:
+                    response = {
+                        "id": str(uuid.uuid4()),
+                        "object": "chat.completion",
+                        "choices": [
+                            {
+                                "index": 0,
+                                "finish_reason": "stop",
+                                "message": {"role": "assistant", "content": output["output"]},
+                            }
+                        ],
+                        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                    }
                 elif "mistralai" in func.__module__:
                     if "stream" in func.__qualname__:
                         log_row["response"] = response
@@ -802,6 +818,10 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         attr = module.resources.messages.Messages
         method = getattr(attr, "create")
         setattr(attr, "create", intercepting_decorator(method))
+    elif module.__name__ == "lamini":
+        attr = module.api.utils.completion.Completion
+        method = getattr(attr, "generate")
+        setattr(attr, "generate", intercepting_decorator(method))
     elif module.__name__ == "mistralai" and getattr(module, "_log10_patched", False) is False:
         attr = module.client.MistralClient
         method = getattr(attr, "chat")
