@@ -507,6 +507,12 @@ def _init_log_row(func, *args, **kwargs):
     elif "openai" in func.__module__:
         kind = "chat" if "chat" in func.__module__ else "completion"
         log_row["kind"] = kind
+    elif "google.generativeai" in func.__module__:
+        if func.__name__ == "send_message":
+            log_row["kind"] = "chat"
+            kwargs_copy.update(
+                {"model": args[0].model.model_name.split("/")[-1], "messages": [{"role": "user", "content": args[1]}]}
+            )
 
     log_row["request"] = json.dumps(kwargs_copy)
 
@@ -616,6 +622,24 @@ def intercepting_decorator(func):
                         "total_tokens": response_dict["usage_metadata"]["total_token_count"],
                     }
                     ret_response["usage"] = tokens_usage
+                    response = ret_response
+                elif "google.generativeai" in func.__module__:
+                    ret_response = {
+                        "id": str(uuid.uuid4()),
+                        "object": "chat.completion",
+                        "choices": [
+                            {
+                                "index": 0,
+                                "finish_reason": str(output.candidates[0].finish_reason.name).lower(),
+                                "message": {"role": "assistant", "content": output.text},
+                            }
+                        ],
+                        "usage": {
+                            "prompt_tokens": 0,
+                            "completion_tokens": 0,
+                            "total_tokens": 0,
+                        },
+                    }
                     response = ret_response
                 elif "openai" in func.__module__:
                     if type(output).__name__ == "Stream":
@@ -879,10 +903,17 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
             mothod = getattr(attr, "create")
             setattr(attr, "create", intercepting_decorator(mothod))
     elif module.__name__ == "vertexai":
-        # patch chat send_message function
+        # patch chat _send_message function
         attr = module.generative_models._generative_models.ChatSession
         method = getattr(attr, "_send_message")
         setattr(attr, "_send_message", intercepting_decorator(method))
+    elif module.__name__ == "google.generativeai":
+        # patch ChatSession send_message function
+        attr = module.ChatSession
+        method = getattr(attr, "send_message")
+        setattr(attr, "send_message", intercepting_decorator(method))
+    else:
+        logger.warning(f"Unsupported module: {module.__name__}. Please contact us for support at support@log10.io.")
 
         # For future reference:
         # if callable(attr) and isinstance(attr, types.FunctionType):
