@@ -513,6 +513,17 @@ def _init_log_row(func, *args, **kwargs):
             kwargs_copy.update(
                 {"model": args[0].model.model_name.split("/")[-1], "messages": [{"role": "user", "content": args[1]}]}
             )
+            if kwargs_copy.get("generation_config") and hasattr(kwargs_copy["generation_config"], "__dict__"):
+                for key, value in kwargs_copy["generation_config"].__dict__.items():
+                    if not value:
+                        continue
+                    if key == "max_output_tokens":
+                        kwargs_copy["max_tokens"] = value
+                    elif key == "stop_sequences":
+                        kwargs_copy["stop"] = value
+                    elif key in ["temperature", "top_p", "top_k"]:
+                        kwargs_copy[key] = value
+                kwargs_copy.pop("generation_config")
 
     log_row["request"] = json.dumps(kwargs_copy)
 
