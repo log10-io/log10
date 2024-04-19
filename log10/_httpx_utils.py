@@ -56,7 +56,11 @@ def _try_get(url: str, timeout: int = 10) -> httpx.Response:
         raise
     except Exception as e:
         logger.error(f"Error: {e}")
-        if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
+        if (
+            hasattr(e, "response")
+            and hasattr(e.response, "json")
+            and "error" in e.response.json()
+        ):
             logger.error(e.response.json()["error"])
         raise
 
@@ -143,7 +147,9 @@ async def log_request(request: Request):
     }
     if get_log10_session_tags():
         log_row["tags"] = get_log10_session_tags()
-    await _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+    await _try_post_request_async(
+        url=f"{base_url}/api/completions/{completion_id}", payload=log_row
+    )
 
 
 class _LogResponse(Response):
@@ -205,7 +211,10 @@ class _LogResponse(Response):
                 and response_json["choices"]
                 and response_json["choices"][0]["finish_reason"] == "function_call"
             ):
-                response_json["choices"][0]["message"] = {"role": "assistant", "content": full_content}
+                response_json["choices"][0]["message"] = {
+                    "role": "assistant",
+                    "content": full_content,
+                }
             else:
                 response_json["choices"][0]["function_call"] = {
                     "name": function_name,
@@ -223,7 +232,9 @@ class _LogResponse(Response):
             }
             if get_log10_session_tags():
                 log_row["tags"] = get_log10_session_tags()
-            await _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+            await _try_post_request_async(
+                url=f"{base_url}/api/completions/{completion_id}", payload=log_row
+            )
 
 
 class _LogTransport(httpx.AsyncBaseTransport):
@@ -264,9 +275,11 @@ class _LogTransport(httpx.AsyncBaseTransport):
             }
             if get_log10_session_tags():
                 log_row["tags"] = get_log10_session_tags()
-            await _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+            await _try_post_request_async(
+                url=f"{base_url}/api/completions/{completion_id}", payload=log_row
+            )
             return response
-        elif response.headers.get("content-type") == "text/event-stream":
+        elif response.headers.get("content-type").startswith("text/event-stream"):
             return _LogResponse(
                 status_code=response.status_code,
                 headers=response.headers,
@@ -274,3 +287,6 @@ class _LogTransport(httpx.AsyncBaseTransport):
                 extensions=response.extensions,
                 request=request,
             )
+
+        # In case of an error, get out of the way
+        return response
