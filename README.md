@@ -45,8 +45,8 @@ Pick the one that works best for you.
 #### OpenAI
 | log10 ver| openai v0 | openai v1 |
 |----------|----------|----------|
-| 0.4 | `load(openai)` ✅ | ❌ |
-| 0.5 | `load(openai)` ✅ | `from log10.load import OpenAI` ✅ |
+| 0.4 | `log10(openai)` ✅ | ❌ |
+| 0.5+ | `log10(openai)` ✅ | `from log10.load import OpenAI` ✅ |
 
 **OpenAI v0** - Use library wrapper `log10(openai)`. Check out `examples/logging` in log10 version `0.4.6`.
 ```python
@@ -58,7 +58,8 @@ log10(openai)
 ```
 
 **OpenAI v1**
-> NOTE: We added OpenAI v1 API support in log10 `0.5.0` release. `load.log10(openai)` still works for openai v1.
+> NOTE: We added OpenAI v1 API support in log10 `0.5.0` release. `load.log10(openai)` still works for openai v1. This also enables logging LLM completions from providers which support OpenAI API, such as [Ollama](https://github.com/ollama/ollama/blob/main/docs/openai.md).
+
 ```python
 from log10.load import OpenAI
 # from openai import OpenAI
@@ -157,6 +158,11 @@ Leverage your current feedback and AI by using our AutoFeedback feature to gener
 * Getting Started: To explore all options and usage details, use CLI `log10 feedback predict --help`.
 
 Feel free to integrate AutoFeedback into your workflow to enhance the feedback and evaluation process.
+
+### ⚖️📊 Model Comparison
+Easily benchmark your logged completions using LLM models from OpenAI, Anthropic, Mistral, Meta, etc., by using the `log10 completions benchmark_models` command in the log10 CLI.
+Generate detailed reports and gain insights to enhance your model's performance and cost.
+Please refer to the [cli doc](cli_docs.md#log10-completions-benchmark_models) or the [demo video](https://www.loom.com/share/6d088f9f079f4e65962741f58344d77e?sid=1d2c51e6-8978-4422-af5b-d39ebe561b83) for details.
 
 ### 🔍🐞 Prompt chain debugging
 
