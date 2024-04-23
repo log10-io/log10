@@ -510,9 +510,17 @@ def _init_log_row(func, *args, **kwargs):
     elif "google.generativeai" in func.__module__:
         if func.__name__ == "send_message":
             log_row["kind"] = "chat"
-            kwargs_copy.update(
-                {"model": args[0].model.model_name.split("/")[-1], "messages": [{"role": "user", "content": args[1]}]}
-            )
+            history_messages = []
+            if system_instruction := args[0].model._system_instruction:
+                history_messages.append({"role": "system", "content": system_instruction.parts[0].text})
+            if history := args[0].history:
+                for m in history:
+                    role = "assistant" if m.role == "model" else "user"
+                    content = m.parts[0].text
+                    history_messages.append({"role": role, "content": content})
+
+            history_messages.append({"role": "user", "content": args[1]})
+            kwargs_copy.update({"model": args[0].model.model_name.split("/")[-1], "messages": history_messages})
             if kwargs_copy.get("generation_config") and hasattr(kwargs_copy["generation_config"], "__dict__"):
                 for key, value in kwargs_copy["generation_config"].__dict__.items():
                     if not value:
