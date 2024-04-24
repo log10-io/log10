@@ -155,78 +155,92 @@ class _LogResponse(Response):
 
             if "data: [DONE]" in full_response:
                 finished = True
+
+                completion_id = self.request.headers.get("x-log10-completion-id", "")
+                if finished and completion_id:
+                    current_stack_frame = traceback.extract_stack()
+                    stacktrace = [
+                        {
+                            "file": frame.filename,
+                            "line": frame.line,
+                            "lineno": frame.lineno,
+                            "name": frame.name,
+                        }
+                        for frame in current_stack_frame
+                    ]
+                    full_content = ""
+                    function_name = ""
+                    full_argument = ""
+                    tool_calls = []
+                    responses = full_response.split("\n\n")
+                    for r in responses:
+                        if "data: [DONE]" in r:
+                            break
+
+                        r_json = json.loads(r[6:])
+
+                        delta = r_json["choices"][0]["delta"]
+
+                        # Delta may have content
+                        if "content" in delta:
+                            content = delta["content"]
+                            if content:
+                                full_content += content
+
+                        # May be a function call, and have to reconstruct the arguments
+                        if "function_call" in delta:
+                            # May be function name
+                            if "name" in delta["function_call"]:
+                                function_name = delta["function_call"]["name"]
+                            # May be function arguments
+                            if "arguments" in delta["function_call"]:
+                                full_argument += delta["function_call"]["arguments"]
+
+                        if tc := delta.get("tool_calls", []):
+                            if tc[0].get("id", ""):
+                                tool_calls.append(tc[0])
+                            elif tc[0].get("function", {}).get("arguments", ""):
+                                idx = tc[0].get("index")
+                                tool_calls[idx]["function"]["arguments"] += tc[0]["function"]["arguments"]
+
+                    response_json = r_json.copy()
+                    response_json["object"] = "completion"
+                    # r_json is the last response before "data: [DONE]"
+                    # it contains the finish_reason
+                    finish_reason = response_json["choices"][0]["finish_reason"]
+
+                    # If finish_reason is function_call - don't log the response
+                    if not (
+                        "choices" in response_json
+                        and response_json["choices"]
+                        and response_json["choices"][0]["finish_reason"] in ["function_call", "tool_calls"]
+                    ):
+                        response_json["choices"][0]["message"] = {"role": "assistant", "content": full_content}
+                    elif finish_reason == "function_call":
+                        response_json["choices"][0]["function_call"] = {
+                            "name": function_name,
+                            "arguments": full_argument,
+                        }
+                    elif finish_reason == "tool_calls":
+                        response_json["choices"][0]["message"] = {
+                            "content": None,
+                            "role": "assistant",
+                            "tool_calls": tool_calls,
+                        }
+
+                    log_row = {
+                        "response": json.dumps(response_json),
+                        "status": "finished",
+                        "duration": int(time.time() - self.request.started) * 1000,
+                        "stacktrace": json.dumps(stacktrace),
+                        "kind": "chat",
+                        "request": self.request.content.decode("utf-8"),
+                        "session_id": sessionID,
+                    }
+                    if get_log10_session_tags():
+                        log_row["tags"] = get_log10_session_tags()
+                    await _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
             yield chunk
-
-        completion_id = self.request.headers.get("x-log10-completion-id", "")
-        if finished and completion_id:
-            current_stack_frame = traceback.extract_stack()
-            stacktrace = [
-                {
-                    "file": frame.filename,
-                    "line": frame.line,
-                    "lineno": frame.lineno,
-                    "name": frame.name,
-                }
-                for frame in current_stack_frame
-            ]
-            full_content = ""
-            function_name = ""
-            full_argument = ""
-            responses = full_response.split("\n\n")
-            for r in responses:
-                if "data: [DONE]" in r:
-                    break
-
-                r_json = json.loads(r[6:])
-
-                delta = r_json["choices"][0]["delta"]
-
-                # Delta may have content
-                if "content" in delta:
-                    content = delta["content"]
-                    if content:
-                        full_content += content
-
-                # May be a function call, and have to reconstruct the arguments
-                if "function_call" in delta:
-                    # May be function name
-                    if "name" in delta["function_call"]:
-                        function_name = delta["function_call"]["name"]
-                    # May be function arguments
-                    if "arguments" in delta["function_call"]:
-                        full_argument += delta["function_call"]["arguments"]
-
-            response_json = r_json.copy()
-            response_json["object"] = "completion"
-
-            # If finish_reason is function_call - don't log the response
-            if not (
-                "choices" in response_json
-                and response_json["choices"]
-                and response_json["choices"][0]["finish_reason"] == "function_call"
-            ):
-                response_json["choices"][0]["message"] = {
-                    "role": "assistant",
-                    "content": full_content,
-                }
-            else:
-                response_json["choices"][0]["function_call"] = {
-                    "name": function_name,
-                    "arguments": full_argument,
-                }
-
-            log_row = {
-                "response": json.dumps(response_json),
-                "status": "finished",
-                "duration": int(time.time() - self.request.started) * 1000,
-                "stacktrace": json.dumps(stacktrace),
-                "kind": "chat",
-                "request": self.request.content.decode("utf-8"),
-                "session_id": sessionID,
-            }
-            if get_log10_session_tags():
-                log_row["tags"] = get_log10_session_tags()
-            await _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
 
 
 class _LogTransport(httpx.AsyncBaseTransport):

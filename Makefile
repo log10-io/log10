@@ -72,6 +72,8 @@ logging-image:
 
 logging-tools:
 	python examples/logging/openai_tools.py
+	python examples/logging/openai_tools_stream.py
+	python examples/logging/openai_async_tools_stream.py
 
 logging-tags:
 	python examples/logging/tags_mixed.py
@@ -80,7 +82,7 @@ logging-tags:
 logging-magentic:
 	python examples/logging/magentic_async_stream_logging.py
 	python examples/logging/magentic_function_logging.py
-	python examples/logging/magentic_async_function_logging.py
+	python examples/logging/magentic_async_parallel_function_call.py
 	python examples/logging/magentic_async_multi_session_tags.py
 
 logging-langchain:
