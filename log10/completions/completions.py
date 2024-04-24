@@ -12,7 +12,7 @@ from rich.table import Table
 from log10._httpx_utils import _get_time_diff, _try_get
 from log10.llm import Log10Config
 from log10.prompt_analyzer import PromptAnalyzer, convert_suggestion_to_markdown, display_prompt_analyzer_suggestions
-from log10.utils import generate_markdown_report, generate_results_table
+from log10.cli_utils import generate_markdown_report, generate_results_table
 
 
 _log10_config = Log10Config()
