@@ -84,6 +84,7 @@ logging-magentic:
 	python examples/logging/magentic_function_logging.py
 	python examples/logging/magentic_async_parallel_function_call.py
 	python examples/logging/magentic_async_multi_session_tags.py
+	python examples/logging/magentic_async_widget.py
 
 logging-langchain:
 	python -m xdoctest log10/load.py log10:2
