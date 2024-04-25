@@ -249,7 +249,7 @@ class _LogTransport(httpx.AsyncBaseTransport):
         if not completion_id:
             return response
 
-        if response.headers.get("content-type") == "application/json":
+        if response.headers.get("content-type").startswith("application/json"):
             await response.aread()
             llm_response = response.json()
 
