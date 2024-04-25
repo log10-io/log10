@@ -80,8 +80,10 @@ logging-tags:
 	python examples/logging/tags_openai.py
 
 logging-magentic:
-	python examples/logging/magentic_async_stream_logging.py
+	python examples/logging/magentic_prompt.py
+	python examples/logging/magentic_prompt_stream.py
 	python examples/logging/magentic_function_logging.py
+	python examples/logging/magentic_async_stream_logging.py
 	python examples/logging/magentic_async_parallel_function_call.py
 	python examples/logging/magentic_async_multi_session_tags.py
 	python examples/logging/magentic_async_widget.py

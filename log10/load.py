@@ -533,6 +533,9 @@ def _init_log_row(func, *args, **kwargs):
     elif "mistralai" in func.__module__:
         log_row["kind"] = "chat"
     elif "openai" in func.__module__:
+        from openai._utils._utils import strip_not_given
+
+        kwargs_copy = strip_not_given(kwargs_copy)
         kind = "chat" if "chat" in func.__module__ else "completion"
         log_row["kind"] = kind
     elif "google.generativeai" in func.__module__:
