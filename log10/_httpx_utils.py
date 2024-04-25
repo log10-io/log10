@@ -155,6 +155,7 @@ class _LogResponse(Response):
 
             if "data: [DONE]" in full_response:
                 finished = True
+                duration = int(time.time() - self.request.started) * 1000
 
                 completion_id = self.request.headers.get("x-log10-completion-id", "")
                 if finished and completion_id:
@@ -204,34 +205,28 @@ class _LogResponse(Response):
                                 tool_calls[idx]["function"]["arguments"] += tc[0]["function"]["arguments"]
 
                     response_json = r_json.copy()
-                    response_json["object"] = "completion"
+                    response_json["object"] = "chat.completion"
                     # r_json is the last response before "data: [DONE]"
-                    # it contains the finish_reason
-                    finish_reason = response_json["choices"][0]["finish_reason"]
 
-                    # If finish_reason is function_call - don't log the response
-                    if not (
-                        "choices" in response_json
-                        and response_json["choices"]
-                        and response_json["choices"][0]["finish_reason"] in ["function_call", "tool_calls"]
-                    ):
+                    if full_content:
                         response_json["choices"][0]["message"] = {"role": "assistant", "content": full_content}
-                    elif finish_reason == "function_call":
-                        response_json["choices"][0]["function_call"] = {
-                            "name": function_name,
-                            "arguments": full_argument,
-                        }
-                    elif finish_reason == "tool_calls":
+                    elif tool_calls:
                         response_json["choices"][0]["message"] = {
                             "content": None,
                             "role": "assistant",
                             "tool_calls": tool_calls,
                         }
+                    elif function_name and full_argument:
+                        # function is deprecated in openai api
+                        response_json["choices"][0]["function_call"] = {
+                            "name": function_name,
+                            "arguments": full_argument,
+                        }
 
                     log_row = {
                         "response": json.dumps(response_json),
                         "status": "finished",
-                        "duration": int(time.time() - self.request.started) * 1000,
+                        "duration": duration,
                         "stacktrace": json.dumps(stacktrace),
                         "kind": "chat",
                         "request": self.request.content.decode("utf-8"),
