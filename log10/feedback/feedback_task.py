@@ -45,7 +45,7 @@ class FeedbackTask:
             raise
 
     def create(
-        self, task_schema: dict, name: str, completion_tags_selector: list[str], instruction: str = None
+        self, task_schema: dict, name: str, completion_tags_selector: list[str] = None, instruction: str = None
     ) -> httpx.Response:
         json_payload = {"json_schema": task_schema, "name": name, "completion_tags_selector": completion_tags_selector}
         if instruction:
