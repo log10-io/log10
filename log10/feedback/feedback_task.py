@@ -44,10 +44,10 @@ class FeedbackTask:
             logger.error(e.response.json()["error"])
             raise
 
-    def create(self, task_schema: dict, name: str = None, instruction: str = None) -> httpx.Response:
-        json_payload = {"json_schema": task_schema}
-        if name:
-            json_payload["name"] = name
+    def create(
+        self, task_schema: dict, name: str, completion_tags_selector: list[str], instruction: str = None
+    ) -> httpx.Response:
+        json_payload = {"json_schema": task_schema, "name": name, "completion_tags_selector": completion_tags_selector}
         if instruction:
             json_payload["instruction"] = instruction
 
@@ -81,10 +81,18 @@ class FeedbackTask:
 @click.option("--name", prompt="Enter feedback task name", help="Name of the task")
 @click.option("--task_schema", prompt="Enter feedback task schema", help="Task schema")
 @click.option("--instruction", help="Task instruction", default="")
-def create_feedback_task(name, task_schema, instruction):
+@click.option(
+    "--completion_tags_selector",
+    prompt="Enter completion tags selector",
+    help="Completion tags selector",
+)
+def create_feedback_task(name, task_schema, completion_tags_selector, instruction):
     click.echo("Creating feedback task")
+    tags = completion_tags_selector.split(",")
     task_schema = json.loads(task_schema)
-    task = FeedbackTask().create(name=name, task_schema=task_schema, instruction=instruction)
+    task = FeedbackTask().create(
+        name=name, task_schema=task_schema, completion_tags_selector=tags, instruction=instruction
+    )
     click.echo(f"Use this task_id to add feedback: {task.json()['id']}")
 
 
