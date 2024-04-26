@@ -83,12 +83,15 @@ class FeedbackTask:
 @click.option("--instruction", help="Task instruction", default="")
 @click.option(
     "--completion_tags_selector",
-    prompt="Enter completion tags selector",
     help="Completion tags selector",
 )
-def create_feedback_task(name, task_schema, completion_tags_selector, instruction):
+def create_feedback_task(name, task_schema, instruction, completion_tags_selector=None):
     click.echo("Creating feedback task")
-    tags = completion_tags_selector.split(",")
+    tags = []
+
+    if completion_tags_selector:
+        tags = completion_tags_selector.split(",")
+
     task_schema = json.loads(task_schema)
     task = FeedbackTask().create(
         name=name, task_schema=task_schema, completion_tags_selector=tags, instruction=instruction
