@@ -6,18 +6,21 @@ Here's a [demo video](https://www.loom.com/share/4f5da34df6e94b7083b1e33c707deb5
 ## Get Started
 
 Install the `log10-io` python package (version >= 0.6.7) and [setup Log10](README.md#⚙️-setup)
+
 ```bash
 $ pip install log10-io
 ```
 
-
 ### Completions
+
 You can list all your completions using [`log10 completions list`](#log10-completions-list). In addition, you can filter the completions by tag names (`--tags`) and created date `--from` and `--to`. For instance, here is the command to filter the completions with two tag names `foo` and `bar` and created between 2024-02-01 and 2024-02-29
 
 ```bash
 $ log10 completions list --tags foo,bar --from 2024-2-1 --to 2024-2-29
 ```
+
 #### Output:
+
 ```bash
 Filter with tags: foo,bar
 Filter with created date: 2024-02-01 to 2024-02-29
@@ -41,6 +44,7 @@ total_completions=5
 ```
 
 You can download these completions into a JSONL file by using [`log10 completions download`](#log10-completions-download) with the same options and specify the output file `--file`:
+
 ```bash
 $ log10 completions download --tags foo,bar --from 2024-2-1 --to 2024-2-29 --file foo_bar.jsonl
 Filter with tags: foo,bar
@@ -52,10 +56,13 @@ Do you want to continue? [y/N]: y
 
 To retrieve details for a specific completion, use [`log10 completions get`](#log10-completions-get).
 For instance,
+
 ```bash
 $ log10 completions get --id 497974e8-c1ed-4de7-90ab-8f104eb870te
 ```
+
 output (only showing part of the full raw output):
+
 ```
 {
   "id": "497974e8-c1ed-4de7-90ab-8f104eb870te",
@@ -84,10 +91,13 @@ output (only showing part of the full raw output):
 
 You can load completions' prompt messages and compare with other LLM models by using [`log10 completions benchmark_models`](#log10-completions-benchmark_models).
 For instance,
+
 ```bash
 log10 completions benchmark_models --ids 25572f3c-c2f1-45b0-9de8-d96be4c4e544 --models=gpt-3.5-turbo,mistral-small-latest,claude-3-haiku-20240307
 ```
+
 output
+
 ```
 Running gpt-3.5-turbo
 Running mistral-small-latest
@@ -139,8 +149,8 @@ original_request:
 
 You can also filter the completions by tags and generate a report in markdown file using `--file` or `-f`. And run our prompt analyzer (auto-prompt) using `--analyze_prompt`.
 
-
 ### Feedback Tasks and Feedback
+
 To start adding feedback, first you need to define a feedback task with [`log10 feedback-task create`](#log10-feedback-task-create). Then you can add feedback to a logged completions with [`log10 feedback create`](#log10-feedback-create). For more details, you can read more in [log10's user documentation](https://log10.io/docs/feedback/feedback#add-feedback).
 
 To list all feedback tasks, use [`log10 feedback-task list`](#log10-feedback-task-list)
@@ -155,10 +165,12 @@ $ log10 feedback-task list
 │ 15a5e099-a56a-49d0-b488 │ 29 days ago │ emoji_feedback_task                        │ feedback                                   │ Provide feedback using emojis                     │
 └─────────────────────────┴─────────────┴────────────────────────────────────────────┴────────────────────────────────────────────┴───────────────────────────────────────────────────┘
 ```
+
 and retrieve details about a specific task with [`log10 feedback-task get --id`](#log10-feedback-task-get)
 
 To list and download your current feedback, use [`log10 feedback list`](#log10-feedback-list) and [`log10 feedback download`](#log10-feedback-download).
 For instance you can list all feedback filtered by a feedback task `--task_id`:
+
 ```bash
 $ log10 feedback list --task_id 04405cbc-3420-4901-97b6
                                                                                                            Feedback
@@ -177,6 +189,7 @@ $ log10 feedback list --task_id 04405cbc-3420-4901-97b6
 │                         │                                           │ "coherence": 7}                                                                                  │                          │
 └─────────────────────────┴───────────────────────────────────────────┴──────────────────────────────────────────────────────────────────────────────────────────────────┴──────────────────────────┘
 ```
+
 And to download to a JSONL file, use `log10 feedback download --task_id 04405cbc-3420-4901-97b6 --file feedback.jsonl`
 
 To leverage your feedback and use AI to generate more feedback automatically, use [`log10 feedback predict`](#log10-feedback-predict). Please refer to this [doc](https://log10.io/docs/feedback/auto_feedback) for more details.
@@ -184,6 +197,7 @@ To leverage your feedback and use AI to generate more feedback automatically, us
 ## CLI References
 
 ### Completions
+
 ```bash
 $ log10 completions --help
 Usage: log10 completions [OPTIONS] COMMAND [ARGS]...
@@ -201,6 +215,7 @@ Commands:
 ```
 
 #### log10 completions benchmark_models
+
 ```bash
 log10 completions benchmark_models --help
 Usage: log10 completions benchmark_models [OPTIONS]
@@ -226,6 +241,7 @@ Options:
 ```
 
 #### log10 completions download
+
 ```bash
 $ log10 completions download --help
 Usage: log10 completions download [OPTIONS]
@@ -255,6 +271,7 @@ Options:
 ```
 
 #### log10 completions get
+
 ```bash
 $ log10 completions get --help
 Usage: log10 completions get [OPTIONS]
@@ -266,6 +283,7 @@ Options:
 ```
 
 #### log10 completions list
+
 ```bash
 $ log10 completions list --help
 Usage: log10 completions list [OPTIONS]
@@ -291,6 +309,7 @@ Options:
 ```
 
 ### Feedback
+
 ```bash
 $ log10 feedback --help
 Usage: log10 feedback [OPTIONS] COMMAND [ARGS]...
@@ -306,6 +325,7 @@ Commands:
 ```
 
 #### log10 feedback create
+
 ```bash
 $ log10 feedback create --help
 Usage: log10 feedback create [OPTIONS]
@@ -321,6 +341,7 @@ Options:
 ```
 
 #### log10 feedback download
+
 ```bash
 $ log10 feedback download --help
 Usage: log10 feedback download [OPTIONS]
@@ -342,6 +363,7 @@ Options:
 ```
 
 #### log10 feedback get
+
 ```bash
 $ log10 feedback get --help
 Usage: log10 feedback get [OPTIONS]
@@ -353,6 +375,7 @@ Options:
 ```
 
 #### log10 feedback list
+
 ```bash
 $ log10 feedback list --help
 Usage: log10 feedback list [OPTIONS]
@@ -369,7 +392,9 @@ Options:
   --task_id TEXT    The specific Task ID to filter feedback. If not provided,
                     feedback for all tasks will be fetched.
 ```
+
 #### log10 feedback predict
+
 ```bash
 $ log10 feedback predict --help
 Usage: log10 feedback predict [OPTIONS]
@@ -383,6 +408,7 @@ Options:
 ```
 
 ### Feedback Task
+
 ```bash
 $ log10 feedback-task --help
 Usage: log10 feedback-task [OPTIONS] COMMAND [ARGS]...
@@ -396,6 +422,7 @@ Commands:
 ```
 
 #### log10 feedback-task create
+
 ```bash
 $ log10 feedback-task create --help
 Usage: log10 feedback-task create [OPTIONS]
@@ -404,9 +431,11 @@ Options:
   --name TEXT         Name of the task
   --task_schema TEXT  Task schema
   --instruction TEXT  Task instruction
+  --completion_tags_selector TEXT  Completion tags selector
 ```
 
 #### log10 feedback-task get
+
 ```bash
 $ log10 feedback-task get --help
 Usage: log10 feedback-task get [OPTIONS]
@@ -417,6 +446,7 @@ Options:
 ```
 
 #### log10 feedback-task list
+
 ```bash
 $ log10 feedback-task list --help
 Usage: log10 feedback-task list [OPTIONS]

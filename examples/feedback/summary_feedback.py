@@ -7,6 +7,7 @@ from log10.load import OpenAI
 
 task = FeedbackTask().create(
     name="Summary grading task",
+    completion_tags_selector=["summarization"],
     task_schema={
         "$schema": "http://json-schema.org/draft-07/schema#",
         "title": "Summary Evaluation",
