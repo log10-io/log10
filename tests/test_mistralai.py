@@ -1,4 +1,3 @@
-
 import pytest
 from log10.load import log10
 import mistralai
@@ -19,7 +18,9 @@ def test_chat():
 
     assert isinstance(chat_response.choices[0].message.content, str)
 
-@pytest.mark.chat_stream
+
+@pytest.mark.chat
+@pytest.mark.stream
 def test_chat_stream(capfd):
     response = client.chat_stream(
         model=model,
@@ -30,5 +31,5 @@ def test_chat_stream(capfd):
             print(chunk.choices[0].delta.content, end="")
 
     out, err = capfd.readouterr()
-    assert err == ''
+    assert err == ""
     assert isinstance(out, str)

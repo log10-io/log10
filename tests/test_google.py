@@ -5,6 +5,7 @@ from log10.load import log10
 
 log10(genai)
 
+
 @pytest.mark.chat
 def test_genai_chat():
     model = genai.GenerativeModel("gemini-1.0-pro")
@@ -19,6 +20,7 @@ def test_genai_chat():
 
     assert isinstance(response.text, str)
     assert "this is a test" in response.text
+
 
 @pytest.mark.chat
 def test_genai_chat_w_history():

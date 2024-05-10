@@ -8,9 +8,9 @@ import anthropic
 log10(anthropic)
 client = anthropic.Anthropic()
 
+
 @pytest.mark.chat
 def test_messages():
-
     message = client.messages.create(
         model="claude-3-opus-20240229",
         max_tokens=1000,
@@ -21,7 +21,9 @@ def test_messages():
 
     assert isinstance(message.content[0].text, str)
 
-@pytest.mark.chat_stream
+
+@pytest.mark.chat
+@pytest.mark.stream
 def test_messages_stream(capfd):
     stream = client.messages.create(
         model="claude-3-opus-20240229",
@@ -38,14 +40,14 @@ def test_messages_stream(capfd):
     for event in stream:
         if event.type == "content_block_delta":
             print(event.delta.text, end="", flush=True)
-    
 
     out, err = capfd.readouterr()
-    assert err == ''
-    out_array = out.split('\n')
+    assert err == ""
+    out_array = out.split("\n")
     assert len(out_array) == 10
 
-@pytest.mark.chat_image
+
+@pytest.mark.vision
 def test_messages_image():
     client = anthropic.Anthropic()
 

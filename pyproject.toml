@@ -91,15 +91,10 @@ line-ending = "auto"
 
 [tool.pytest.ini_options]
 markers = [
+    "async_client: mark a test as an async test",
     "chat: mark a test as a chat test",
-    "chat_image: mark a test as a chat_image test",
-    "chat_image_stream: mark a test as a chat_image_stream test",
-    "chat_stream: mark a test as a chat_stream test",
-    "chat_stream_async: mark a test as a chat_stream_async test",
-    "prompt: mark a test as a prompt test",
-    "prompt_function_logging: mark a test as a prompt_function_logging test",
-    "prompt_parallel_function_logging_stream: mark a test as a prompt_parallel_function_logging_stream test",
-    "prompt_stream_multi_sessions: mark a test as a prompt_stream_multi_sessions test",
-    "prompt_stream: mark a test as a prompt_stream test",
-    "prompt_widget: mark a test as a prompt_widget test",
+    "stream: mark a test as a stream test",
+    "tools: mark a test as a tools test",
+    "vision: mark a test as a vision test",
+    "widget: mark a test as a widget test",
 ]

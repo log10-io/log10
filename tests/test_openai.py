@@ -14,6 +14,7 @@ from openai import AsyncOpenAI
 log10(openai)
 client = openai.OpenAI()
 
+
 @pytest.mark.chat
 def test_chat():
     completion = client.chat.completions.create(
@@ -32,23 +33,26 @@ def test_chat():
 
     assert isinstance(completion.choices[0].message.content, str)
 
+
 @pytest.mark.chat
 def test_chat_not_given():
     completion = client.chat.completions.create(
-    model="gpt-3.5-turbo",
-    messages=[
-        {
-            "role": "user",
-            "content": "tell a short joke.",
-        },
-    ],
-    tools=NOT_GIVEN,
-    tool_choice=NOT_GIVEN,
+        model="gpt-3.5-turbo",
+        messages=[
+            {
+                "role": "user",
+                "content": "tell a short joke.",
+            },
+        ],
+        tools=NOT_GIVEN,
+        tool_choice=NOT_GIVEN,
     )
 
     assert isinstance(completion.choices[0].message.content, str)
 
+
 @pytest.mark.chat
+@pytest.mark.async_client
 def test_chat_async():
     client = AsyncOpenAI()
 
@@ -61,7 +65,9 @@ def test_chat_async():
 
     asyncio.run(main())
 
-@pytest.mark.chat_stream
+
+@pytest.mark.chat
+@pytest.mark.stream
 def test_chat_stream(capfd):
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
@@ -77,10 +83,12 @@ def test_chat_stream(capfd):
     print("")
 
     out, err = capfd.readouterr()
-    assert err == ''
-    assert out == '1, 2, 3, 4, 5, 6, 7, 8, 9, 10\n'
+    assert err == ""
+    assert out == "1, 2, 3, 4, 5, 6, 7, 8, 9, 10\n"
 
-@pytest.mark.chat_stream
+
+@pytest.mark.async_client
+@pytest.mark.stream
 def test_chat_async_stream(capfd):
     client = AsyncOpenAI()
 
@@ -96,16 +104,16 @@ def test_chat_async_stream(capfd):
     asyncio.run(main())
 
     out, err = capfd.readouterr()
-    assert err == ''
-    out_array = out.split(',')
+    assert err == ""
+    out_array = out.split(",")
     assert len(out_array) == 10
 
-@pytest.mark.chat_image
+
+@pytest.mark.vision
 def test_chat_image():
     image1_url = "https://upload.wikimedia.org/wikipedia/commons/a/a7/Camponotus_flavomarginatus_ant.jpg"
     image1_media_type = "image/jpeg"
     image1_data = base64.b64encode(httpx.get(image1_url).content).decode("utf-8")
-
 
     response = client.chat.completions.create(
         model="gpt-4-vision-preview",
@@ -128,6 +136,7 @@ def test_chat_image():
     )
     assert isinstance(response.choices[0].message.content, str)
 
+
 def get_current_weather(location, unit="fahrenheit"):
     """Get the current weather in a given location"""
     if "tokyo" in location.lower():
@@ -138,6 +147,7 @@ def get_current_weather(location, unit="fahrenheit"):
         return json.dumps({"location": "Paris", "temperature": "22", "unit": unit})
     else:
         return json.dumps({"location": location, "temperature": "unknown"})
+
 
 def setup_tools_messages() -> dict:
     messages = [
@@ -171,6 +181,7 @@ def setup_tools_messages() -> dict:
         "messages": messages,
         "tools": tools,
     }
+
 
 @pytest.mark.tools
 def test_tools():
@@ -218,7 +229,9 @@ def test_tools():
         )  # get a new response from the model where it can see the function response
         assert isinstance(second_response.choices[0].message.content, str)
 
-@pytest.mark.tools_stream
+
+@pytest.mark.stream
+@pytest.mark.tools
 def test_tools_stream():
     # Step 1: send the conversation and available functions to the model
     result = setup_tools_messages()
@@ -243,7 +256,10 @@ def test_tools_stream():
     function_args = [{"function": t.function.name, "arguments": t.function.arguments} for t in tool_calls]
     assert len(function_args) == 3
 
-@pytest.mark.tools_stream
+
+@pytest.mark.tools
+@pytest.mark.stream
+@pytest.mark.async_client
 def test_tools_stream_async():
     client = AsyncOpenAI()
 
@@ -269,7 +285,7 @@ def test_tools_stream_async():
                         tool_calls.append(tc[0])
                     else:
                         tool_calls[-1].function.arguments += tc[0].function.arguments
-        
+
         function_args = [{"function": t.function.name, "arguments": t.function.arguments} for t in tool_calls]
         assert len(function_args) == 3
 
