@@ -1,6 +1,8 @@
-import pytest
 import lamini
+import pytest
+
 from log10.load import log10
+
 
 log10(lamini)
 

@@ -1,12 +1,13 @@
 import asyncio
-from pydantic import BaseModel
-import pytest
-
-import openai
 from typing import Literal
 
-from magentic import AsyncParallelFunctionCall, AsyncStreamedStr, OpenaiChatModel, prompt, FunctionCall, StreamedStr
+import openai
+import pytest
+from magentic import AsyncParallelFunctionCall, AsyncStreamedStr, FunctionCall, OpenaiChatModel, StreamedStr, prompt
+from pydantic import BaseModel
+
 from log10.load import log10, log10_session
+
 
 log10(openai)
 

@@ -1,7 +1,8 @@
-import pytest
 import google.generativeai as genai
+import pytest
 
 from log10.load import log10
+
 
 log10(genai)
 

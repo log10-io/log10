@@ -1,14 +1,13 @@
 import asyncio
 import base64
 import json
-import httpx
-import pytest
 
+import httpx
+import openai
+import pytest
+from openai import NOT_GIVEN, AsyncOpenAI
 
 from log10.load import log10
-import openai
-from openai import NOT_GIVEN
-from openai import AsyncOpenAI
 
 
 log10(openai)

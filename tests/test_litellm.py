@@ -1,9 +1,10 @@
 import asyncio
 import base64
+
 import httpx
+import litellm
 import pytest
 
-import litellm
 from log10.litellm import Log10LitellmLogger
 
 

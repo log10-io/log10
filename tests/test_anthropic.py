@@ -1,9 +1,11 @@
 import base64
-import httpx
-import pytest
-from log10.load import log10
 
 import anthropic
+import httpx
+import pytest
+
+from log10.load import log10
+
 
 log10(anthropic)
 client = anthropic.Anthropic()

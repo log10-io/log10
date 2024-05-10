@@ -1,8 +1,10 @@
-import pytest
-from log10.load import log10
 import mistralai
+import pytest
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
+
+from log10.load import log10
+
 
 log10(mistralai)
 model = "mistral-tiny"
