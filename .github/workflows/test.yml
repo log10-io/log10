@@ -26,6 +26,9 @@ jobs:
       - name: Run tests
         run: poetry run pytest -vv tests/
         env:
+          LOG10_URL: "https://log10.io"
+          LOG10_ORG_ID: ${{ secrets.LOG10_ORG_ID }}
+          LOG10_TOKEN: ${{ secrets.LOG10_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
