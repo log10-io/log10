@@ -23,10 +23,11 @@ def test_completion_stream():
         if chunk.choices[0].delta.content:
             output += chunk.choices[0].delta.content
 
-    results = re.split('[,.]', output)
+    results = re.split("[,.]", output)
     filter_output = [s for s in results if s]
 
     assert len(filter_output) == 10
+
 
 @pytest.mark.async_client
 @pytest.mark.chat
@@ -50,9 +51,10 @@ def test_completion_async_stream():
         return output
 
     output = asyncio.run(completion())
-    results = re.split('[,.]', output)
+    results = re.split("[,.]", output)
     filter_output = [r for r in results if r]
     assert len(filter_output) == 10
+
 
 @pytest.mark.vision
 def test_image():
@@ -117,6 +119,7 @@ def test_image_stream():
 
     assert "The red curve in the figure" in output
     assert "log10" in output
+
 
 @pytest.mark.async_client
 @pytest.mark.stream

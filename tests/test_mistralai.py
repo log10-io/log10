@@ -22,6 +22,7 @@ def test_chat():
     assert content, "No output from the model."
     assert "16" in content
 
+
 @pytest.mark.chat
 @pytest.mark.stream
 def test_chat_stream():

@@ -46,6 +46,7 @@ def test_messages_stream():
             if text.isdigit():
                 assert int(text) <= 10
 
+
 @pytest.mark.vision
 def test_messages_image():
     client = anthropic.Anthropic()

@@ -36,6 +36,7 @@ def test_chat():
     assert content, "No output from the model."
     assert "did not go to the market" in content
 
+
 @pytest.mark.chat
 def test_chat_not_given():
     completion = client.chat.completions.create(
@@ -91,8 +92,9 @@ def test_chat_stream():
             output += content.strip()
 
     assert output, "No output from the model."
-    split_output = re.split('[,.]', output)
+    split_output = re.split("[,.]", output)
     assert len(split_output) == 10
+
 
 @pytest.mark.async_client
 @pytest.mark.stream
@@ -115,6 +117,7 @@ def test_chat_async_stream():
 
     output = asyncio.run(main())
     assert output, "No output from the model."
+
 
 @pytest.mark.vision
 def test_chat_image():
@@ -146,6 +149,7 @@ def test_chat_image():
     assert isinstance(content, str)
     assert content, "No output from the model."
     assert "ant" in content
+
 
 def get_current_weather(location, unit="fahrenheit"):
     """Get the current weather in a given location"""

@@ -21,6 +21,7 @@ def test_prompt():
     assert isinstance(output, str)
     assert output, "No output from the model."
 
+
 @pytest.mark.chat
 @pytest.mark.stream
 def test_prompt_stream():
@@ -50,6 +51,7 @@ def test_function_logging():
 
     output = configure_oven("cookies!")
     assert output(), "No output from the model."
+
 
 @pytest.mark.async_client
 @pytest.mark.stream
@@ -89,6 +91,7 @@ def test_async_parallel_stream_logging():
             assert isinstance(chunk, FunctionCall), "chunk is not an instance of FunctionCall"
 
     asyncio.run(main())
+
 
 @pytest.mark.async_client
 @pytest.mark.stream
