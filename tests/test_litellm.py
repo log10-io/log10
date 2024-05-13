@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import re
 
 import httpx
 import litellm
@@ -10,26 +11,27 @@ from log10.litellm import Log10LitellmLogger
 
 @pytest.mark.chat
 @pytest.mark.stream
-def test_completion_stream(capfd):
+def test_completion_stream():
     log10_handler = Log10LitellmLogger(tags=["litellm_completion", "stream"])
     litellm.callbacks = [log10_handler]
     response = litellm.completion(
         model="gpt-3.5-turbo", messages=[{"role": "user", "content": "Count to 10."}], stream=True
     )
+
+    output = ""
     for chunk in response:
         if chunk.choices[0].delta.content:
-            print(chunk.choices[0].delta.content, end="", flush=True)
+            output += chunk.choices[0].delta.content
 
-    out, err = capfd.readouterr()
-    assert err == ""
-    out_array = out.split(",")
-    assert len(out_array) == 10
+    results = re.split('[,.]', output)
+    filter_output = [s for s in results if s]
 
+    assert len(filter_output) == 10
 
 @pytest.mark.async_client
 @pytest.mark.chat
 @pytest.mark.stream
-def test_completion_async_stream(capfd):
+def test_completion_async_stream():
     log10_handler = Log10LitellmLogger(tags=["litellm_acompletion"])
     litellm.callbacks = [log10_handler]
 
@@ -39,16 +41,18 @@ def test_completion_async_stream(capfd):
         response = await litellm.acompletion(
             model=model_name, messages=[{"role": "user", "content": "count to 10"}], stream=True
         )
+
+        output = ""
         async for chunk in response:
             if chunk.choices[0].delta.content:
-                print(chunk.choices[0].delta.content, end="", flush=True)
+                output += chunk.choices[0].delta.content.strip()
 
-    asyncio.run(completion())
+        return output
 
-    out, err = capfd.readouterr()
-    assert err == ""
-    assert isinstance(out, str)
-
+    output = asyncio.run(completion())
+    results = re.split('[,.]', output)
+    filter_output = [r for r in results if r]
+    assert len(filter_output) == 10
 
 @pytest.mark.vision
 def test_image():
@@ -80,7 +84,7 @@ def test_image():
 
 @pytest.mark.stream
 @pytest.mark.vision
-def test_image_stream(capfd):
+def test_image_stream():
     log10_handler = Log10LitellmLogger(tags=["litellm_image", "stream"])
     litellm.callbacks = [log10_handler]
 
@@ -105,19 +109,19 @@ def test_image_stream(capfd):
         ],
         stream=True,
     )
+
+    output = ""
     for chunk in resp:
         if chunk.choices[0].delta.content:
-            print(chunk.choices[0].delta.content, end="", flush=True)
+            output += chunk.choices[0].delta.content
 
-    out, err = capfd.readouterr()
-    assert err == ""
-    assert isinstance(out, str)
-
+    assert "The red curve in the figure" in output
+    assert "log10" in output
 
 @pytest.mark.async_client
 @pytest.mark.stream
 @pytest.mark.vision
-def test_image_async_stream(capfd):
+def test_image_async_stream():
     log10_handler = Log10LitellmLogger(tags=["litellm_image", "stream", "async"])
     litellm.callbacks = [log10_handler]
 
@@ -147,12 +151,15 @@ def test_image_async_stream(capfd):
             ],
             stream=True,
         )
+
+        output = ""
         for chunk in resp:
             if chunk.choices[0].delta.content:
-                print(chunk.choices[0].delta.content, end="", flush=True)
+                output += chunk.choices[0].delta.content
 
-    asyncio.run(completion())
+        return output
 
-    out, err = capfd.readouterr()
-    assert err == ""
-    assert isinstance(out, str)
+    output = asyncio.run(completion())
+
+    assert "The red curve in the figure" in output
+    assert "log10" in output

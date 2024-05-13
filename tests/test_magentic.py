@@ -19,21 +19,20 @@ def test_prompt():
 
     output = llm()
     assert isinstance(output, str)
-
+    assert output, "No output from the model."
 
 @pytest.mark.chat
 @pytest.mark.stream
-def test_prompt_stream(capfd):
+def test_prompt_stream():
     @prompt("Tell me a short joke")
     def llm() -> StreamedStr: ...
 
     response = llm()
+    output = ""
     for chunk in response:
-        print(chunk, end="", flush=True)
+        output += chunk
 
-    out, err = capfd.readouterr()
-    assert err == ""
-    assert isinstance(out, str)
+    assert output, "No output from the model."
 
 
 @pytest.mark.tools
@@ -50,12 +49,11 @@ def test_function_logging():
         ...
 
     output = configure_oven("cookies!")
-    assert isinstance(output(), str)
-
+    assert output(), "No output from the model."
 
 @pytest.mark.async_client
 @pytest.mark.stream
-def test_async_stream_logging(capfd):
+def test_async_stream_logging():
     @prompt("Tell me a 50-word story about {topic}")
     async def tell_story(topic: str) -> AsyncStreamedStr:  # ruff: ignore
         ...
@@ -63,19 +61,19 @@ def test_async_stream_logging(capfd):
     async def main():
         with log10_session(tags=["async_tag"]):
             output = await tell_story("Europe.")
+            result = ""
             async for chunk in output:
-                print(chunk, end="", flush=True)
+                result += chunk
 
-    asyncio.run(main())
+            return result
 
-    out, err = capfd.readouterr()
-    assert err == ""
-    assert isinstance(out, str)
+    output = asyncio.run(main())
+    assert output, "No output from the model."
 
 
 @pytest.mark.async_client
 @pytest.mark.tools
-def test_async_parallel_stream_logging(capfd):
+def test_async_parallel_stream_logging():
     def plus(a: int, b: int) -> int:
         return a + b
 
@@ -88,44 +86,40 @@ def test_async_parallel_stream_logging(capfd):
     async def main():
         output = await plus_and_minus(2, 3)
         async for chunk in output:
-            print(chunk)
+            assert isinstance(chunk, FunctionCall), "chunk is not an instance of FunctionCall"
 
     asyncio.run(main())
 
-    out, err = capfd.readouterr()
-    assert err == ""
-    assert isinstance(out, str)
-
-
 @pytest.mark.async_client
 @pytest.mark.stream
-def test_async_multi_session_tags(capfd):
+def test_async_multi_session_tags():
     @prompt("What is {a} * {b}?", model=OpenaiChatModel(model="gpt-4-turbo-preview"))
     async def do_math_with_llm_async(a: int, b: int) -> AsyncStreamedStr:  # ruff: ignore
         ...
 
     async def main():
+        output = ""
+
         with log10_session(tags=["test_tag_a"]):
             result = await do_math_with_llm_async(2, 2)
             async for chunk in result:
-                print(chunk, end="", flush=True)
+                output += chunk
 
         result = await do_math_with_llm_async(2.5, 2.5)
         async for chunk in result:
-            print(chunk, end="", flush=True)
+            output += chunk
 
         with log10_session(tags=["test_tag_b"]):
             result = await do_math_with_llm_async(3, 3)
             async for chunk in result:
-                print(chunk, end="", flush=True)
+                output += chunk
+        return output
 
-    asyncio.run(main())
-    out, err = capfd.readouterr()
-    assert err == ""
-    assert isinstance(out, str)
-    assert "4" in out
-    assert "6.25" in out
-    assert "9" in out
+    output = asyncio.run(main())
+    assert output, "No output from the model."
+    assert "4" in output
+    assert "6.25" in output
+    assert "9" in output
 
 
 @pytest.mark.async_client

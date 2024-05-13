@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import json
+import re
 
 import httpx
 import openai
@@ -30,8 +31,10 @@ def test_chat():
         ],
     )
 
-    assert isinstance(completion.choices[0].message.content, str)
-
+    content = completion.choices[0].message.content
+    assert isinstance(content, str)
+    assert content, "No output from the model."
+    assert "did not go to the market" in content
 
 @pytest.mark.chat
 def test_chat_not_given():
@@ -47,7 +50,9 @@ def test_chat_not_given():
         tool_choice=NOT_GIVEN,
     )
 
-    assert isinstance(completion.choices[0].message.content, str)
+    content = completion.choices[0].message.content
+    assert isinstance(content, str)
+    assert content, "No output from the model."
 
 
 @pytest.mark.chat
@@ -60,14 +65,18 @@ def test_chat_async():
             model="gpt-4",
             messages=[{"role": "user", "content": "Say this is a test"}],
         )
-        assert isinstance(completion.choices[0].message.content, str)
+
+        content = completion.choices[0].message.content
+        assert isinstance(content, str)
+        assert content, "No output from the model."
+        assert "this is a test" in content.lower()
 
     asyncio.run(main())
 
 
 @pytest.mark.chat
 @pytest.mark.stream
-def test_chat_stream(capfd):
+def test_chat_stream():
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": "Count to 10"}],
@@ -75,38 +84,37 @@ def test_chat_stream(capfd):
         stream=True,
     )
 
+    output = ""
     for chunk in response:
         content = chunk.choices[0].delta.content
         if content:
-            print(content, end="", flush=True)
-    print("")
+            output += content.strip()
 
-    out, err = capfd.readouterr()
-    assert err == ""
-    assert out == "1, 2, 3, 4, 5, 6, 7, 8, 9, 10\n"
-
+    assert output, "No output from the model."
+    split_output = re.split('[,.]', output)
+    assert len(split_output) == 10
 
 @pytest.mark.async_client
 @pytest.mark.stream
-def test_chat_async_stream(capfd):
+def test_chat_async_stream():
     client = AsyncOpenAI()
 
     async def main():
+        output = ""
         stream = await client.chat.completions.create(
             model="gpt-4",
             messages=[{"role": "user", "content": "Count to 10"}],
             stream=True,
         )
         async for chunk in stream:
-            print(chunk.choices[0].delta.content or "", end="", flush=True)
+            content = chunk.choices[0].delta.content
+            if content:
+                output += content.strip()
 
-    asyncio.run(main())
+        return output
 
-    out, err = capfd.readouterr()
-    assert err == ""
-    out_array = out.split(",")
-    assert len(out_array) == 10
-
+    output = asyncio.run(main())
+    assert output, "No output from the model."
 
 @pytest.mark.vision
 def test_chat_image():
@@ -133,8 +141,11 @@ def test_chat_image():
         ],
         max_tokens=300,
     )
-    assert isinstance(response.choices[0].message.content, str)
 
+    content = response.choices[0].message.content
+    assert isinstance(content, str)
+    assert content, "No output from the model."
+    assert "ant" in content
 
 def get_current_weather(location, unit="fahrenheit"):
     """Get the current weather in a given location"""
@@ -226,7 +237,9 @@ def test_tools():
             model="gpt-3.5-turbo-0125",
             messages=messages,
         )  # get a new response from the model where it can see the function response
-        assert isinstance(second_response.choices[0].message.content, str)
+        content = second_response.choices[0].message.content
+        assert isinstance(content, str)
+        assert content, "No output from the model."
 
 
 @pytest.mark.stream

@@ -18,20 +18,23 @@ def test_chat():
         messages=[ChatMessage(role="user", content="10 + 2 * 3=?")],
     )
 
-    assert isinstance(chat_response.choices[0].message.content, str)
-
+    content = chat_response.choices[0].message.content
+    assert content, "No output from the model."
+    assert "16" in content
 
 @pytest.mark.chat
 @pytest.mark.stream
-def test_chat_stream(capfd):
+def test_chat_stream():
     response = client.chat_stream(
         model=model,
         messages=[ChatMessage(role="user", content="Count the odd numbers from 1 to 20.")],
     )
-    for chunk in response:
-        if chunk.choices[0].delta.content is not None:
-            print(chunk.choices[0].delta.content, end="")
 
-    out, err = capfd.readouterr()
-    assert err == ""
-    assert isinstance(out, str)
+    output = ""
+    for chunk in response:
+        content = chunk.choices[0].delta.content
+        if chunk.choices[0].delta.content is not None:
+            output += content
+
+    assert output, "No output from the model."
+    assert "10 odd numbers" in output

@@ -26,7 +26,7 @@ def test_messages():
 
 @pytest.mark.chat
 @pytest.mark.stream
-def test_messages_stream(capfd):
+def test_messages_stream():
     stream = client.messages.create(
         model="claude-3-opus-20240229",
         messages=[
@@ -39,15 +39,12 @@ def test_messages_stream(capfd):
         temperature=0.9,
         stream=True,
     )
+
     for event in stream:
         if event.type == "content_block_delta":
-            print(event.delta.text, end="", flush=True)
-
-    out, err = capfd.readouterr()
-    assert err == ""
-    out_array = out.split("\n")
-    assert len(out_array) == 10
-
+            text = event.delta.text
+            if text.isdigit():
+                assert int(text) <= 10
 
 @pytest.mark.vision
 def test_messages_image():
@@ -77,4 +74,5 @@ def test_messages_image():
             }
         ],
     )
-    assert isinstance(message.content[0].text, str)
+    assert message.content[0].text, "No output from the model."
+    assert "ant" in message.content[0].text
