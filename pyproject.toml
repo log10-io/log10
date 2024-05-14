@@ -50,6 +50,7 @@ mistralai = {version = "^0.1.5", optional = true}
 together = {version = "^0.2.7", optional = true}
 mosaicml-cli = {version = "^0.5.30", optional = true}
 google-cloud-bigquery = {version = "^3.11.4", optional = true}
+google-generativeai = {version = "^0.5.2", optional = true}
 
 [tool.poetry.extras]
 autofeedback_icl = ["magentic"]
@@ -59,6 +60,7 @@ gemini = ["google-cloud-aiplatform"]
 mistralai = ["mistralai"]
 together = ["together"]
 mosaicml = ["mosaicml-cli"]
+google-generativeai = ["google-generativeai"]
 
 [tool.ruff]
 # Never enforce `E501` (line length violations).

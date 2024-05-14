@@ -19,8 +19,9 @@ def test_genai_chat():
     )
     response = chat.send_message(prompt, generation_config=generation_config)
 
-    assert isinstance(response.text, str)
-    assert "this is a test" in response.text
+    text = response.text
+    assert isinstance(text, str)
+    assert "this is a test" in text.lower()
 
 
 @pytest.mark.chat
@@ -36,5 +37,6 @@ def test_genai_chat_w_history():
     prompt = "please say no."
     response = chat.send_message(prompt)
 
-    assert isinstance(response.text, str)
-    assert "no" in response.text
+    text = response.text
+    assert isinstance(text, str)
+    assert "no" in text.lower()

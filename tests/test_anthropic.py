@@ -21,7 +21,9 @@ def test_messages():
         messages=[{"role": "user", "content": "How are you today?"}],
     )
 
-    assert isinstance(message.content[0].text, str)
+    text = message.content[0].text
+    assert isinstance(text, str)
+    assert text, "No output from the model."
 
 
 @pytest.mark.chat
@@ -75,5 +77,7 @@ def test_messages_image():
             }
         ],
     )
-    assert message.content[0].text, "No output from the model."
-    assert "ant" in message.content[0].text
+
+    text = message.content[0].text
+    assert text, "No output from the model."
+    assert "ant" in text

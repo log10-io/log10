@@ -29,3 +29,4 @@ def test_chat_anthropic_messages():
     completion = llm.predict_messages(messages)
 
     assert isinstance(completion.content, str)
+    assert "pong" in completion.content.lower()
