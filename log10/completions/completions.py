@@ -400,6 +400,8 @@ def _compare(models: list[str], messages: dict, temperature: float = 0.2, max_to
 
 _SUPPORTED_MODELS = [
     # openai chat models
+    "gpt-4o",
+    "gpt-4o-2024-05-13",
     "gpt-4-turbo",
     "gpt-4-turbo-2024-04-09",
     "gpt-4-0125-preview",
