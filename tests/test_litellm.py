@@ -11,11 +11,11 @@ from log10.litellm import Log10LitellmLogger
 
 @pytest.mark.chat
 @pytest.mark.stream
-def test_completion_stream():
+def test_completion_stream(openai_model):
     log10_handler = Log10LitellmLogger(tags=["litellm_completion", "stream"])
     litellm.callbacks = [log10_handler]
     response = litellm.completion(
-        model="gpt-3.5-turbo", messages=[{"role": "user", "content": "Count to 10."}], stream=True
+        model=openai_model, messages=[{"role": "user", "content": "Count to 10."}], stream=True
     )
 
     output = ""
@@ -32,11 +32,11 @@ def test_completion_stream():
 @pytest.mark.async_client
 @pytest.mark.chat
 @pytest.mark.stream
-def test_completion_async_stream():
+def test_completion_async_stream(anthropic_model):
     log10_handler = Log10LitellmLogger(tags=["litellm_acompletion"])
     litellm.callbacks = [log10_handler]
 
-    model_name = "claude-3-haiku-20240307"
+    model_name = anthropic_model or "claude-3-haiku-20240307"
 
     async def completion():
         response = await litellm.acompletion(
@@ -57,7 +57,7 @@ def test_completion_async_stream():
 
 
 @pytest.mark.vision
-def test_image():
+def test_image(openai_vision_model):
     log10_handler = Log10LitellmLogger(tags=["litellm_image"])
     litellm.callbacks = [log10_handler]
 
@@ -65,9 +65,8 @@ def test_image():
     image_media_type = "image/png"
     image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
 
-    model_name = "gpt-4-vision-preview"
     resp = litellm.completion(
-        model=model_name,
+        model=openai_vision_model,
         messages=[
             {
                 "role": "user",
@@ -86,7 +85,7 @@ def test_image():
 
 @pytest.mark.stream
 @pytest.mark.vision
-def test_image_stream():
+def test_image_stream(anthropic_model):
     log10_handler = Log10LitellmLogger(tags=["litellm_image", "stream"])
     litellm.callbacks = [log10_handler]
 
@@ -94,7 +93,7 @@ def test_image_stream():
     image_media_type = "image/png"
     image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
 
-    model_name = "claude-3-haiku-20240307"
+    model_name = anthropic_model or "claude-3-haiku-20240307"
     resp = litellm.completion(
         model=model_name,
         messages=[
@@ -124,7 +123,7 @@ def test_image_stream():
 @pytest.mark.async_client
 @pytest.mark.stream
 @pytest.mark.vision
-def test_image_async_stream():
+def test_image_async_stream(anthropic_model):
     log10_handler = Log10LitellmLogger(tags=["litellm_image", "stream", "async"])
     litellm.callbacks = [log10_handler]
 
@@ -132,7 +131,7 @@ def test_image_async_stream():
     image_media_type = "image/png"
     image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
 
-    model_name = "claude-3-haiku-20240307"
+    model_name = anthropic_model or "claude-3-haiku-20240307"
 
     async def completion():
         resp = litellm.completion(

@@ -12,9 +12,10 @@ client = anthropic.Anthropic()
 
 
 @pytest.mark.chat
-def test_messages():
+def test_messages(anthropic_model):
+    model_name = anthropic_model or "claude-3-opus-20240229"
     message = client.messages.create(
-        model="claude-3-opus-20240229",
+        model=model_name,
         max_tokens=1000,
         temperature=0.0,
         system="Respond only in Yoda-speak.",
@@ -28,9 +29,10 @@ def test_messages():
 
 @pytest.mark.chat
 @pytest.mark.stream
-def test_messages_stream():
+def test_messages_stream(anthropic_model):
+    model_name = anthropic_model or "claude-3-haiku-20240307"
     stream = client.messages.create(
-        model="claude-3-opus-20240229",
+        model=model_name,
         messages=[
             {
                 "role": "user",
@@ -50,15 +52,16 @@ def test_messages_stream():
 
 
 @pytest.mark.vision
-def test_messages_image():
+def test_messages_image(anthropic_model):
     client = anthropic.Anthropic()
 
     image1_url = "https://upload.wikimedia.org/wikipedia/commons/a/a7/Camponotus_flavomarginatus_ant.jpg"
     image1_media_type = "image/jpeg"
     image1_data = base64.b64encode(httpx.get(image1_url).content).decode("utf-8")
 
+    model_name = anthropic_model or "claude-3-haiku-20240307"
     message = client.messages.create(
-        model="claude-3-haiku-20240307",
+        model=model_name,
         max_tokens=1024,
         messages=[
             {

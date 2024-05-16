@@ -7,14 +7,13 @@ from log10.load import log10
 
 
 log10(mistralai)
-model = "mistral-tiny"
 client = MistralClient()
 
 
 @pytest.mark.chat
-def test_chat():
+def test_chat(mistralai_model):
     chat_response = client.chat(
-        model=model,
+        model=mistralai_model,
         messages=[ChatMessage(role="user", content="10 + 2 * 3=?")],
     )
 
@@ -25,9 +24,9 @@ def test_chat():
 
 @pytest.mark.chat
 @pytest.mark.stream
-def test_chat_stream():
+def test_chat_stream(mistralai_model):
     response = client.chat_stream(
-        model=model,
+        model=mistralai_model,
         messages=[ChatMessage(role="user", content="Count the odd numbers from 1 to 20.")],
     )
 

@@ -16,9 +16,10 @@ client = openai.OpenAI()
 
 
 @pytest.mark.chat
-def test_chat():
+def test_chat(openai_model):
+    model_name = openai_model or "gpt-3.5-turbo"
     completion = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model=model_name,
         messages=[
             {
                 "role": "system",
@@ -38,9 +39,11 @@ def test_chat():
 
 
 @pytest.mark.chat
-def test_chat_not_given():
+def test_chat_not_given(openai_model):
+    model_name = openai_model or "gpt-3.5-turbo"
+
     completion = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model=model_name,
         messages=[
             {
                 "role": "user",
@@ -58,12 +61,13 @@ def test_chat_not_given():
 
 @pytest.mark.chat
 @pytest.mark.async_client
-def test_chat_async():
+def test_chat_async(openai_model):
     client = AsyncOpenAI()
+    model_name = openai_model or "gpt-4"
 
     async def main():
         completion = await client.chat.completions.create(
-            model="gpt-4",
+            model=model_name,
             messages=[{"role": "user", "content": "Say this is a test"}],
         )
 
@@ -77,9 +81,10 @@ def test_chat_async():
 
 @pytest.mark.chat
 @pytest.mark.stream
-def test_chat_stream():
+def test_chat_stream(openai_model):
+    model_name = openai_model or "gpt-3.5-turbo"
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model=model_name,
         messages=[{"role": "user", "content": "Count to 10"}],
         temperature=0,
         stream=True,
@@ -98,13 +103,14 @@ def test_chat_stream():
 
 @pytest.mark.async_client
 @pytest.mark.stream
-def test_chat_async_stream():
+def test_chat_async_stream(openai_model):
     client = AsyncOpenAI()
+    model_name = openai_model or "gpt-4"
 
     async def main():
         output = ""
         stream = await client.chat.completions.create(
-            model="gpt-4",
+            model=model_name,
             messages=[{"role": "user", "content": "Count to 10"}],
             stream=True,
         )
@@ -120,13 +126,14 @@ def test_chat_async_stream():
 
 
 @pytest.mark.vision
-def test_chat_image():
+def test_chat_image(openai_vision_model):
     image1_url = "https://upload.wikimedia.org/wikipedia/commons/a/a7/Camponotus_flavomarginatus_ant.jpg"
     image1_media_type = "image/jpeg"
     image1_data = base64.b64encode(httpx.get(image1_url).content).decode("utf-8")
 
+    model_name = openai_vision_model or "gpt-4-vision-preview"
     response = client.chat.completions.create(
-        model="gpt-4-vision-preview",
+        model=model_name,
         messages=[
             {
                 "role": "user",
@@ -198,14 +205,15 @@ def setup_tools_messages() -> dict:
 
 
 @pytest.mark.tools
-def test_tools():
+def test_tools(openai_model):
     # Step 1: send the conversation and available functions to the model
     result = setup_tools_messages()
     messages = result["messages"]
     tools = result["tools"]
 
+    model_name = openai_model or "gpt-3.5-turbo-0125"
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo-0125",
+        model=model_name,
         messages=messages,
         tools=tools,
         tool_choice="auto",  # auto is default, but we'll be explicit
@@ -238,7 +246,7 @@ def test_tools():
                 }
             )  # extend conversation with function response
         second_response = client.chat.completions.create(
-            model="gpt-3.5-turbo-0125",
+            model=model_name,
             messages=messages,
         )  # get a new response from the model where it can see the function response
         content = second_response.choices[0].message.content
@@ -248,14 +256,14 @@ def test_tools():
 
 @pytest.mark.stream
 @pytest.mark.tools
-def test_tools_stream():
+def test_tools_stream(openai_model):
     # Step 1: send the conversation and available functions to the model
     result = setup_tools_messages()
     messages = result["messages"]
     tools = result["tools"]
-
+    model_name = openai_model or "gpt-3.5-turbo-0125"
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo-0125",
+        model=model_name,
         messages=messages,
         tools=tools,
         tool_choice="auto",  # auto is default, but we'll be explicit
@@ -276,9 +284,9 @@ def test_tools_stream():
 @pytest.mark.tools
 @pytest.mark.stream
 @pytest.mark.async_client
-def test_tools_stream_async():
+def test_tools_stream_async(openai_model):
     client = AsyncOpenAI()
-
+    model_name = openai_model or "gpt-3.5-turbo-0125"
     # Step 1: send the conversation and available functions to the model
     result = setup_tools_messages()
     messages = result["messages"]
@@ -286,7 +294,7 @@ def test_tools_stream_async():
 
     async def main():
         response = await client.chat.completions.create(
-            model="gpt-3.5-turbo-0125",
+            model=model_name,
             messages=messages,
             tools=tools,
             tool_choice="auto",  # auto is default, but we'll be explicit
