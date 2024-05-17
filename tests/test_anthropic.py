@@ -42,11 +42,15 @@ def test_messages_stream(anthropic_model):
         stream=True,
     )
 
+    output = ""
     for event in stream:
         if event.type == "content_block_delta":
             text = event.delta.text
+            output += text
             if text.isdigit():
                 assert int(text) <= 10
+
+    assert output, "No output from the model."
 
 
 @pytest.mark.vision

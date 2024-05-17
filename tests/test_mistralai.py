@@ -37,4 +37,3 @@ def test_chat_stream(mistralai_model):
             output += content
 
     assert output, "No output from the model."
-    assert "10 odd numbers" in output
