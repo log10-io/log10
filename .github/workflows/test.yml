@@ -1,0 +1,122 @@
+name: Test
+
+on:
+  schedule:
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+    inputs:
+      openai_model:
+        description: 'Model name for OpenAI tests'
+        type: string
+        required: false
+      openai_vision_model:
+        description: 'Model name for OpenAI vision tests'
+        type: string
+        required: false
+      anthropic_model:
+        description: 'Model name for Anthropic tests'
+        type: string
+        required: false
+      google_model:
+        description: 'Model name for Google tests'
+        type: string
+        required: false
+      mistralai_model:
+        description: 'Model name for Mistralai tests'
+        type: string
+        required: false
+      lamini_model:
+        description: 'Model name for Lamini tests'
+        type: string
+        required: false
+      magentic_model:
+        description: 'Model name for Magentic tests'
+        type: string
+        required: false
+
+env:
+  PYTHON_VERSION: 3.11.4
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      LOG10_URL: "https://log10.io"
+      LOG10_ORG_ID: ${{ secrets.LOG10_ORG_ID }}
+      LOG10_TOKEN: ${{ secrets.LOG10_TOKEN }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+      LAMINI_API_KEY: ${{ secrets.LAMINI_API_KEY }}
+      GOOGLE_API_KEY : ${{ secrets.GOOGLE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install poetry
+        run: pipx install poetry
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{env.PYTHON_VERSION}}
+          cache: "poetry"
+          architecture: 'x64'
+      - name: Install dependencies
+        run: poetry install --all-extras
+
+      - name: Run dispatch tests
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          echo "This is a dispatch event"
+          openai_model_input=${{ github.event.inputs.openai_model }}
+          openai_vision_model_input=${{ github.event.inputs.openai_vision_model }}
+          anthropic_model_input=${{ github.event.inputs.anthropic_model }}
+          google_model_input=${{ github.event.inputs.google_model }}
+          mistralai_model_input=${{ github.event.inputs.mistralai_model }}
+          lamini_model_input=${{ github.event.inputs.lamini_model }}
+          magentic_model_input=${{ github.event.inputs.magentic_model }}
+
+          empty_inputs=true
+          if [[ -n "$openai_model_input" ]]; then
+            empty_inputs=false
+            poetry run pytest --openai_model=$openai_model_input -vv tests/test_openai.py
+          fi
+
+          if [[ -n "$openai_vision_model_input" ]]; then
+            empty_inputs=false
+            poetry run pytest --openai_vision_model=$openai_vision_model_input -m vision -vv tests/test_openai.py
+          fi
+
+          if [[ -n "$anthropic_model_input" ]]; then
+            empty_inputs=false
+            poetry run pytest --anthropic_model=$anthropic_model_input -vv tests/test_anthropic.py
+          fi
+
+          if [[ -n "$google_model_input" ]]; then
+            empty_inputs=false
+            poetry run pytest --google_model=$google_model_input -vv tests/test_google.py
+          fi
+
+          if [[ -n "$mistralai_model_input" ]]; then
+            empty_inputs=false
+            poetry run pytest --mistralai_model=$mistralai_model_input -vv tests/test_mistralai.py
+          fi
+
+          if [[ -n "$lamini_model_input" ]]; then
+            empty_inputs=false
+            poetry run pytest --lamini_model=$lamini_model_input -vv tests/test_lamini.py
+          fi
+
+          if [[ -n "$magentic_model_input" ]]; then
+            empty_inputs=false
+            poetry run pytest --magentic_model=$magentic_model_input -vv tests/test_magentic.py
+          fi
+
+          if $empty_inputs; then
+            echo "All variables are empty"
+            poetry run pytest -vv tests/
+          fi
+
+      - name: Run scheduled tests
+        if: ${{ github.event_name == 'schedule' }}
+        run: |
+          echo "This is a schedule event"
+          poetry run pytest -vv tests/
+          poetry run pytest --openai_model=gpt-4o -m chat -vv tests/test_openai.py

@@ -34,10 +34,6 @@ logging:
 	python examples/logging/get_url.py
 	# python examples/logging/langchain_babyagi.py
 	python examples/logging/langchain_model_logger.py
-	python examples/logging/langchain_multiple_tools.py
-	python examples/logging/langchain_qa.py
-	python examples/logging/langchain_simple_sequential.py
-	python examples/logging/langchain_sqlagent.py
 
 evals:
 	(cd examples/evals && python basic_eval.py)
