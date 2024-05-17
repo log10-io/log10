@@ -29,8 +29,8 @@ on:
         description: 'Model name for Lamini tests'
         type: string
         required: false
-      magnetic_model:
-        description: 'Model name for Magnetic tests'
+      magentic_model:
+        description: 'Model name for Magentic tests'
         type: string
         required: false
 
@@ -71,7 +71,7 @@ jobs:
           google_model_input=${{ github.event.inputs.google_model }}
           mistralai_model_input=${{ github.event.inputs.mistralai_model }}
           lamini_model_input=${{ github.event.inputs.lamini_model }}
-          magnetic_model_input=${{ github.event.inputs.magnetic_model }}
+          magentic_model_input=${{ github.event.inputs.magentic_model }}
 
           empty_inputs=true
           if [[ -n "$openai_model_input" ]]; then
@@ -104,9 +104,9 @@ jobs:
             poetry run pytest --lamini_model=$lamini_model_input -vv tests/test_lamini.py
           fi
 
-          if [[ -n "$magnetic_model_input" ]]; then
+          if [[ -n "$magentic_model_input" ]]; then
             empty_inputs=false
-            poetry run pytest --magnetic_model=$magnetic_model_input -vv tests/test_magnetic.py
+            poetry run pytest --magentic_model=$magentic_model_input -vv tests/test_magentic.py
           fi
 
           if $empty_inputs; then

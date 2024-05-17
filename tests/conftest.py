@@ -18,7 +18,7 @@ def pytest_addoption(parser):
 
     parser.addoption("--google_model", action="store", help="Model name for Google tests")
 
-    parser.addoption("--magnetic_model", action="store", help="Model name for Magnetic tests")
+    parser.addoption("--magentic_model", action="store", help="Model name for Magentic tests")
 
 
 @pytest.fixture
@@ -57,5 +57,5 @@ def google_model(request):
 
 
 @pytest.fixture
-def magnetic_model(request):
-    return request.config.getoption("--magnetic_model")
+def magentic_model(request):
+    return request.config.getoption("--magentic_model")

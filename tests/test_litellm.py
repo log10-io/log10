@@ -74,7 +74,10 @@ def test_image(openai_vision_model):
             }
         ],
     )
-    assert isinstance(resp.choices[0].message.content, str)
+
+    content = resp.choices[0].message.content
+    assert isinstance(content, str)
+    assert "log10" in content.lower()
 
 
 @pytest.mark.stream
