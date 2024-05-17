@@ -1,4 +1,3 @@
-import asyncio
 import base64
 import json
 import re
@@ -58,22 +57,19 @@ def test_chat_not_given(openai_model):
 
 @pytest.mark.chat
 @pytest.mark.async_client
-def test_chat_async(openai_model):
-    # TODO Update to remove AsyncOpenAI
+@pytest.mark.asyncio
+async def test_chat_async(openai_model):
     client = AsyncOpenAI()
 
-    async def main():
-        completion = await client.chat.completions.create(
-            model=openai_model,
-            messages=[{"role": "user", "content": "Say this is a test"}],
-        )
+    completion = await client.chat.completions.create(
+        model=openai_model,
+        messages=[{"role": "user", "content": "Say this is a test"}],
+    )
 
-        content = completion.choices[0].message.content
-        assert isinstance(content, str)
-        assert content, "No output from the model."
-        assert "this is a test" in content.lower()
-
-    asyncio.run(main())
+    content = completion.choices[0].message.content
+    assert isinstance(content, str)
+    assert content, "No output from the model."
+    assert "this is a test" in content.lower()
 
 
 @pytest.mark.chat
@@ -99,24 +95,21 @@ def test_chat_stream(openai_model):
 
 @pytest.mark.async_client
 @pytest.mark.stream
-def test_chat_async_stream(openai_model):
+@pytest.mark.asyncio
+async def test_chat_async_stream(openai_model):
     client = AsyncOpenAI()
 
-    async def main():
-        output = ""
-        stream = await client.chat.completions.create(
-            model=openai_model,
-            messages=[{"role": "user", "content": "Count to 10"}],
-            stream=True,
-        )
-        async for chunk in stream:
-            content = chunk.choices[0].delta.content
-            if content:
-                output += content.strip()
+    output = ""
+    stream = await client.chat.completions.create(
+        model=openai_model,
+        messages=[{"role": "user", "content": "Count to 10"}],
+        stream=True,
+    )
+    async for chunk in stream:
+        content = chunk.choices[0].delta.content
+        if content:
+            output += content.strip()
 
-        return output
-
-    output = asyncio.run(main())
     assert output, "No output from the model."
 
 
@@ -277,32 +270,30 @@ def test_tools_stream(openai_model):
 @pytest.mark.tools
 @pytest.mark.stream
 @pytest.mark.async_client
-def test_tools_stream_async(openai_model):
+@pytest.mark.asyncio
+async def test_tools_stream_async(openai_model):
     client = AsyncOpenAI()
     # Step 1: send the conversation and available functions to the model
     result = setup_tools_messages()
     messages = result["messages"]
     tools = result["tools"]
 
-    async def main():
-        response = await client.chat.completions.create(
-            model=openai_model,
-            messages=messages,
-            tools=tools,
-            tool_choice="auto",  # auto is default, but we'll be explicit
-            stream=True,
-        )
+    response = await client.chat.completions.create(
+        model=openai_model,
+        messages=messages,
+        tools=tools,
+        tool_choice="auto",  # auto is default, but we'll be explicit
+        stream=True,
+    )
 
-        tool_calls = []
-        async for chunk in response:
-            if chunk.choices[0].delta:
-                if tc := chunk.choices[0].delta.tool_calls:
-                    if tc[0].id:
-                        tool_calls.append(tc[0])
-                    else:
-                        tool_calls[-1].function.arguments += tc[0].function.arguments
+    tool_calls = []
+    async for chunk in response:
+        if chunk.choices[0].delta:
+            if tc := chunk.choices[0].delta.tool_calls:
+                if tc[0].id:
+                    tool_calls.append(tc[0])
+                else:
+                    tool_calls[-1].function.arguments += tc[0].function.arguments
 
-        function_args = [{"function": t.function.name, "arguments": t.function.arguments} for t in tool_calls]
-        assert len(function_args) == 3
-
-    asyncio.run(main())
+    function_args = [{"function": t.function.name, "arguments": t.function.arguments} for t in tool_calls]
+    assert len(function_args) == 3
