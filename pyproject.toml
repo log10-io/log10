@@ -90,13 +90,3 @@ skip-magic-trailing-comma = false
 
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
-
-[tool.pytest.ini_options]
-markers = [
-    "async_client: mark a test as an async test",
-    "chat: mark a test as a chat test",
-    "stream: mark a test as a stream test",
-    "tools: mark a test as a tools test",
-    "vision: mark a test as a vision test",
-    "widget: mark a test as a widget test",
-]

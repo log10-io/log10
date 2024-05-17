@@ -9,8 +9,7 @@ log10(genai)
 
 @pytest.mark.chat
 def test_genai_chat(google_model):
-    model_name = google_model or "gemini-1.0-pro"
-    model = genai.GenerativeModel(model_name)
+    model = genai.GenerativeModel(google_model)
     chat = model.start_chat()
 
     prompt = "Say this is a test"
@@ -27,8 +26,7 @@ def test_genai_chat(google_model):
 
 @pytest.mark.chat
 def test_genai_chat_w_history(google_model):
-    model_name = google_model or "gemini-1.5-pro-latest"
-    model = genai.GenerativeModel(model_name, system_instruction="You are a cat. Your name is Neko.")
+    model = genai.GenerativeModel(google_model, system_instruction="You are a cat. Your name is Neko.")
     chat = model.start_chat(
         history=[
             {"role": "user", "parts": [{"text": "please say yes."}]},

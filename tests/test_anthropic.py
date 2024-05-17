@@ -13,9 +13,8 @@ client = anthropic.Anthropic()
 
 @pytest.mark.chat
 def test_messages(anthropic_model):
-    model_name = anthropic_model or "claude-3-opus-20240229"
     message = client.messages.create(
-        model=model_name,
+        model=anthropic_model,
         max_tokens=1000,
         temperature=0.0,
         system="Respond only in Yoda-speak.",
@@ -30,9 +29,8 @@ def test_messages(anthropic_model):
 @pytest.mark.chat
 @pytest.mark.stream
 def test_messages_stream(anthropic_model):
-    model_name = anthropic_model or "claude-3-haiku-20240307"
     stream = client.messages.create(
-        model=model_name,
+        model=anthropic_model,
         messages=[
             {
                 "role": "user",
@@ -59,9 +57,8 @@ def test_messages_image(anthropic_model):
     image1_media_type = "image/jpeg"
     image1_data = base64.b64encode(httpx.get(image1_url).content).decode("utf-8")
 
-    model_name = anthropic_model or "claude-3-haiku-20240307"
     message = client.messages.create(
-        model=model_name,
+        model=anthropic_model,
         max_tokens=1024,
         messages=[
             {
