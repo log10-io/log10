@@ -62,6 +62,7 @@ mistralai = ["mistralai"]
 together = ["together"]
 mosaicml = ["mosaicml-cli"]
 google-generativeai = ["google-generativeai"]
+lamini = ["lamini"]
 
 [tool.ruff]
 # Never enforce `E501` (line length violations).

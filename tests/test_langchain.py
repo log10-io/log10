@@ -22,9 +22,9 @@ def test_chat_openai_messages(openai_model):
 
 
 @pytest.mark.chat
-def test_chat_anthropic_messages(anthropic_model):
+def test_chat_anthropic_messages(anthropic_legacy_model):
     log10(anthropic)
-    llm = ChatAnthropic(model=anthropic_model, temperature=0.7)
+    llm = ChatAnthropic(model=anthropic_legacy_model, temperature=0.7)
     messages = [SystemMessage(content="You are a ping pong machine"), HumanMessage(content="Ping?")]
     completion = llm.predict_messages(messages)
 

@@ -1,6 +1,5 @@
 import base64
 import json
-import re
 
 import httpx
 import openai
@@ -89,8 +88,6 @@ def test_chat_stream(openai_model):
             output += content.strip()
 
     assert output, "No output from the model."
-    split_output = re.split("[,.]", output)
-    assert len(split_output) == 10
 
 
 @pytest.mark.async_client

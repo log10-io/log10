@@ -6,7 +6,9 @@ def pytest_addoption(parser):
 
     parser.addoption("--openai_vision_model", action="store", help="Model name for OpenAI vision tests")
 
-    parser.addoption("--anthropic_model", action="store", help="Model name for Anthropic tests")
+    parser.addoption("--anthropic_model", action="store", help="Model name for Message API Anthropic tests")
+
+    parser.addoption("--anthropic_legacy_model", action="store", help="Model name for legacy Anthropic tests")
 
     parser.addoption("--lamini_model", action="store", help="Model name for Lamini tests")
 
@@ -32,6 +34,11 @@ def openai_vision_model(request):
 @pytest.fixture
 def anthropic_model(request):
     return request.config.getoption("--anthropic_model")
+
+
+@pytest.fixture
+def anthropic_legacy_model(request):
+    return request.config.getoption("--anthropic_legacy_model")
 
 
 @pytest.fixture
