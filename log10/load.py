@@ -403,12 +403,17 @@ class AnthropicStreamingResponseWrapper:
             self.model = chunk.message.model
             self.message_id = chunk.message.id
             self.input_tokens = chunk.message.usage.input_tokens
+        if chunk.type == "content_block_start" and hasattr(chunk.content_block, "text"):
+            self.final_result += chunk.content_block.text
         elif chunk.type == "message_delta":
             self.finish_reason = chunk.delta.stop_reason
             self.output_tokens = chunk.usage.output_tokens
         elif chunk.type == "content_block_delta":
-            self.final_result += chunk.delta.text
-        elif chunk.type == "message_stop":
+            if hasattr(chunk.delta, "text"):
+                self.final_result += chunk.delta.text
+            if hasattr(chunk.delta, "partial_json"):
+                self.final_result += chunk.delta.partial_json
+        elif chunk.type == "message_stop" or chunk.type == "content_block_stop":
             response = {
                 "id": self.message_id,
                 "object": "chat",
@@ -513,6 +518,17 @@ def _init_log_row(func, *args, **kwargs):
                         else:
                             new_content.append(c)
                     m["content"] = new_content
+        if "tools" in kwargs_copy:
+            for t in kwargs_copy["tools"]:
+                new_function = {
+                    "name": t["name"],
+                    "description": t["description"],
+                    "parameters": {
+                        "properties": t["input_schema"]["properties"],
+                    },
+                }
+                t["function"] = new_function
+                t.pop("input_schema", None)
     elif "vertexai" in func.__module__:
         if func.__name__ == "_send_message":
             # get model name save in ChatSession instance
