@@ -379,6 +379,7 @@ class AnthropicStreamingResponseWrapper:
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        self.response.__exit__(exc_type, exc_value, traceback)
         return
 
     def __init__(self, completion_url, completionID, response, partial_log_row):
@@ -407,6 +408,7 @@ class AnthropicStreamingResponseWrapper:
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback):
+        await self.response.__aexit__(exc_type, exc_value, traceback)
         return
 
     def __aiter__(self):
