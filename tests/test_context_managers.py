@@ -2,6 +2,7 @@ import asyncio
 import contextvars
 import uuid
 
+
 session_id_var = contextvars.ContextVar("session_id", default=str(uuid.uuid4()))
 
 
@@ -84,9 +85,7 @@ async def test_overlapping_async_contexts():
             session = await simulated_llm_acall(run_time)
             assert session == session_before
 
-    await asyncio.gather(
-        run_session(delay=0, run_time=3), run_session(delay=1, run_time=1)
-    )
+    await asyncio.gather(run_session(delay=0, run_time=3), run_session(delay=1, run_time=1))
 
 
 asyncio.run(test_overlapping_async_contexts())
