@@ -548,10 +548,10 @@ def _init_log_row(func, *args, **kwargs):
         if "tools" in kwargs_copy:
             for t in kwargs_copy["tools"]:
                 new_function = {
-                    "name": t["name"],
-                    "description": t["description"],
+                    "name": t.get("name", None),
+                    "description": t.get("description", None),
                     "parameters": {
-                        "properties": t["input_schema"]["properties"],
+                        "properties": t.get("input_schema", {}).get("properties", None),
                     },
                 }
                 t["function"] = new_function
