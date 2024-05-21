@@ -374,11 +374,8 @@ class AnthropicStreamingResponseWrapper:
     Wraps a streaming response object to log the final result and duration to log10.
     """
 
-    text_stream = None
-
     def __enter__(self):
         self.response = self.response.__enter__()
-        # self.text_stream = self.response
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -903,11 +900,6 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         attr = module.resources.messages.Messages
         method = getattr(attr, "create")
         setattr(attr, "create", intercepting_decorator(method))
-
-        # anthropic Messages stream function
-        # attr = module.resources.messages.Messages
-        # method = getattr(attr, "stream")
-        # setattr(attr, "stream", intercepting_decorator(method))
 
         attr = module.resources.beta.tools.Messages
         method = getattr(attr, "stream")
