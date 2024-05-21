@@ -12,6 +12,7 @@ import uuid
 from contextlib import contextmanager
 from copy import deepcopy
 from importlib.metadata import version
+import contextvars
 
 import backoff
 import requests
@@ -82,7 +83,9 @@ def post_request(url: str, json_payload: dict = {}) -> requests.Response:
         # raise_for_status() will raise an exception if the status is 4xx, 5xxx
         res.raise_for_status()
 
-        logger.debug(f"HTTP request: POST {url} {res.status_code}\n{json.dumps(json_payload, indent=4)}")
+        logger.debug(
+            f"HTTP request: POST {url} {res.status_code}\n{json.dumps(json_payload, indent=4)}"
+        )
         return res
     except requests.Timeout:
         logger.error("HTTP request: POST Timeout")
@@ -107,48 +110,60 @@ def get_session_id():
     return id
 
 
-# Global variable to store the current sessionID.
-sessionID = get_session_id()
-last_completion_response = None
-global_tags = []
+#
+# Context variables
+#
+session_id_var = contextvars.ContextVar("session_id", default=get_session_id())
+last_completion_response_var = contextvars.ContextVar(
+    "last_completion_response", default=None
+)
+tags_var = contextvars.ContextVar("tags", default=[])
 
 
 def get_log10_session_tags():
-    return global_tags
+    return tags_var.get()
 
 
 class log10_session:
     def __init__(self, tags=None):
         self.tags = tags
 
-        if tags is not None:
-            global global_tags
-            global_tags = tags
-
     def __enter__(self):
-        global sessionID
-        global last_completion_response
-        sessionID = get_session_id()
-        last_completion_response = None
+        self.session_id_token = session_id_var.set(get_session_id())
+        self.last_completion_response_token = last_completion_response_var.set(None)
+        self.tags_token = tags_var.set(self.tags)
+
         return self
 
-    def last_completion_url(self):
-        if last_completion_response is None:
-            return None
+    def __exit__(self, exc_type, exc_value, traceback):
+        session_id_var.reset(self.session_id_token)
+        last_completion_response_var.reset(self.last_completion_response_token)
+        tags_var.reset(self.tags_token)
+        return
 
+    async def __aenter__(self):
+        self.session_id_token = session_id_var.set(get_session_id())
+        self.last_completion_response_token = last_completion_response_var.set(None)
+        self.tags_token = tags_var.set(self.tags)
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        session_id_var.reset(self.session_id_token)
+        last_completion_response_var.reset(self.last_completion_response_token)
+        tags_var.reset(self.tags_token)
+        return
+
+    def last_completion_url(self):
+        if last_completion_response_var.get() is None:
+            return None
+        response = last_completion_response_var.get()
         return (
             url
             + "/app/"
-            + last_completion_response["organizationSlug"]
+            + response["organizationSlug"]
             + "/completions/"
-            + last_completion_response["completionID"]
+            + response["completionID"]
         )
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        if self.tags is not None:
-            global global_tags
-            global_tags = None
-        return
 
 
 @contextmanager
@@ -159,7 +174,9 @@ def timed_block(block_name):
             yield
         finally:
             elapsed_time = time.perf_counter() - start_time
-            logger.debug(f"TIMED BLOCK - {block_name} took {elapsed_time:.6f} seconds to execute.")
+            logger.debug(
+                f"TIMED BLOCK - {block_name} took {elapsed_time:.6f} seconds to execute."
+            )
     else:
         yield
 
@@ -172,22 +189,27 @@ def log_url(res, completionID):
 
 
 async def log_async(completion_url, log_row):
-    global last_completion_response
-
     res = None
     try:
         res = post_request(completion_url)
-        last_completion_response = res.json()
-        completionID = res.json()["completionID"]
+        last_completion_response_var.set(res.json())
+        completionID = res.json().get("completionID", None)
+
+        if completionID is None:
+            logging.warn("LOG10: failed to get completionID from log10. Skipping log.")
+            return None
 
         if DEBUG:
             log_url(res, completionID)
 
         if target_service == "log10":
             try:
-                res = post_request(completion_url + "/" + completionID, log_row)
+                _url = f"{completion_url}/{completionID}"
+                res = post_request(_url, log_row)
             except Exception as e:
                 logging.warn(f"LOG10: failed to log: {e}. Skipping")
+                # Print the exception tracompletion_urlceback
+                traceback.print_tb(e.__traceback__)
                 return None
 
         elif target_service == "bigquery":
@@ -196,6 +218,8 @@ async def log_async(completion_url, log_row):
 
     except Exception as e:
         logging.warn(f"LOG10: failed to log: {e}. Skipping")
+        # Print the exception traceback
+        traceback.print_tb(e.__traceback__)
         return None
 
     return completionID
@@ -207,16 +231,21 @@ def run_async_in_thread(completion_url, log_row, result_queue):
 
 
 def log_sync(completion_url, log_row):
-    global last_completion_response
     completionID = None
 
     try:
         res = post_request(completion_url)
-        last_completion_response = res.json()
-        completionID = res.json()["completionID"]
+        last_completion_response_var.set(res.json())
+        completionID = res.json().get("completionID", None)
+
+        if completionID is None:
+            logging.warn("LOG10: failed to get completionID from log10. Skipping log.")
+            return None
+
         if DEBUG:
             log_url(res, completionID)
-        res = post_request(completion_url + "/" + completionID, log_row)
+        _url = f"{completion_url}/{completionID}"
+        res = post_request(_url, log_row)
     except Exception as e:
         logging.warn(f"LOG10: failed to get completionID from log10: {e}")
         return None
@@ -266,7 +295,10 @@ class StreamingResponseWrapper:
     def __next__(self):
         try:
             chunk = next(self.response)
-            if hasattr(chunk.choices[0].delta, "content") and chunk.choices[0].delta.content is not None:
+            if (
+                hasattr(chunk.choices[0].delta, "content")
+                and chunk.choices[0].delta.content is not None
+            ):
                 # Here you can intercept and modify content if needed
                 content = chunk.choices[0].delta.content
                 self.final_result += content  # Save the content
@@ -292,7 +324,9 @@ class StreamingResponseWrapper:
                 if tc[0].id:
                     self.tool_calls.append(tc[0].dict())
                 elif tc[0].function.arguments:
-                    self.tool_calls[tc[0].index]["function"]["arguments"] += tc[0].function.arguments
+                    self.tool_calls[tc[0].index]["function"]["arguments"] += tc[
+                        0
+                    ].function.arguments
             elif chunk.choices[0].finish_reason:
                 self.finish_reason = chunk.choices[0].finish_reason
 
@@ -356,12 +390,17 @@ class StreamingResponseWrapper:
             if self.usage:
                 response["usage"] = self.usage.dict()
             self.partial_log_row["response"] = json.dumps(response)
-            self.partial_log_row["duration"] = int((time.perf_counter() - self.start_time) * 1000)
+            self.partial_log_row["duration"] = int(
+                (time.perf_counter() - self.start_time) * 1000
+            )
 
             try:
-                res = post_request(self.completion_url + "/" + self.completionID, self.partial_log_row)
+                _url = f"{self.completion_url}/{self.completionID}"
+                res = post_request(_url, self.partial_log_row)
                 if res.status_code != 200:
-                    logger.error(f"LOG10: failed to insert in log10: {self.partial_log_row} with error {res.text}")
+                    logger.error(
+                        f"LOG10: failed to insert in log10: {self.partial_log_row} with error {res.text}"
+                    )
             except Exception as e:
                 traceback.print_tb(e.__traceback__)
                 logging.warn(f"LOG10: failed to log: {e}. Skipping")
@@ -423,11 +462,16 @@ class AnthropicStreamingResponseWrapper:
                 },
             }
             self.partial_log_row["response"] = json.dumps(response)
-            self.partial_log_row["duration"] = int((time.perf_counter() - self.start_time) * 1000)
+            self.partial_log_row["duration"] = int(
+                (time.perf_counter() - self.start_time) * 1000
+            )
 
-            res = post_request(self.completion_url + "/" + self.completionID, self.partial_log_row)
+            _url = f"{self.completion_url}/{self.completionID}"
+            res = post_request(_url, self.partial_log_row)
             if res.status_code != 200:
-                logger.error(f"Failed to insert in log10: {self.partial_log_row} with error {res.text}. Skipping")
+                logger.error(
+                    f"Failed to insert in log10: {self.partial_log_row} with error {res.text}. Skipping"
+                )
 
         return chunk
 
@@ -472,8 +516,8 @@ def _init_log_row(func, *args, **kwargs):
         "orig_module": func.__module__,
         "orig_qualname": func.__qualname__,
         "stacktrace": json.dumps(_get_stack_trace()),
-        "session_id": sessionID,
-        "tags": global_tags,
+        "session_id": session_id_var.get(),
+        "tags": tags_var.get(),
     }
 
     # in case the usage of load(openai) and langchain.ChatOpenAI
@@ -491,7 +535,9 @@ def _init_log_row(func, *args, **kwargs):
         log_row["kind"] = "chat" if "message" in func.__module__ else "completion"
         # set system message
         if "system" in kwargs_copy:
-            kwargs_copy["messages"].insert(0, {"role": "system", "content": kwargs_copy["system"]})
+            kwargs_copy["messages"].insert(
+                0, {"role": "system", "content": kwargs_copy["system"]}
+            )
         if "messages" in kwargs_copy:
             for m in kwargs_copy["messages"]:
                 if isinstance(m.get("content"), list):
@@ -501,7 +547,12 @@ def _init_log_row(func, *args, **kwargs):
                             image_type = c.get("source", {}).get("media_type", "")
                             image_data = c.get("source", {}).get("data", "")
                             new_content.append(
-                                {"type": "image_url", "image_url": {"url": f"data:{image_type};base64,{image_data}"}}
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:{image_type};base64,{image_data}"
+                                    },
+                                }
                             )
                         else:
                             new_content.append(c)
@@ -510,13 +561,18 @@ def _init_log_row(func, *args, **kwargs):
         if func.__name__ == "_send_message":
             # get model name save in ChatSession instance
             log_row["kind"] = "chat"
-            chat_session_instance = inspect.currentframe().f_back.f_back.f_locals["self"]
+            chat_session_instance = inspect.currentframe().f_back.f_back.f_locals[
+                "self"
+            ]
             model_name = chat_session_instance._model._model_name.split("/")[-1]
 
             # TODO how to handle chat history
             # chat_history = chat_session_instance.history
             kwargs_copy.update(
-                {"model": model_name, "messages": [{"role": "user", "content": kwargs_copy["content"]}]}
+                {
+                    "model": model_name,
+                    "messages": [{"role": "user", "content": kwargs_copy["content"]}],
+                }
             )
             if kwargs_copy.get("generation_config"):
                 for key, value in kwargs_copy["generation_config"].to_dict().items():
@@ -528,7 +584,10 @@ def _init_log_row(func, *args, **kwargs):
     elif "lamini" in func.__module__:
         log_row["kind"] = "chat"
         kwargs_copy.update(
-            {"model": args[1]["model_name"], "messages": [{"role": "user", "content": args[1]["prompt"]}]}
+            {
+                "model": args[1]["model_name"],
+                "messages": [{"role": "user", "content": args[1]["prompt"]}],
+            }
         )
     elif "mistralai" in func.__module__:
         log_row["kind"] = "chat"
@@ -543,7 +602,9 @@ def _init_log_row(func, *args, **kwargs):
             log_row["kind"] = "chat"
             history_messages = []
             if system_instruction := args[0].model._system_instruction:
-                history_messages.append({"role": "system", "content": system_instruction.parts[0].text})
+                history_messages.append(
+                    {"role": "system", "content": system_instruction.parts[0].text}
+                )
             if history := args[0].history:
                 for m in history:
                     role = "assistant" if m.role == "model" else "user"
@@ -551,8 +612,15 @@ def _init_log_row(func, *args, **kwargs):
                     history_messages.append({"role": role, "content": content})
 
             history_messages.append({"role": "user", "content": args[1]})
-            kwargs_copy.update({"model": args[0].model.model_name.split("/")[-1], "messages": history_messages})
-            if kwargs_copy.get("generation_config") and hasattr(kwargs_copy["generation_config"], "__dict__"):
+            kwargs_copy.update(
+                {
+                    "model": args[0].model.model_name.split("/")[-1],
+                    "messages": history_messages,
+                }
+            )
+            if kwargs_copy.get("generation_config") and hasattr(
+                kwargs_copy["generation_config"], "__dict__"
+            ):
                 for key, value in kwargs_copy["generation_config"].__dict__.items():
                     if not value:
                         continue
@@ -590,10 +658,14 @@ def intercepting_decorator(func):
                         },
                     ).start()
                 else:
-                    completionID = log_sync(completion_url=completion_url, log_row=log_row)
+                    completionID = log_sync(
+                        completion_url=completion_url, log_row=log_row
+                    )
 
                     if completionID is None:
-                        logging.warn("LOG10: failed to get completionID from log10. Skipping log.")
+                        logging.warn(
+                            "LOG10: failed to get completionID from log10. Skipping log."
+                        )
                         func_with_backoff(func, *args, **kwargs)
                         return
 
@@ -609,12 +681,18 @@ def intercepting_decorator(func):
                     completionID = result_queue.get()
 
             if completionID is None:
-                logging.warn(f"LOG10: failed to get completionID from log10: {e}. Skipping log.")
+                logging.warn(
+                    f"LOG10: failed to get completionID from log10: {e}. Skipping log."
+                )
                 return
 
             logger.debug(f"LOG10: failed - {e}")
             # todo: change with openai v1 update
-            if type(e).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(e):
+            if type(
+                e
+            ).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(
+                e
+            ):
                 failure_kind = "ContextWindowExceedError"
             else:
                 failure_kind = type(e).__name__
@@ -625,7 +703,10 @@ def intercepting_decorator(func):
             try:
                 res = post_request(completion_url + "/" + completionID, log_row)
             except Exception as le:
-                logging.warn(f"LOG10: failed to log: {le}. Skipping, but raising LLM error.")
+                logging.warn(
+                    f"LOG10: failed to log: {le}. Skipping, but raising LLM error."
+                )
+                traceback.print_tb(e.__traceback__)
             raise e
         else:
             # finished with no exceptions
@@ -650,7 +731,9 @@ def intercepting_decorator(func):
                         )
                     from log10.anthropic import Anthropic
 
-                    response = Anthropic.prepare_response(output, input_prompt=kwargs.get("prompt", ""))
+                    response = Anthropic.prepare_response(
+                        output, input_prompt=kwargs.get("prompt", "")
+                    )
                 elif "vertexai" in func.__module__:
                     response = output
                     reason = response.candidates[0].finish_reason.name
@@ -661,15 +744,24 @@ def intercepting_decorator(func):
                             {
                                 "index": 0,
                                 "finish_reason": str(reason).lower(),
-                                "message": {"role": "assistant", "content": response.text},
+                                "message": {
+                                    "role": "assistant",
+                                    "content": response.text,
+                                },
                             }
                         ],
                     }
                     response_dict = response.to_dict()
                     tokens_usage = {
-                        "prompt_tokens": response_dict["usage_metadata"]["prompt_token_count"],
-                        "completion_tokens": response_dict["usage_metadata"]["candidates_token_count"],
-                        "total_tokens": response_dict["usage_metadata"]["total_token_count"],
+                        "prompt_tokens": response_dict["usage_metadata"][
+                            "prompt_token_count"
+                        ],
+                        "completion_tokens": response_dict["usage_metadata"][
+                            "candidates_token_count"
+                        ],
+                        "total_tokens": response_dict["usage_metadata"][
+                            "total_token_count"
+                        ],
                     }
                     ret_response["usage"] = tokens_usage
                     response = ret_response
@@ -680,8 +772,13 @@ def intercepting_decorator(func):
                         "choices": [
                             {
                                 "index": 0,
-                                "finish_reason": str(output.candidates[0].finish_reason.name).lower(),
-                                "message": {"role": "assistant", "content": output.text},
+                                "finish_reason": str(
+                                    output.candidates[0].finish_reason.name
+                                ).lower(),
+                                "message": {
+                                    "role": "assistant",
+                                    "content": output.text,
+                                },
                             }
                         ],
                         "usage": {
@@ -713,10 +810,17 @@ def intercepting_decorator(func):
                             {
                                 "index": 0,
                                 "finish_reason": "stop",
-                                "message": {"role": "assistant", "content": output["output"]},
+                                "message": {
+                                    "role": "assistant",
+                                    "content": output["output"],
+                                },
                             }
                         ],
-                        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                        "usage": {
+                            "prompt_tokens": 0,
+                            "completion_tokens": 0,
+                            "total_tokens": 0,
+                        },
                     }
                 elif "mistralai" in func.__module__:
                     if "stream" in func.__qualname__:
@@ -741,11 +845,15 @@ def intercepting_decorator(func):
 
                 if target_service == "log10":
                     try:
-                        res = post_request(completion_url + "/" + completionID, log_row)
+                        _url = f"{completion_url}/{completionID}"
+                        res = post_request(_url, log_row)
                         if res.status_code != 200:
-                            logger.error(f"LOG10: failed to insert in log10: {log_row} with error {res.text}")
+                            logger.error(
+                                f"LOG10: failed to insert in log10: {log_row} with error {res.text}"
+                            )
                     except Exception as e:
                         logging.warn(f"LOG10: failed to log: {e}. Skipping")
+                        traceback.print_tb(e.__traceback__)
 
                 elif target_service == "bigquery":
                     try:
@@ -760,12 +868,14 @@ def intercepting_decorator(func):
 
                         log_row["orig_module"] = func.__module__
                         log_row["orig_qualname"] = func.__qualname__
-                        log_row["session_id"] = sessionID
+                        log_row["session_id"] = session_id_var.get()
 
                         bigquery_client.insert_rows_json(bigquery_table, [log_row])
 
                     except Exception as e:
-                        logging.error(f"LOG10: failed to insert in Bigquery: {log_row} with error {e}")
+                        logging.error(
+                            f"LOG10: failed to insert in Bigquery: {log_row} with error {e}"
+                        )
 
         return output
 
@@ -896,7 +1006,10 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         attr = module.api.utils.completion.Completion
         method = getattr(attr, "generate")
         setattr(attr, "generate", intercepting_decorator(method))
-    elif module.__name__ == "mistralai" and getattr(module, "_log10_patched", False) is False:
+    elif (
+        module.__name__ == "mistralai"
+        and getattr(module, "_log10_patched", False) is False
+    ):
         attr = module.client.MistralClient
         method = getattr(attr, "chat")
         setattr(attr, "chat", intercepting_decorator(method))
@@ -963,7 +1076,9 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         method = getattr(attr, "send_message")
         setattr(attr, "send_message", intercepting_decorator(method))
     else:
-        logger.warning(f"Unsupported module: {module.__name__}. Please contact us for support at support@log10.io.")
+        logger.warning(
+            f"Unsupported module: {module.__name__}. Please contact us for support at support@log10.io."
+        )
 
         # For future reference:
         # if callable(attr) and isinstance(attr, types.FunctionType):
@@ -1002,8 +1117,7 @@ if is_openai_v1():
         def __init__(self, *args, **kwargs):
             # check if tags is passed in
             if "tags" in kwargs:
-                global global_tags
-                global_tags = kwargs.pop("tags")
+                tags_var.set(kwargs.pop("tags"))
             super().__init__(*args, **kwargs)
 
             if not getattr(openai, "_log10_patched", False):
@@ -1014,7 +1128,9 @@ if is_openai_v1():
 try:
     import anthropic
 except ImportError:
-    logger.warning("Anthropic not found. Skipping defining log10.load.Anthropic client.")
+    logger.warning(
+        "Anthropic not found. Skipping defining log10.load.Anthropic client."
+    )
 else:
     from anthropic import Anthropic
 
@@ -1035,8 +1151,7 @@ else:
 
         def __init__(self, *args, **kwargs):
             if "tags" in kwargs:
-                global global_tags
-                global_tags = kwargs.pop("tags")
+                tags_var.set(kwargs.pop("tags"))
             super().__init__(*args, **kwargs)
 
             if not getattr(anthropic, "_log10_patched", False):
