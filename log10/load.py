@@ -374,6 +374,16 @@ class AnthropicStreamingResponseWrapper:
     Wraps a streaming response object to log the final result and duration to log10.
     """
 
+    text_stream = None
+
+    def __enter__(self):
+        self.response = self.response.__enter__()
+        # self.text_stream = self.response
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return
+
     def __init__(self, completion_url, completionID, response, partial_log_row):
         self.completionID = completionID
         self.completion_url = completion_url
@@ -639,7 +649,7 @@ def intercepting_decorator(func):
                 response = output
                 # Adjust the Anthropic output to match OAI completion output
                 if "anthropic" in func.__module__:
-                    if type(output).__name__ == "Stream":
+                    if type(output).__name__ == "Stream" or "MessageStreamManager" in type(output).__name__:
                         log_row["response"] = response
                         log_row["status"] = "finished"
                         return AnthropicStreamingResponseWrapper(
@@ -648,6 +658,7 @@ def intercepting_decorator(func):
                             response=response,
                             partial_log_row=log_row,
                         )
+
                     from log10.anthropic import Anthropic
 
                     response = Anthropic.prepare_response(output, input_prompt=kwargs.get("prompt", ""))
@@ -892,6 +903,15 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         attr = module.resources.messages.Messages
         method = getattr(attr, "create")
         setattr(attr, "create", intercepting_decorator(method))
+
+        # anthropic Messages stream function
+        # attr = module.resources.messages.Messages
+        # method = getattr(attr, "stream")
+        # setattr(attr, "stream", intercepting_decorator(method))
+
+        attr = module.resources.beta.tools.Messages
+        method = getattr(attr, "stream")
+        setattr(attr, "stream", intercepting_decorator(method))
     elif module.__name__ == "lamini":
         attr = module.api.utils.completion.Completion
         method = getattr(attr, "generate")
