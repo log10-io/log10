@@ -1,4 +1,5 @@
 import asyncio
+import contextvars
 import functools
 import inspect
 import json
@@ -12,7 +13,6 @@ import uuid
 from contextlib import contextmanager
 from copy import deepcopy
 from importlib.metadata import version
-import contextvars
 
 import backoff
 import requests
@@ -83,9 +83,7 @@ def post_request(url: str, json_payload: dict = {}) -> requests.Response:
         # raise_for_status() will raise an exception if the status is 4xx, 5xxx
         res.raise_for_status()
 
-        logger.debug(
-            f"HTTP request: POST {url} {res.status_code}\n{json.dumps(json_payload, indent=4)}"
-        )
+        logger.debug(f"HTTP request: POST {url} {res.status_code}\n{json.dumps(json_payload, indent=4)}")
         return res
     except requests.Timeout:
         logger.error("HTTP request: POST Timeout")
@@ -114,9 +112,7 @@ def get_session_id():
 # Context variables
 #
 session_id_var = contextvars.ContextVar("session_id", default=get_session_id())
-last_completion_response_var = contextvars.ContextVar(
-    "last_completion_response", default=None
-)
+last_completion_response_var = contextvars.ContextVar("last_completion_response", default=None)
 tags_var = contextvars.ContextVar("tags", default=[])
 
 
@@ -157,13 +153,7 @@ class log10_session:
         if last_completion_response_var.get() is None:
             return None
         response = last_completion_response_var.get()
-        return (
-            url
-            + "/app/"
-            + response["organizationSlug"]
-            + "/completions/"
-            + response["completionID"]
-        )
+        return url + "/app/" + response["organizationSlug"] + "/completions/" + response["completionID"]
 
 
 @contextmanager
@@ -174,9 +164,7 @@ def timed_block(block_name):
             yield
         finally:
             elapsed_time = time.perf_counter() - start_time
-            logger.debug(
-                f"TIMED BLOCK - {block_name} took {elapsed_time:.6f} seconds to execute."
-            )
+            logger.debug(f"TIMED BLOCK - {block_name} took {elapsed_time:.6f} seconds to execute.")
     else:
         yield
 
@@ -295,10 +283,7 @@ class StreamingResponseWrapper:
     def __next__(self):
         try:
             chunk = next(self.response)
-            if (
-                hasattr(chunk.choices[0].delta, "content")
-                and chunk.choices[0].delta.content is not None
-            ):
+            if hasattr(chunk.choices[0].delta, "content") and chunk.choices[0].delta.content is not None:
                 # Here you can intercept and modify content if needed
                 content = chunk.choices[0].delta.content
                 self.final_result += content  # Save the content
@@ -324,9 +309,7 @@ class StreamingResponseWrapper:
                 if tc[0].id:
                     self.tool_calls.append(tc[0].dict())
                 elif tc[0].function.arguments:
-                    self.tool_calls[tc[0].index]["function"]["arguments"] += tc[
-                        0
-                    ].function.arguments
+                    self.tool_calls[tc[0].index]["function"]["arguments"] += tc[0].function.arguments
             elif chunk.choices[0].finish_reason:
                 self.finish_reason = chunk.choices[0].finish_reason
 
@@ -390,17 +373,13 @@ class StreamingResponseWrapper:
             if self.usage:
                 response["usage"] = self.usage.dict()
             self.partial_log_row["response"] = json.dumps(response)
-            self.partial_log_row["duration"] = int(
-                (time.perf_counter() - self.start_time) * 1000
-            )
+            self.partial_log_row["duration"] = int((time.perf_counter() - self.start_time) * 1000)
 
             try:
                 _url = f"{self.completion_url}/{self.completionID}"
                 res = post_request(_url, self.partial_log_row)
                 if res.status_code != 200:
-                    logger.error(
-                        f"LOG10: failed to insert in log10: {self.partial_log_row} with error {res.text}"
-                    )
+                    logger.error(f"LOG10: failed to insert in log10: {self.partial_log_row} with error {res.text}")
             except Exception as e:
                 traceback.print_tb(e.__traceback__)
                 logging.warn(f"LOG10: failed to log: {e}. Skipping")
@@ -462,16 +441,12 @@ class AnthropicStreamingResponseWrapper:
                 },
             }
             self.partial_log_row["response"] = json.dumps(response)
-            self.partial_log_row["duration"] = int(
-                (time.perf_counter() - self.start_time) * 1000
-            )
+            self.partial_log_row["duration"] = int((time.perf_counter() - self.start_time) * 1000)
 
             _url = f"{self.completion_url}/{self.completionID}"
             res = post_request(_url, self.partial_log_row)
             if res.status_code != 200:
-                logger.error(
-                    f"Failed to insert in log10: {self.partial_log_row} with error {res.text}. Skipping"
-                )
+                logger.error(f"Failed to insert in log10: {self.partial_log_row} with error {res.text}. Skipping")
 
         return chunk
 
@@ -535,9 +510,7 @@ def _init_log_row(func, *args, **kwargs):
         log_row["kind"] = "chat" if "message" in func.__module__ else "completion"
         # set system message
         if "system" in kwargs_copy:
-            kwargs_copy["messages"].insert(
-                0, {"role": "system", "content": kwargs_copy["system"]}
-            )
+            kwargs_copy["messages"].insert(0, {"role": "system", "content": kwargs_copy["system"]})
         if "messages" in kwargs_copy:
             for m in kwargs_copy["messages"]:
                 if isinstance(m.get("content"), list):
@@ -549,9 +522,7 @@ def _init_log_row(func, *args, **kwargs):
                             new_content.append(
                                 {
                                     "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:{image_type};base64,{image_data}"
-                                    },
+                                    "image_url": {"url": f"data:{image_type};base64,{image_data}"},
                                 }
                             )
                         else:
@@ -561,9 +532,7 @@ def _init_log_row(func, *args, **kwargs):
         if func.__name__ == "_send_message":
             # get model name save in ChatSession instance
             log_row["kind"] = "chat"
-            chat_session_instance = inspect.currentframe().f_back.f_back.f_locals[
-                "self"
-            ]
+            chat_session_instance = inspect.currentframe().f_back.f_back.f_locals["self"]
             model_name = chat_session_instance._model._model_name.split("/")[-1]
 
             # TODO how to handle chat history
@@ -602,9 +571,7 @@ def _init_log_row(func, *args, **kwargs):
             log_row["kind"] = "chat"
             history_messages = []
             if system_instruction := args[0].model._system_instruction:
-                history_messages.append(
-                    {"role": "system", "content": system_instruction.parts[0].text}
-                )
+                history_messages.append({"role": "system", "content": system_instruction.parts[0].text})
             if history := args[0].history:
                 for m in history:
                     role = "assistant" if m.role == "model" else "user"
@@ -618,9 +585,7 @@ def _init_log_row(func, *args, **kwargs):
                     "messages": history_messages,
                 }
             )
-            if kwargs_copy.get("generation_config") and hasattr(
-                kwargs_copy["generation_config"], "__dict__"
-            ):
+            if kwargs_copy.get("generation_config") and hasattr(kwargs_copy["generation_config"], "__dict__"):
                 for key, value in kwargs_copy["generation_config"].__dict__.items():
                     if not value:
                         continue
@@ -658,14 +623,10 @@ def intercepting_decorator(func):
                         },
                     ).start()
                 else:
-                    completionID = log_sync(
-                        completion_url=completion_url, log_row=log_row
-                    )
+                    completionID = log_sync(completion_url=completion_url, log_row=log_row)
 
                     if completionID is None:
-                        logging.warn(
-                            "LOG10: failed to get completionID from log10. Skipping log."
-                        )
+                        logging.warn("LOG10: failed to get completionID from log10. Skipping log.")
                         func_with_backoff(func, *args, **kwargs)
                         return
 
@@ -681,18 +642,12 @@ def intercepting_decorator(func):
                     completionID = result_queue.get()
 
             if completionID is None:
-                logging.warn(
-                    f"LOG10: failed to get completionID from log10: {e}. Skipping log."
-                )
+                logging.warn(f"LOG10: failed to get completionID from log10: {e}. Skipping log.")
                 return
 
             logger.debug(f"LOG10: failed - {e}")
             # todo: change with openai v1 update
-            if type(
-                e
-            ).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(
-                e
-            ):
+            if type(e).__name__ == "InvalidRequestError" and "This model's maximum context length" in str(e):
                 failure_kind = "ContextWindowExceedError"
             else:
                 failure_kind = type(e).__name__
@@ -703,9 +658,7 @@ def intercepting_decorator(func):
             try:
                 res = post_request(completion_url + "/" + completionID, log_row)
             except Exception as le:
-                logging.warn(
-                    f"LOG10: failed to log: {le}. Skipping, but raising LLM error."
-                )
+                logging.warn(f"LOG10: failed to log: {le}. Skipping, but raising LLM error.")
                 traceback.print_tb(e.__traceback__)
             raise e
         else:
@@ -731,9 +684,7 @@ def intercepting_decorator(func):
                         )
                     from log10.anthropic import Anthropic
 
-                    response = Anthropic.prepare_response(
-                        output, input_prompt=kwargs.get("prompt", "")
-                    )
+                    response = Anthropic.prepare_response(output, input_prompt=kwargs.get("prompt", ""))
                 elif "vertexai" in func.__module__:
                     response = output
                     reason = response.candidates[0].finish_reason.name
@@ -753,15 +704,9 @@ def intercepting_decorator(func):
                     }
                     response_dict = response.to_dict()
                     tokens_usage = {
-                        "prompt_tokens": response_dict["usage_metadata"][
-                            "prompt_token_count"
-                        ],
-                        "completion_tokens": response_dict["usage_metadata"][
-                            "candidates_token_count"
-                        ],
-                        "total_tokens": response_dict["usage_metadata"][
-                            "total_token_count"
-                        ],
+                        "prompt_tokens": response_dict["usage_metadata"]["prompt_token_count"],
+                        "completion_tokens": response_dict["usage_metadata"]["candidates_token_count"],
+                        "total_tokens": response_dict["usage_metadata"]["total_token_count"],
                     }
                     ret_response["usage"] = tokens_usage
                     response = ret_response
@@ -772,9 +717,7 @@ def intercepting_decorator(func):
                         "choices": [
                             {
                                 "index": 0,
-                                "finish_reason": str(
-                                    output.candidates[0].finish_reason.name
-                                ).lower(),
+                                "finish_reason": str(output.candidates[0].finish_reason.name).lower(),
                                 "message": {
                                     "role": "assistant",
                                     "content": output.text,
@@ -848,9 +791,7 @@ def intercepting_decorator(func):
                         _url = f"{completion_url}/{completionID}"
                         res = post_request(_url, log_row)
                         if res.status_code != 200:
-                            logger.error(
-                                f"LOG10: failed to insert in log10: {log_row} with error {res.text}"
-                            )
+                            logger.error(f"LOG10: failed to insert in log10: {log_row} with error {res.text}")
                     except Exception as e:
                         logging.warn(f"LOG10: failed to log: {e}. Skipping")
                         traceback.print_tb(e.__traceback__)
@@ -873,9 +814,7 @@ def intercepting_decorator(func):
                         bigquery_client.insert_rows_json(bigquery_table, [log_row])
 
                     except Exception as e:
-                        logging.error(
-                            f"LOG10: failed to insert in Bigquery: {log_row} with error {e}"
-                        )
+                        logging.error(f"LOG10: failed to insert in Bigquery: {log_row} with error {e}")
 
         return output
 
@@ -1006,10 +945,7 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         attr = module.api.utils.completion.Completion
         method = getattr(attr, "generate")
         setattr(attr, "generate", intercepting_decorator(method))
-    elif (
-        module.__name__ == "mistralai"
-        and getattr(module, "_log10_patched", False) is False
-    ):
+    elif module.__name__ == "mistralai" and getattr(module, "_log10_patched", False) is False:
         attr = module.client.MistralClient
         method = getattr(attr, "chat")
         setattr(attr, "chat", intercepting_decorator(method))
@@ -1076,9 +1012,7 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         method = getattr(attr, "send_message")
         setattr(attr, "send_message", intercepting_decorator(method))
     else:
-        logger.warning(
-            f"Unsupported module: {module.__name__}. Please contact us for support at support@log10.io."
-        )
+        logger.warning(f"Unsupported module: {module.__name__}. Please contact us for support at support@log10.io.")
 
         # For future reference:
         # if callable(attr) and isinstance(attr, types.FunctionType):
@@ -1128,9 +1062,7 @@ if is_openai_v1():
 try:
     import anthropic
 except ImportError:
-    logger.warning(
-        "Anthropic not found. Skipping defining log10.load.Anthropic client."
-    )
+    logger.warning("Anthropic not found. Skipping defining log10.load.Anthropic client.")
 else:
     from anthropic import Anthropic
 
