@@ -399,12 +399,39 @@ class AnthropicStreamingResponseWrapper:
 
     def __next__(self):
         chunk = next(self.response)
+        self._process_chunk(chunk)
+        return chunk
+
+    async def __aenter__(self):
+        self.response = await self.response.__aenter__()
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        return
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        try:
+            chunk = await self.response.__anext__()
+            self._process_chunk(chunk)
+            return chunk
+        except StopAsyncIteration:
+            raise StopAsyncIteration from None
+
+    async def until_done(self):
+        async for _ in self:
+            pass
+
+    def _process_chunk(self, chunk):
         if chunk.type == "message_start":
             self.model = chunk.message.model
             self.message_id = chunk.message.id
             self.input_tokens = chunk.message.usage.input_tokens
-        if chunk.type == "content_block_start" and hasattr(chunk.content_block, "text"):
-            self.final_result += chunk.content_block.text
+        if chunk.type == "content_block_start":
+            if hasattr(chunk.content_block, "text"):
+                self.final_result += chunk.content_block.text
         elif chunk.type == "message_delta":
             self.finish_reason = chunk.delta.stop_reason
             self.output_tokens = chunk.usage.output_tokens
@@ -440,8 +467,6 @@ class AnthropicStreamingResponseWrapper:
             res = post_request(self.completion_url + "/" + self.completionID, self.partial_log_row)
             if res.status_code != 200:
                 logger.error(f"Failed to insert in log10: {self.partial_log_row} with error {res.text}. Skipping")
-
-        return chunk
 
 
 def flatten_messages(messages):
@@ -918,6 +943,10 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         setattr(attr, "create", intercepting_decorator(method))
 
         attr = module.resources.beta.tools.Messages
+        method = getattr(attr, "stream")
+        setattr(attr, "stream", intercepting_decorator(method))
+
+        attr = module.resources.beta.tools.AsyncMessages
         method = getattr(attr, "stream")
         setattr(attr, "stream", intercepting_decorator(method))
     elif module.__name__ == "lamini":
