@@ -9,7 +9,7 @@ import httpx
 from httpx import Request, Response
 
 from log10.llm import Log10Config
-from log10.load import get_log10_session_tags, sessionID
+from log10.load import get_log10_session_tags, session_id_var
 
 
 logger: logging.Logger = logging.getLogger("LOG10")
@@ -178,7 +178,7 @@ async def log_request(request: Request):
         "orig_module": orig_module,
         "orig_qualname": orig_qualname,
         "request": request_content_decode,
-        "session_id": sessionID,
+        "session_id": session_id_var.get(),
     }
     if get_log10_session_tags():
         log_row["tags"] = get_log10_session_tags()
@@ -249,7 +249,7 @@ class _LogResponse(Response):
                         "stacktrace": json.dumps(stacktrace),
                         "kind": "chat",
                         "request": request_content_decode,
-                        "session_id": sessionID,
+                        "session_id": session_id_var.get(),
                     }
                     if get_log10_session_tags():
                         log_row["tags"] = get_log10_session_tags()
@@ -440,7 +440,7 @@ class _LogTransport(httpx.AsyncBaseTransport):
                 "stacktrace": json.dumps(stacktrace),
                 "kind": "chat",
                 "request": request.content.decode("utf-8"),
-                "session_id": sessionID,
+                "session_id": session_id_var.get(),
             }
             if get_log10_session_tags():
                 log_row["tags"] = get_log10_session_tags()
