@@ -1,7 +1,7 @@
 import asyncio
 import contextvars
 import uuid
-
+import pytest
 
 session_id_var = contextvars.ContextVar("session_id", default=str(uuid.uuid4()))
 
@@ -52,7 +52,7 @@ def test_nested_contexts():
 
     assert simulated_llm_call() == before_outer_session
 
-
+@pytest.mark.asyncio
 async def test_nested_async_contexts():
     print("")
     before_outer_session = await simulated_llm_acall()
@@ -74,6 +74,7 @@ asyncio.run(test_nested_async_contexts())
 
 
 # Test overlapping async context managers
+@pytest.mark.asyncio
 async def test_overlapping_async_contexts():
     # Run two async context managers in parallel
     # The second one should not overwrite the session ID of the first one

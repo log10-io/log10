@@ -153,7 +153,7 @@ class log10_session:
         if last_completion_response_var.get() is None:
             return None
         response = last_completion_response_var.get()
-        return url + "/app/" + response["organizationSlug"] + "/completions/" + response["completionID"]
+        return f'{url}/app/{response["organizationSlug"]}/completions/{response["completionID"]}'
 
 
 @contextmanager
@@ -196,8 +196,6 @@ async def log_async(completion_url, log_row):
                 res = post_request(_url, log_row)
             except Exception as e:
                 logging.warn(f"LOG10: failed to log: {e}. Skipping")
-                # Print the exception tracompletion_urlceback
-                traceback.print_tb(e.__traceback__)
                 return None
 
         elif target_service == "bigquery":
@@ -206,8 +204,6 @@ async def log_async(completion_url, log_row):
 
     except Exception as e:
         logging.warn(f"LOG10: failed to log: {e}. Skipping")
-        # Print the exception traceback
-        traceback.print_tb(e.__traceback__)
         return None
 
     return completionID
