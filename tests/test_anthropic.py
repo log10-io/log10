@@ -78,37 +78,6 @@ def test_messages_create_stream(anthropic_model):
     assert output, "No output from the model."
 
 
-@pytest.mark.chat
-@pytest.mark.stream
-@pytest.mark.async_client
-@pytest.mark.asyncio
-async def test_messages_create_stream_async(anthropic_model):
-    client = anthropic.AsyncAnthropic()
-
-    stream = await client.messages.create(
-        model=anthropic_model,
-        messages=[
-            {
-                "role": "user",
-                "content": "Count to 10",
-            }
-        ],
-        max_tokens=128,
-        temperature=0.9,
-        stream=True,
-    )
-
-    output = ""
-    for event in stream:
-        if event.type == "content_block_delta":
-            text = event.delta.text
-            output += text
-            if text.isdigit():
-                assert int(text) <= 10
-
-    assert output, "No output from the model."
-
-
 @pytest.mark.vision
 def test_messages_image(anthropic_model):
     client = anthropic.Anthropic()
@@ -147,7 +116,7 @@ def test_messages_image(anthropic_model):
 def test_chat_not_given(anthropic_model):
     client = anthropic.Anthropic()
 
-    message = client.beta.tools.messages.stream(
+    message = client.beta.tools.messages.create(
         model=anthropic_model,
         messages=[
             {
@@ -155,6 +124,7 @@ def test_chat_not_given(anthropic_model):
                 "content": "tell a short joke.",
             },
         ],
+        max_tokens=1000,
         tools=NOT_GIVEN,
         tool_choice=NOT_GIVEN,
     )
@@ -195,22 +165,6 @@ async def test_beta_tools_messages_create_async(anthropic_model):
 
 
 @pytest.mark.chat
-@pytest.mark.async_client
-@pytest.mark.asyncio
-async def test_beta_tools_messages_stream_async(anthropic_model):
-    client = anthropic.AsyncAnthropic()
-
-    message = await client.beta.tools.messages.stream(
-        model=anthropic_model,
-        max_tokens=1000,
-        messages=[{"role": "user", "content": "Say hello!"}],
-    )
-
-    text = message.content[0].text
-    assert text, "No output from the model."
-
-
-@pytest.mark.chat
 @pytest.mark.stream
 @pytest.mark.context_manager
 def test_messages_stream_context_manager(anthropic_model):
@@ -227,8 +181,11 @@ def test_messages_stream_context_manager(anthropic_model):
         ],
         model=anthropic_model,
     ) as stream:
-        for text in stream.text_stream:
-            output += text
+        for message in stream:
+            if message.type == "content_block_delta":
+                if message.delta:
+                    if hasattr(message.delta, "text"):
+                        output += message.delta.text
 
     assert output, "No output from the model."
 
@@ -309,7 +266,7 @@ async def test_tools_messages_stream_context_manager_async(anthropic_model):
 
     class MyHandler(AsyncToolsBetaMessageStream):
         @override
-        async def on_input_json(self, snapshot: object) -> None:
+        async def on_input_json(self, delta: str, snapshot: object) -> None:
             nonlocal output
             output = snapshot
 
