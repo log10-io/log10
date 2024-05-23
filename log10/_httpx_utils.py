@@ -394,7 +394,15 @@ class _LogTransport(httpx.AsyncBaseTransport):
         self.transport = transport
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-        response = await self.transport.handle_async_request(request)
+        try:
+            response = await self.transport.handle_async_request(request)
+        except Exception as e:
+            logger.warning(f"Failed to send request: {e}")
+            return
+
+        if response.status_code >= 400:
+            logger.warning(f"HTTP error occurred: {response.status_code}")
+            return
 
         completion_id = request.headers.get("x-log10-completion-id", "")
         if not completion_id:
@@ -417,9 +425,13 @@ class _LogTransport(httpx.AsyncBaseTransport):
 
             elapsed = time.time() - request.started
             if "anthropic" in request.url.host:
+                from anthropic.types.beta.tools import (
+                    ToolsBetaMessage,
+                )
+
                 from log10.anthropic import Anthropic
 
-                response = Anthropic.prepare_response(llm_response)
+                llm_response = Anthropic.prepare_response(ToolsBetaMessage(**llm_response))
 
             log_row = {
                 "response": json.dumps(llm_response),
