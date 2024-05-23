@@ -655,7 +655,6 @@ def intercepting_decorator(func):
                 res = post_request(completion_url + "/" + completionID, log_row)
             except Exception as le:
                 logging.warn(f"LOG10: failed to log: {le}. Skipping, but raising LLM error.")
-                traceback.print_tb(e.__traceback__)
             raise e
         else:
             # finished with no exceptions
@@ -790,7 +789,6 @@ def intercepting_decorator(func):
                             logger.error(f"LOG10: failed to insert in log10: {log_row} with error {res.text}")
                     except Exception as e:
                         logging.warn(f"LOG10: failed to log: {e}. Skipping")
-                        traceback.print_tb(e.__traceback__)
 
                 elif target_service == "bigquery":
                     try:
