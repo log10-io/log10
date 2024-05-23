@@ -403,29 +403,6 @@ class AnthropicStreamingResponseWrapper:
         self._process_chunk(chunk)
         return chunk
 
-    async def __aenter__(self):
-        self.response = await self.response.__aenter__()
-        return self
-
-    async def __aexit__(self, exc_type, exc_value, traceback):
-        await self.response.__aexit__(exc_type, exc_value, traceback)
-        return
-
-    def __aiter__(self):
-        return self
-
-    async def __anext__(self):
-        try:
-            chunk = await self.response.__anext__()
-            self._process_chunk(chunk)
-            return chunk
-        except StopAsyncIteration:
-            raise StopAsyncIteration from None
-
-    async def until_done(self):
-        async for _ in self:
-            pass
-
     def _process_chunk(self, chunk):
         if chunk.type == "message_start":
             self.model = chunk.message.model
