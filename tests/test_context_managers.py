@@ -52,6 +52,7 @@ def test_nested_contexts():
 
     assert simulated_llm_call() == before_outer_session
 
+
 @pytest.mark.asyncio
 async def test_nested_async_contexts():
     print("")
