@@ -527,6 +527,9 @@ def _init_log_row(func, *args, **kwargs):
     # kind and request are set based on the module and qualname
     # request is based on openai schema
     if "anthropic" in func.__module__:
+        from anthropic._utils._utils import strip_not_given
+
+        kwargs_copy = strip_not_given(kwargs_copy)
         log_row["kind"] = "chat" if "message" in func.__module__ else "completion"
         # set system message
         if "system" in kwargs_copy:
@@ -944,13 +947,41 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         method = getattr(attr, "create")
         setattr(attr, "create", intercepting_decorator(method))
 
+        attr = module.resources.messages.Messages
+        method = getattr(attr, "stream")
+        setattr(attr, "stream", intercepting_decorator(method))
+
+        attr = module.resources.beta.tools.Messages
+        method = getattr(attr, "create")
+        setattr(attr, "create", intercepting_decorator(method))
+
         attr = module.resources.beta.tools.Messages
         method = getattr(attr, "stream")
         setattr(attr, "stream", intercepting_decorator(method))
 
-        attr = module.resources.beta.tools.AsyncMessages
-        method = getattr(attr, "stream")
-        setattr(attr, "stream", intercepting_decorator(method))
+        origin_init = module.AsyncAnthropic.__init__
+
+        def new_init(self, *args, **kwargs):
+            logger.debug("LOG10: patching AsyncAnthropic.__init__")
+            import httpx
+
+            from log10._httpx_utils import (
+                _LogTransport,
+                get_completion_id,
+                log_request,
+            )
+
+            event_hooks = {
+                "request": [get_completion_id, log_request],
+            }
+            async_httpx_client = httpx.AsyncClient(
+                event_hooks=event_hooks,
+                transport=_LogTransport(httpx.AsyncHTTPTransport()),
+            )
+            kwargs["http_client"] = async_httpx_client
+            origin_init(self, *args, **kwargs)
+
+        module.AsyncAnthropic.__init__ = new_init
     elif module.__name__ == "lamini":
         attr = module.api.utils.completion.Completion
         method = getattr(attr, "generate")

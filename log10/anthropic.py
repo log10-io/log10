@@ -135,7 +135,15 @@ class Anthropic(LLM):
     def prepare_response(
         response: anthropic.types.Completion | anthropic.types.Message, input_prompt: str = ""
     ) -> dict:
-        if response.stop_reason in ["stop_sequence", "end_turn"]:
+        print(type(response))
+
+        if isinstance(response, dict):
+            response = anthropic.types.Message(**response)
+
+        if not hasattr(response, "stop_reason"):
+            return None
+
+        if response.stop_reason in ["stop_sequence", "end_turn", "tool_use"]:
             reason = "stop"
         elif response.stop_reason == "max_tokens":
             reason = "length"
