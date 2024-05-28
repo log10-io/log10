@@ -394,6 +394,14 @@ class AnthropicStreamingResponseWrapper:
     Wraps a streaming response object to log the final result and duration to log10.
     """
 
+    def __enter__(self):
+        self.response = self.response.__enter__()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.response.__exit__(exc_type, exc_value, traceback)
+        return
+
     def __init__(self, completion_url, completionID, response, partial_log_row):
         self.completionID = completionID
         self.completion_url = completion_url
@@ -412,16 +420,26 @@ class AnthropicStreamingResponseWrapper:
 
     def __next__(self):
         chunk = next(self.response)
+        self._process_chunk(chunk)
+        return chunk
+
+    def _process_chunk(self, chunk):
         if chunk.type == "message_start":
             self.model = chunk.message.model
             self.message_id = chunk.message.id
             self.input_tokens = chunk.message.usage.input_tokens
+        if chunk.type == "content_block_start":
+            if hasattr(chunk.content_block, "text"):
+                self.final_result += chunk.content_block.text
         elif chunk.type == "message_delta":
             self.finish_reason = chunk.delta.stop_reason
             self.output_tokens = chunk.usage.output_tokens
         elif chunk.type == "content_block_delta":
-            self.final_result += chunk.delta.text
-        elif chunk.type == "message_stop":
+            if hasattr(chunk.delta, "text"):
+                self.final_result += chunk.delta.text
+            if hasattr(chunk.delta, "partial_json"):
+                self.final_result += chunk.delta.partial_json
+        elif chunk.type == "message_stop" or chunk.type == "content_block_stop":
             response = {
                 "id": self.message_id,
                 "object": "chat",
@@ -449,8 +467,6 @@ class AnthropicStreamingResponseWrapper:
             res = post_request(_url, self.partial_log_row)
             if res.status_code != 200:
                 logger.error(f"Failed to insert in log10: {self.partial_log_row} with error {res.text}. Skipping")
-
-        return chunk
 
 
 def flatten_messages(messages):
@@ -509,6 +525,9 @@ def _init_log_row(func, *args, **kwargs):
     # kind and request are set based on the module and qualname
     # request is based on openai schema
     if "anthropic" in func.__module__:
+        from anthropic._utils._utils import strip_not_given
+
+        kwargs_copy = strip_not_given(kwargs_copy)
         log_row["kind"] = "chat" if "message" in func.__module__ else "completion"
         # set system message
         if "system" in kwargs_copy:
@@ -530,6 +549,17 @@ def _init_log_row(func, *args, **kwargs):
                         else:
                             new_content.append(c)
                     m["content"] = new_content
+        if "tools" in kwargs_copy:
+            for t in kwargs_copy["tools"]:
+                new_function = {
+                    "name": t.get("name", None),
+                    "description": t.get("description", None),
+                    "parameters": {
+                        "properties": t.get("input_schema", {}).get("properties", None),
+                    },
+                }
+                t["function"] = new_function
+                t.pop("input_schema", None)
     elif "vertexai" in func.__module__:
         if func.__name__ == "_send_message":
             # get model name save in ChatSession instance
@@ -644,7 +674,7 @@ def intercepting_decorator(func):
                     completionID = result_queue.get()
 
             if completionID is None:
-                logging.warn(f"LOG10: failed to get completionID from log10: {e}. Skipping log.")
+                logger.warning(f"LOG10: failed to get completionID from log10: {e}. Skipping log.")
                 return
 
             logger.debug(f"LOG10: failed - {e}")
@@ -660,7 +690,7 @@ def intercepting_decorator(func):
             try:
                 res = post_request(completion_url + "/" + completionID, log_row)
             except Exception as le:
-                logging.warn(f"LOG10: failed to log: {le}. Skipping, but raising LLM error.")
+                logger.warning(f"LOG10: failed to log: {le}. Skipping, but raising LLM error.")
             raise e
         else:
             # finished with no exceptions
@@ -674,7 +704,7 @@ def intercepting_decorator(func):
                 response = output
                 # Adjust the Anthropic output to match OAI completion output
                 if "anthropic" in func.__module__:
-                    if type(output).__name__ == "Stream":
+                    if type(output).__name__ == "Stream" or "MessageStreamManager" in type(output).__name__:
                         log_row["response"] = response
                         log_row["status"] = "finished"
                         return AnthropicStreamingResponseWrapper(
@@ -683,6 +713,7 @@ def intercepting_decorator(func):
                             response=response,
                             partial_log_row=log_row,
                         )
+
                     from log10.anthropic import Anthropic
 
                     response = Anthropic.prepare_response(output, input_prompt=kwargs.get("prompt", ""))
@@ -941,6 +972,42 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         attr = module.resources.messages.Messages
         method = getattr(attr, "create")
         setattr(attr, "create", intercepting_decorator(method))
+
+        attr = module.resources.messages.Messages
+        method = getattr(attr, "stream")
+        setattr(attr, "stream", intercepting_decorator(method))
+
+        attr = module.resources.beta.tools.Messages
+        method = getattr(attr, "create")
+        setattr(attr, "create", intercepting_decorator(method))
+
+        attr = module.resources.beta.tools.Messages
+        method = getattr(attr, "stream")
+        setattr(attr, "stream", intercepting_decorator(method))
+
+        origin_init = module.AsyncAnthropic.__init__
+
+        def new_init(self, *args, **kwargs):
+            logger.debug("LOG10: patching AsyncAnthropic.__init__")
+            import httpx
+
+            from log10._httpx_utils import (
+                _LogTransport,
+                get_completion_id,
+                log_request,
+            )
+
+            event_hooks = {
+                "request": [get_completion_id, log_request],
+            }
+            async_httpx_client = httpx.AsyncClient(
+                event_hooks=event_hooks,
+                transport=_LogTransport(httpx.AsyncHTTPTransport()),
+            )
+            kwargs["http_client"] = async_httpx_client
+            origin_init(self, *args, **kwargs)
+
+        module.AsyncAnthropic.__init__ = new_init
     elif module.__name__ == "lamini":
         attr = module.api.utils.completion.Completion
         method = getattr(attr, "generate")
