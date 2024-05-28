@@ -668,7 +668,7 @@ def intercepting_decorator(func):
                     completionID = result_queue.get()
 
             if completionID is None:
-                logging.warn(f"LOG10: failed to get completionID from log10: {e}. Skipping log.")
+                logger.warning(f"LOG10: failed to get completionID from log10: {e}. Skipping log.")
                 return
 
             logger.debug(f"LOG10: failed - {e}")
@@ -684,7 +684,7 @@ def intercepting_decorator(func):
             try:
                 res = post_request(completion_url + "/" + completionID, log_row)
             except Exception as le:
-                logging.warn(f"LOG10: failed to log: {le}. Skipping, but raising LLM error.")
+                logger.warning(f"LOG10: failed to log: {le}. Skipping, but raising LLM error.")
             raise e
         else:
             # finished with no exceptions

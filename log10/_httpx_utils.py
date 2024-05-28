@@ -154,21 +154,15 @@ async def log_request(request: Request):
             orig_module = "openai.api_resources.completion"
             orig_qualname = "Completion.create"
     elif "anthropic" in host:
-        if "async:" in request.headers.get("x-stainless-async"):
-            kind = "chat"
+        kind = "chat"
+        request_content = json.loads(request_content_decode)
+        if "tools" in request_content:
             orig_module = "anthropic.resources.beta.tools"
             orig_qualname = "Messages.stream"
-            request_content = json.loads(request_content_decode)
-            if "tools" in request_content:
-                orig_module = "anthropic.resources.beta.tools"
-                orig_qualname = "Messages.stream"
-                request_content_decode = format_anthropic_tools_request(request_content)
-            else:
-                orig_module = "anthropic.resources.messages"
-                orig_qualname = "Messages.stream"
+            request_content_decode = format_anthropic_tools_request(request_content)
         else:
-            logger.warning("Currently logging is only available for anthropic async")
-            return
+            orig_module = "anthropic.resources.messages"
+            orig_qualname = "Messages.stream"
     else:
         logger.warning("Currently logging is only available for async openai and anthropic.")
         return
