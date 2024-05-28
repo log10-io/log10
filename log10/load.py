@@ -155,6 +155,12 @@ class log10_session:
         response = last_completion_response_var.get()
         return f'{url}/app/{response["organizationSlug"]}/completions/{response["completionID"]}'
 
+    def last_completion_id(self):
+        if last_completion_response_var.get() is None:
+            return None
+        response = last_completion_response_var.get()
+        return response["completionID"]
+
 
 @contextmanager
 def timed_block(block_name):
