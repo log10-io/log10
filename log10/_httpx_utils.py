@@ -372,11 +372,11 @@ class _LogResponse(Response):
                         elif tc[0].get("function", {}).get("arguments", ""):
                             idx = tc[0].get("index")
                             self.tool_calls[idx]["function"]["arguments"] += tc[0]["function"]["arguments"]
-                else:
-                    finish_reason = r_json["choice"][0]["finish_reason"]
+
+                if "finish_reason" in r_json["choices"][0] and r_json["choices"][0]["finish_reason"]:
+                    finish_reason = r_json["choices"][0]["finish_reason"]
 
         r_json["object"] = "chat.completion"
-
         if finish_reason:
             r_json["choices"][0]["finish_reason"] = finish_reason
         return r_json
