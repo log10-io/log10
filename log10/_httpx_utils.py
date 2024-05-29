@@ -215,20 +215,25 @@ class _LogResponse(Response):
                     response_json = r_json.copy()
                     # r_json is the last response before "data: [DONE]"
 
-                    if self.full_content:
-                        response_json["choices"][0]["message"] = {"role": "assistant", "content": self.full_content}
-                    elif self.tool_calls:
-                        response_json["choices"][0]["message"] = {
-                            "content": None,
-                            "role": "assistant",
-                            "tool_calls": self.tool_calls,
-                        }
-                    elif self.function_name and self.full_argument:
-                        # function is deprecated in openai api
-                        response_json["choices"][0]["function_call"] = {
-                            "name": self.function_name,
-                            "arguments": self.full_argument,
-                        }
+                    if response_json.get("choices") and response_json["choices"]:
+                        choice = response_json["choices"][0]
+                        if self.full_content and choice.get("message"):
+                            response_json["choices"][0]["message"] = {
+                                "role": "assistant",
+                                "content": self.full_content,
+                            }
+                        elif self.tool_calls and choice.get("message"):
+                            response_json["choices"][0]["message"] = {
+                                "content": None,
+                                "role": "assistant",
+                                "tool_calls": self.tool_calls,
+                            }
+                        elif self.function_name and self.full_argument and choice.get("function_call"):
+                            # function is deprecated in openai api
+                            response_json["choices"][0]["function_call"] = {
+                                "name": self.function_name,
+                                "arguments": self.full_argument,
+                            }
 
                     request_content_decode = self.request.content.decode("utf-8")
                     if "anthropic" in self.request.headers.get("host"):
@@ -298,13 +303,15 @@ class _LogResponse(Response):
                         "type": "function",
                         "function": {"name": content_block["name"], "arguments": ""},
                     }
-                if "text" in content_block:
+
+                if content_block.get("text"):
                     self.full_content += content_block["text"]
             elif type == "content_block_delta":
                 delta = r_json["delta"]
-                if "text" in delta:
+                if delta.get("text"):
                     self.full_content += delta["text"]
-                if "partial_json" in delta:
+
+                if delta.get("partial_json"):
                     if self.full_content:
                         self.full_content += delta["partial_json"]
                     else:
@@ -347,26 +354,30 @@ class _LogResponse(Response):
             # loading the substring of response text after 'data: '.
             # example: 'data: {"choices":[{"text":"Hello, how can I help you today?"}]}'
             r_json = json.loads(r[6:])
+            # data_index = r.find("data:")
+            # r_json = json.loads(r[data_index + len("data:") :])
 
-            if "choices" in r_json and r_json["choices"]:
+            if r_json.get("choices") and r_json["choices"]:
                 last_message_choices = r_json["choices"][0]
-                if "delta" in r_json["choices"][0]:
+
+                if r_json["choices"][0].get("delta"):
                     delta = r_json["choices"][0]["delta"]
 
                     # Delta may have content
-                    if "content" in delta:
+                    if delta.get("content"):
                         content = delta["content"]
                         if content:
                             self.full_content += content
 
                     # May be a function call, and have to reconstruct the arguments
-                    if "function_call" in delta:
+                    if delta.get("function_call"):
+                        function_call = delta["function_call"]
                         # May be function name
-                        if "name" in delta["function_call"]:
-                            self.function_name = delta["function_call"]["name"]
+                        if function_call.get("name"):
+                            self.function_name = function_call["name"]
                         # May be function arguments
-                        if "arguments" in delta["function_call"]:
-                            self.full_argument += delta["function_call"]["arguments"]
+                        if function_call.get("arguments"):
+                            self.full_argument += function_call["arguments"]
 
                     if tc := delta.get("tool_calls", []):
                         if tc[0].get("id", ""):
@@ -375,15 +386,15 @@ class _LogResponse(Response):
                             idx = tc[0].get("index")
                             self.tool_calls[idx]["function"]["arguments"] += tc[0]["function"]["arguments"]
 
-                if "finish_reason" in r_json["choices"][0] and r_json["choices"][0]["finish_reason"]:
-                    finish_reason = r_json["choices"][0]["finish_reason"]
+                if r_json["choices"][0].get("finish_reason"):
+                    finish_reason = r_json["choices"][0].get("finish_reason")
 
         r_json["object"] = "chat.completion"
 
         if last_message_choices:
             r_json["choices"].append(last_message_choices)
 
-        if finish_reason and r_json["choices"]:
+        if finish_reason and r_json.get("choices") and r_json["choices"]:
             r_json["choices"][0]["finish_reason"] = finish_reason
         return r_json
 
