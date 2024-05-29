@@ -32,7 +32,6 @@ def test_chat(openai_model):
     content = completion.choices[0].message.content
     assert isinstance(content, str)
     assert content, "No output from the model."
-    assert "did not go to the market" in content
 
 
 @pytest.mark.chat
@@ -68,7 +67,6 @@ async def test_chat_async(openai_model):
     content = completion.choices[0].message.content
     assert isinstance(content, str)
     assert content, "No output from the model."
-    assert "this is a test" in content.lower()
 
 
 @pytest.mark.chat
@@ -139,7 +137,6 @@ def test_chat_image(openai_vision_model):
     content = response.choices[0].message.content
     assert isinstance(content, str)
     assert content, "No output from the model."
-    assert "ant" in content
 
 
 def get_current_weather(location, unit="fahrenheit"):

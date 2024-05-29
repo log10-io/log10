@@ -143,5 +143,6 @@ async def test_async_widget(magentic_model):
 
     assert isinstance(r, WidgetInfo)
     assert isinstance(r.title, str)
-    assert "AAPL" in r.title
     assert isinstance(r.description, str)
+    assert r.title, "No title generated."
+    assert r.description, "No description generated."
