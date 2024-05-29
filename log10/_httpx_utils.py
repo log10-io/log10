@@ -338,6 +338,7 @@ class _LogResponse(Response):
 
     def parse_openai_responses(self, responses: list[str]):
         r_json = None
+        last_message_choice = responses[-4]
         for r in responses:
             if self.is_openai_response_end_reached(r):
                 break
@@ -345,31 +346,35 @@ class _LogResponse(Response):
             # loading the substring of response text after 'data: '.
             # example: 'data: {"choices":[{"text":"Hello, how can I help you today?"}]}'
             r_json = json.loads(r[6:])
-            delta = r_json["choices"][0]["delta"]
 
-            # Delta may have content
-            if "content" in delta:
-                content = delta["content"]
-                if content:
-                    self.full_content += content
+            if r_json["choices"] and "delta" in r_json["choices"][0]:
+                delta = r_json["choices"][0]["delta"]
 
-            # May be a function call, and have to reconstruct the arguments
-            if "function_call" in delta:
-                # May be function name
-                if "name" in delta["function_call"]:
-                    self.function_name = delta["function_call"]["name"]
-                # May be function arguments
-                if "arguments" in delta["function_call"]:
-                    self.full_argument += delta["function_call"]["arguments"]
+                # Delta may have content
+                if "content" in delta:
+                    content = delta["content"]
+                    if content:
+                        self.full_content += content
 
-            if tc := delta.get("tool_calls", []):
-                if tc[0].get("id", ""):
-                    self.tool_calls.append(tc[0])
-                elif tc[0].get("function", {}).get("arguments", ""):
-                    idx = tc[0].get("index")
-                    self.tool_calls[idx]["function"]["arguments"] += tc[0]["function"]["arguments"]
+                # May be a function call, and have to reconstruct the arguments
+                if "function_call" in delta:
+                    # May be function name
+                    if "name" in delta["function_call"]:
+                        self.function_name = delta["function_call"]["name"]
+                    # May be function arguments
+                    if "arguments" in delta["function_call"]:
+                        self.full_argument += delta["function_call"]["arguments"]
 
+                if tc := delta.get("tool_calls", []):
+                    if tc[0].get("id", ""):
+                        self.tool_calls.append(tc[0])
+                    elif tc[0].get("function", {}).get("arguments", ""):
+                        idx = tc[0].get("index")
+                        self.tool_calls[idx]["function"]["arguments"] += tc[0]["function"]["arguments"]
+
+        last_message_choice_json = json.loads(last_message_choice[6:])
         r_json["object"] = "chat.completion"
+        r_json["choices"] = last_message_choice_json["choices"]
         return r_json
 
     def parse_response_data(self, responses: list[str]):
