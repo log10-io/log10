@@ -379,9 +379,11 @@ class _LogResponse(Response):
                     finish_reason = r_json["choices"][0]["finish_reason"]
 
         r_json["object"] = "chat.completion"
-        r_json["choices"].append(last_message_choices)
 
-        if finish_reason:
+        if last_message_choices:
+            r_json["choices"].append(last_message_choices)
+
+        if finish_reason and r_json["choices"]:
             r_json["choices"][0]["finish_reason"] = finish_reason
         return r_json
 
