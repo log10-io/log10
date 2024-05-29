@@ -339,6 +339,7 @@ class _LogResponse(Response):
     def parse_openai_responses(self, responses: list[str]):
         r_json = None
         finish_reason = None
+        last_message_choices = None
         for r in responses:
             if self.is_openai_response_end_reached(r):
                 break
@@ -348,6 +349,7 @@ class _LogResponse(Response):
             r_json = json.loads(r[6:])
 
             if "choices" in r_json and r_json["choices"]:
+                last_message_choices = r_json["choices"][0]
                 if "delta" in r_json["choices"][0]:
                     delta = r_json["choices"][0]["delta"]
 
@@ -377,6 +379,8 @@ class _LogResponse(Response):
                     finish_reason = r_json["choices"][0]["finish_reason"]
 
         r_json["object"] = "chat.completion"
+        r_json["choices"].append(last_message_choices)
+
         if finish_reason:
             r_json["choices"][0]["finish_reason"] = finish_reason
         return r_json
