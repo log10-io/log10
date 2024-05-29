@@ -1,4 +1,5 @@
 import asyncio
+import contextvars
 import functools
 import inspect
 import json
@@ -107,48 +108,58 @@ def get_session_id():
     return id
 
 
-# Global variable to store the current sessionID.
-sessionID = get_session_id()
-last_completion_response = None
-global_tags = []
+#
+# Context variables
+#
+session_id_var = contextvars.ContextVar("session_id", default=get_session_id())
+last_completion_response_var = contextvars.ContextVar("last_completion_response", default=None)
+tags_var = contextvars.ContextVar("tags", default=[])
 
 
 def get_log10_session_tags():
-    return global_tags
+    return tags_var.get()
 
 
 class log10_session:
     def __init__(self, tags=None):
         self.tags = tags
 
-        if tags is not None:
-            global global_tags
-            global_tags = tags
-
     def __enter__(self):
-        global sessionID
-        global last_completion_response
-        sessionID = get_session_id()
-        last_completion_response = None
+        self.session_id_token = session_id_var.set(get_session_id())
+        self.last_completion_response_token = last_completion_response_var.set(None)
+        self.tags_token = tags_var.set(self.tags)
+
         return self
 
-    def last_completion_url(self):
-        if last_completion_response is None:
-            return None
-
-        return (
-            url
-            + "/app/"
-            + last_completion_response["organizationSlug"]
-            + "/completions/"
-            + last_completion_response["completionID"]
-        )
-
     def __exit__(self, exc_type, exc_value, traceback):
-        if self.tags is not None:
-            global global_tags
-            global_tags = None
+        session_id_var.reset(self.session_id_token)
+        last_completion_response_var.reset(self.last_completion_response_token)
+        tags_var.reset(self.tags_token)
         return
+
+    async def __aenter__(self):
+        self.session_id_token = session_id_var.set(get_session_id())
+        self.last_completion_response_token = last_completion_response_var.set(None)
+        self.tags_token = tags_var.set(self.tags)
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        session_id_var.reset(self.session_id_token)
+        last_completion_response_var.reset(self.last_completion_response_token)
+        tags_var.reset(self.tags_token)
+        return
+
+    def last_completion_url(self):
+        if last_completion_response_var.get() is None:
+            return None
+        response = last_completion_response_var.get()
+        return f'{url}/app/{response["organizationSlug"]}/completions/{response["completionID"]}'
+
+    def last_completion_id(self):
+        if last_completion_response_var.get() is None:
+            return None
+        response = last_completion_response_var.get()
+        return response["completionID"]
 
 
 @contextmanager
@@ -172,20 +183,23 @@ def log_url(res, completionID):
 
 
 async def log_async(completion_url, log_row):
-    global last_completion_response
-
     res = None
     try:
         res = post_request(completion_url)
-        last_completion_response = res.json()
-        completionID = res.json()["completionID"]
+        last_completion_response_var.set(res.json())
+        completionID = res.json().get("completionID", None)
+
+        if completionID is None:
+            logging.warn("LOG10: failed to get completionID from log10. Skipping log.")
+            return None
 
         if DEBUG:
             log_url(res, completionID)
 
         if target_service == "log10":
             try:
-                res = post_request(completion_url + "/" + completionID, log_row)
+                _url = f"{completion_url}/{completionID}"
+                res = post_request(_url, log_row)
             except Exception as e:
                 logging.warn(f"LOG10: failed to log: {e}. Skipping")
                 return None
@@ -207,16 +221,21 @@ def run_async_in_thread(completion_url, log_row, result_queue):
 
 
 def log_sync(completion_url, log_row):
-    global last_completion_response
     completionID = None
 
     try:
         res = post_request(completion_url)
-        last_completion_response = res.json()
-        completionID = res.json()["completionID"]
+        last_completion_response_var.set(res.json())
+        completionID = res.json().get("completionID", None)
+
+        if completionID is None:
+            logging.warn("LOG10: failed to get completionID from log10. Skipping log.")
+            return None
+
         if DEBUG:
             log_url(res, completionID)
-        res = post_request(completion_url + "/" + completionID, log_row)
+        _url = f"{completion_url}/{completionID}"
+        res = post_request(_url, log_row)
     except Exception as e:
         logging.warn(f"LOG10: failed to get completionID from log10: {e}")
         return None
@@ -359,7 +378,8 @@ class StreamingResponseWrapper:
             self.partial_log_row["duration"] = int((time.perf_counter() - self.start_time) * 1000)
 
             try:
-                res = post_request(self.completion_url + "/" + self.completionID, self.partial_log_row)
+                _url = f"{self.completion_url}/{self.completionID}"
+                res = post_request(_url, self.partial_log_row)
                 if res.status_code != 200:
                     logger.error(f"LOG10: failed to insert in log10: {self.partial_log_row} with error {res.text}")
             except Exception as e:
@@ -373,6 +393,14 @@ class AnthropicStreamingResponseWrapper:
     """
     Wraps a streaming response object to log the final result and duration to log10.
     """
+
+    def __enter__(self):
+        self.response = self.response.__enter__()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.response.__exit__(exc_type, exc_value, traceback)
+        return
 
     def __init__(self, completion_url, completionID, response, partial_log_row):
         self.completionID = completionID
@@ -392,16 +420,26 @@ class AnthropicStreamingResponseWrapper:
 
     def __next__(self):
         chunk = next(self.response)
+        self._process_chunk(chunk)
+        return chunk
+
+    def _process_chunk(self, chunk):
         if chunk.type == "message_start":
             self.model = chunk.message.model
             self.message_id = chunk.message.id
             self.input_tokens = chunk.message.usage.input_tokens
+        if chunk.type == "content_block_start":
+            if hasattr(chunk.content_block, "text"):
+                self.final_result += chunk.content_block.text
         elif chunk.type == "message_delta":
             self.finish_reason = chunk.delta.stop_reason
             self.output_tokens = chunk.usage.output_tokens
         elif chunk.type == "content_block_delta":
-            self.final_result += chunk.delta.text
-        elif chunk.type == "message_stop":
+            if hasattr(chunk.delta, "text"):
+                self.final_result += chunk.delta.text
+            if hasattr(chunk.delta, "partial_json"):
+                self.final_result += chunk.delta.partial_json
+        elif chunk.type == "message_stop" or chunk.type == "content_block_stop":
             response = {
                 "id": self.message_id,
                 "object": "chat",
@@ -425,11 +463,10 @@ class AnthropicStreamingResponseWrapper:
             self.partial_log_row["response"] = json.dumps(response)
             self.partial_log_row["duration"] = int((time.perf_counter() - self.start_time) * 1000)
 
-            res = post_request(self.completion_url + "/" + self.completionID, self.partial_log_row)
+            _url = f"{self.completion_url}/{self.completionID}"
+            res = post_request(_url, self.partial_log_row)
             if res.status_code != 200:
                 logger.error(f"Failed to insert in log10: {self.partial_log_row} with error {res.text}. Skipping")
-
-        return chunk
 
 
 def flatten_messages(messages):
@@ -472,8 +509,8 @@ def _init_log_row(func, *args, **kwargs):
         "orig_module": func.__module__,
         "orig_qualname": func.__qualname__,
         "stacktrace": json.dumps(_get_stack_trace()),
-        "session_id": sessionID,
-        "tags": global_tags,
+        "session_id": session_id_var.get(),
+        "tags": tags_var.get(),
     }
 
     # in case the usage of load(openai) and langchain.ChatOpenAI
@@ -488,6 +525,9 @@ def _init_log_row(func, *args, **kwargs):
     # kind and request are set based on the module and qualname
     # request is based on openai schema
     if "anthropic" in func.__module__:
+        from anthropic._utils._utils import strip_not_given
+
+        kwargs_copy = strip_not_given(kwargs_copy)
         log_row["kind"] = "chat" if "message" in func.__module__ else "completion"
         # set system message
         if "system" in kwargs_copy:
@@ -501,11 +541,25 @@ def _init_log_row(func, *args, **kwargs):
                             image_type = c.get("source", {}).get("media_type", "")
                             image_data = c.get("source", {}).get("data", "")
                             new_content.append(
-                                {"type": "image_url", "image_url": {"url": f"data:{image_type};base64,{image_data}"}}
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": f"data:{image_type};base64,{image_data}"},
+                                }
                             )
                         else:
                             new_content.append(c)
                     m["content"] = new_content
+        if "tools" in kwargs_copy:
+            for t in kwargs_copy["tools"]:
+                new_function = {
+                    "name": t.get("name", None),
+                    "description": t.get("description", None),
+                    "parameters": {
+                        "properties": t.get("input_schema", {}).get("properties", None),
+                    },
+                }
+                t["function"] = new_function
+                t.pop("input_schema", None)
     elif "vertexai" in func.__module__:
         if func.__name__ == "_send_message":
             # get model name save in ChatSession instance
@@ -516,7 +570,10 @@ def _init_log_row(func, *args, **kwargs):
             # TODO how to handle chat history
             # chat_history = chat_session_instance.history
             kwargs_copy.update(
-                {"model": model_name, "messages": [{"role": "user", "content": kwargs_copy["content"]}]}
+                {
+                    "model": model_name,
+                    "messages": [{"role": "user", "content": kwargs_copy["content"]}],
+                }
             )
             if kwargs_copy.get("generation_config"):
                 for key, value in kwargs_copy["generation_config"].to_dict().items():
@@ -528,7 +585,10 @@ def _init_log_row(func, *args, **kwargs):
     elif "lamini" in func.__module__:
         log_row["kind"] = "chat"
         kwargs_copy.update(
-            {"model": args[1]["model_name"], "messages": [{"role": "user", "content": args[1]["prompt"]}]}
+            {
+                "model": args[1]["model_name"],
+                "messages": [{"role": "user", "content": args[1]["prompt"]}],
+            }
         )
     elif "mistralai" in func.__module__:
         log_row["kind"] = "chat"
@@ -551,7 +611,12 @@ def _init_log_row(func, *args, **kwargs):
                     history_messages.append({"role": role, "content": content})
 
             history_messages.append({"role": "user", "content": args[1]})
-            kwargs_copy.update({"model": args[0].model.model_name.split("/")[-1], "messages": history_messages})
+            kwargs_copy.update(
+                {
+                    "model": args[0].model.model_name.split("/")[-1],
+                    "messages": history_messages,
+                }
+            )
             if kwargs_copy.get("generation_config") and hasattr(kwargs_copy["generation_config"], "__dict__"):
                 for key, value in kwargs_copy["generation_config"].__dict__.items():
                     if not value:
@@ -609,7 +674,7 @@ def intercepting_decorator(func):
                     completionID = result_queue.get()
 
             if completionID is None:
-                logging.warn(f"LOG10: failed to get completionID from log10: {e}. Skipping log.")
+                logger.warning(f"LOG10: failed to get completionID from log10: {e}. Skipping log.")
                 return
 
             logger.debug(f"LOG10: failed - {e}")
@@ -625,7 +690,7 @@ def intercepting_decorator(func):
             try:
                 res = post_request(completion_url + "/" + completionID, log_row)
             except Exception as le:
-                logging.warn(f"LOG10: failed to log: {le}. Skipping, but raising LLM error.")
+                logger.warning(f"LOG10: failed to log: {le}. Skipping, but raising LLM error.")
             raise e
         else:
             # finished with no exceptions
@@ -639,7 +704,7 @@ def intercepting_decorator(func):
                 response = output
                 # Adjust the Anthropic output to match OAI completion output
                 if "anthropic" in func.__module__:
-                    if type(output).__name__ == "Stream":
+                    if type(output).__name__ == "Stream" or "MessageStreamManager" in type(output).__name__:
                         log_row["response"] = response
                         log_row["status"] = "finished"
                         return AnthropicStreamingResponseWrapper(
@@ -648,6 +713,7 @@ def intercepting_decorator(func):
                             response=response,
                             partial_log_row=log_row,
                         )
+
                     from log10.anthropic import Anthropic
 
                     response = Anthropic.prepare_response(output, input_prompt=kwargs.get("prompt", ""))
@@ -661,7 +727,10 @@ def intercepting_decorator(func):
                             {
                                 "index": 0,
                                 "finish_reason": str(reason).lower(),
-                                "message": {"role": "assistant", "content": response.text},
+                                "message": {
+                                    "role": "assistant",
+                                    "content": response.text,
+                                },
                             }
                         ],
                     }
@@ -681,7 +750,10 @@ def intercepting_decorator(func):
                             {
                                 "index": 0,
                                 "finish_reason": str(output.candidates[0].finish_reason.name).lower(),
-                                "message": {"role": "assistant", "content": output.text},
+                                "message": {
+                                    "role": "assistant",
+                                    "content": output.text,
+                                },
                             }
                         ],
                         "usage": {
@@ -713,10 +785,17 @@ def intercepting_decorator(func):
                             {
                                 "index": 0,
                                 "finish_reason": "stop",
-                                "message": {"role": "assistant", "content": output["output"]},
+                                "message": {
+                                    "role": "assistant",
+                                    "content": output["output"],
+                                },
                             }
                         ],
-                        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                        "usage": {
+                            "prompt_tokens": 0,
+                            "completion_tokens": 0,
+                            "total_tokens": 0,
+                        },
                     }
                 elif "mistralai" in func.__module__:
                     if "stream" in func.__qualname__:
@@ -741,7 +820,8 @@ def intercepting_decorator(func):
 
                 if target_service == "log10":
                     try:
-                        res = post_request(completion_url + "/" + completionID, log_row)
+                        _url = f"{completion_url}/{completionID}"
+                        res = post_request(_url, log_row)
                         if res.status_code != 200:
                             logger.error(f"LOG10: failed to insert in log10: {log_row} with error {res.text}")
                     except Exception as e:
@@ -760,7 +840,7 @@ def intercepting_decorator(func):
 
                         log_row["orig_module"] = func.__module__
                         log_row["orig_qualname"] = func.__qualname__
-                        log_row["session_id"] = sessionID
+                        log_row["session_id"] = session_id_var.get()
 
                         bigquery_client.insert_rows_json(bigquery_table, [log_row])
 
@@ -892,6 +972,42 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         attr = module.resources.messages.Messages
         method = getattr(attr, "create")
         setattr(attr, "create", intercepting_decorator(method))
+
+        attr = module.resources.messages.Messages
+        method = getattr(attr, "stream")
+        setattr(attr, "stream", intercepting_decorator(method))
+
+        attr = module.resources.beta.tools.Messages
+        method = getattr(attr, "create")
+        setattr(attr, "create", intercepting_decorator(method))
+
+        attr = module.resources.beta.tools.Messages
+        method = getattr(attr, "stream")
+        setattr(attr, "stream", intercepting_decorator(method))
+
+        origin_init = module.AsyncAnthropic.__init__
+
+        def new_init(self, *args, **kwargs):
+            logger.debug("LOG10: patching AsyncAnthropic.__init__")
+            import httpx
+
+            from log10._httpx_utils import (
+                _LogTransport,
+                get_completion_id,
+                log_request,
+            )
+
+            event_hooks = {
+                "request": [get_completion_id, log_request],
+            }
+            async_httpx_client = httpx.AsyncClient(
+                event_hooks=event_hooks,
+                transport=_LogTransport(httpx.AsyncHTTPTransport()),
+            )
+            kwargs["http_client"] = async_httpx_client
+            origin_init(self, *args, **kwargs)
+
+        module.AsyncAnthropic.__init__ = new_init
     elif module.__name__ == "lamini":
         attr = module.api.utils.completion.Completion
         method = getattr(attr, "generate")
@@ -1002,8 +1118,7 @@ if is_openai_v1():
         def __init__(self, *args, **kwargs):
             # check if tags is passed in
             if "tags" in kwargs:
-                global global_tags
-                global_tags = kwargs.pop("tags")
+                tags_var.set(kwargs.pop("tags"))
             super().__init__(*args, **kwargs)
 
             if not getattr(openai, "_log10_patched", False):
@@ -1035,8 +1150,7 @@ else:
 
         def __init__(self, *args, **kwargs):
             if "tags" in kwargs:
-                global global_tags
-                global_tags = kwargs.pop("tags")
+                tags_var.set(kwargs.pop("tags"))
             super().__init__(*args, **kwargs)
 
             if not getattr(anthropic, "_log10_patched", False):

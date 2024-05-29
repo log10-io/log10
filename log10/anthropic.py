@@ -4,6 +4,9 @@ from typing import List
 
 import anthropic
 from anthropic import AI_PROMPT, HUMAN_PROMPT
+from anthropic.types.beta.tools import (
+    ToolsBetaMessage,
+)
 
 from log10.llm import LLM, ChatCompletion, Kind, Message, TextCompletion
 from log10.utils import merge_hparams
@@ -133,9 +136,12 @@ class Anthropic(LLM):
 
     @staticmethod
     def prepare_response(
-        response: anthropic.types.Completion | anthropic.types.Message, input_prompt: str = ""
+        response: anthropic.types.Completion | anthropic.types.Message | ToolsBetaMessage, input_prompt: str = ""
     ) -> dict:
-        if response.stop_reason in ["stop_sequence", "end_turn"]:
+        if not hasattr(response, "stop_reason"):
+            return None
+
+        if response.stop_reason in ["stop_sequence", "end_turn", "tool_use"]:
             reason = "stop"
         elif response.stop_reason == "max_tokens":
             reason = "length"
@@ -151,6 +157,7 @@ class Anthropic(LLM):
                 }
             ],
         }
+
         if isinstance(response, anthropic.types.Message):
             tokens_usage = {
                 "prompt_tokens": response.usage.input_tokens,
@@ -161,6 +168,13 @@ class Anthropic(LLM):
         elif isinstance(response, anthropic.types.Completion):
             tokens_usage = Anthropic.create_tokens_usage(input_prompt, response.completion)
             ret_response["choices"][0]["text"] = response.completion
+        elif isinstance(response, ToolsBetaMessage):
+            tokens_usage = {
+                "prompt_tokens": response.usage.input_tokens,
+                "completion_tokens": response.usage.output_tokens,
+                "total_tokens": response.usage.input_tokens + response.usage.output_tokens,
+            }
+            ret_response["choices"][0]["message"] = {"role": response.role, "content": response.content[0].text}
         ret_response["usage"] = tokens_usage
 
         return ret_response
