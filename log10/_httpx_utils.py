@@ -353,9 +353,9 @@ class _LogResponse(Response):
 
             # loading the substring of response text after 'data: '.
             # example: 'data: {"choices":[{"text":"Hello, how can I help you today?"}]}'
-            r_json = json.loads(r[6:])
-            # data_index = r.find("data:")
-            # r_json = json.loads(r[data_index + len("data:") :])
+            # r_json = json.loads(r[6:])
+            data_index = r.find("data:")
+            r_json = json.loads(r[data_index + len("data:") :])
 
             if r_json.get("choices") and r_json["choices"]:
                 last_message_choices = r_json["choices"][0]
