@@ -1802,24 +1802,24 @@ proxy = ["PyJWT (>=2.8.0,<3.0.0)", "apscheduler (>=3.10.4,<4.0.0)", "backoff", "
 
 [[package]]
 name = "magentic"
-version = "0.21.1"
+version = "0.26.0"
 description = "Seamlessly integrate LLMs as Python functions"
 optional = true
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "magentic-0.21.1-py3-none-any.whl", hash = "sha256:0841106dd25d7d15395fde086183d65235522aa33241d04650a168770ddb1e6e"},
-    {file = "magentic-0.21.1.tar.gz", hash = "sha256:4aab59f55bc290b3eb49f81b2bf0ece9cca818f23e589bdc65bd95ca5d94c824"},
+    {file = "magentic-0.26.0-py3-none-any.whl", hash = "sha256:52b3847b406610bd3e8c8588e4fc945b32b247fc56c26d041e29452bdf2d5f99"},
+    {file = "magentic-0.26.0.tar.gz", hash = "sha256:180f32385269e4bfcd660ea3919b7f2462c2bac955deeaf0b71274f428b85a0c"},
 ]
 
 [package.dependencies]
 filetype = "*"
-openai = ">=1.0"
+openai = ">=1.26.0"
 pydantic = ">=2.0.0"
 pydantic-settings = ">=2.0.0"
 
 [package.extras]
-anthropic = ["anthropic (>=0.23.0)"]
-litellm = ["litellm (>=1.33.7)"]
+anthropic = ["anthropic (>=0.26.0)"]
+litellm = ["litellm (>=1.36.0)"]
 
 [[package]]
 name = "markdown-it-py"
@@ -2150,13 +2150,13 @@ files = [
 
 [[package]]
 name = "openai"
-version = "1.24.0"
+version = "1.30.4"
 description = "The official Python library for the openai API"
 optional = false
 python-versions = ">=3.7.1"
 files = [
-    {file = "openai-1.24.0-py3-none-any.whl", hash = "sha256:81eed0d850a35a170797d15d94144eb993459411ba56325891ab488708f1b612"},
-    {file = "openai-1.24.0.tar.gz", hash = "sha256:9cc6ac92bac9d57c8d4bc101e9e4c7201304c88efb89320d0f0348625fa8647d"},
+    {file = "openai-1.30.4-py3-none-any.whl", hash = "sha256:fb2635efd270efaf9fac2e07558d7948373b940637d3ae3ab624c1a983d4f03f"},
+    {file = "openai-1.30.4.tar.gz", hash = "sha256:f3488d9a1c4e0d332b019377d27d7cb4b3d6103fd5d0a416c7ceac780d1d9b88"},
 ]
 
 [package.dependencies]
