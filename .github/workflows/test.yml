@@ -1,6 +1,8 @@
 name: Test
 
 on:
+  pull_request:
+
   schedule:
     - cron: "0 13 * * *"
   workflow_dispatch:
@@ -62,7 +64,7 @@ jobs:
         run: poetry install --all-extras
 
       - name: Run dispatch tests
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' }}
         run: |
           echo "This is a dispatch event"
           openai_model_input=${{ github.event.inputs.openai_model }}
