@@ -1802,18 +1802,18 @@ proxy = ["PyJWT (>=2.8.0,<3.0.0)", "apscheduler (>=3.10.4,<4.0.0)", "backoff", "
 
 [[package]]
 name = "magentic"
-version = "0.25.0"
+version = "0.26.0"
 description = "Seamlessly integrate LLMs as Python functions"
 optional = true
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "magentic-0.25.0-py3-none-any.whl", hash = "sha256:3681ef4a5e22d6aadcf468d76c7512309b1db9189a1a3adc90128e1c12393c5f"},
-    {file = "magentic-0.25.0.tar.gz", hash = "sha256:3fcaf32efc793471293ab828ed13ba3e32ed0e4e2171951294d322c621738bf4"},
+    {file = "magentic-0.26.0-py3-none-any.whl", hash = "sha256:52b3847b406610bd3e8c8588e4fc945b32b247fc56c26d041e29452bdf2d5f99"},
+    {file = "magentic-0.26.0.tar.gz", hash = "sha256:180f32385269e4bfcd660ea3919b7f2462c2bac955deeaf0b71274f428b85a0c"},
 ]
 
 [package.dependencies]
 filetype = "*"
-openai = ">=1.24.0"
+openai = ">=1.26.0"
 pydantic = ">=2.0.0"
 pydantic-settings = ">=2.0.0"
 
