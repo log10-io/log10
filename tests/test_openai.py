@@ -7,6 +7,7 @@ import pytest
 from openai import NOT_GIVEN, AsyncOpenAI
 
 from log10.load import log10
+from tests.utils import is_valid_uuid
 
 
 log10(openai)
@@ -14,7 +15,7 @@ client = openai.OpenAI()
 
 
 @pytest.mark.chat
-def test_chat(openai_model):
+def test_chat(session, openai_model):
     completion = client.chat.completions.create(
         model=openai_model,
         messages=[
@@ -32,10 +33,11 @@ def test_chat(openai_model):
     content = completion.choices[0].message.content
     assert isinstance(content, str)
     assert content, "No output from the model."
+    assert is_valid_uuid(session.last_completion_id()), "Completion ID should be found and valid uuid."
 
 
 @pytest.mark.chat
-def test_chat_not_given(openai_model):
+def test_chat_not_given(session, openai_model):
     completion = client.chat.completions.create(
         model=openai_model,
         messages=[
@@ -51,14 +53,14 @@ def test_chat_not_given(openai_model):
     content = completion.choices[0].message.content
     assert isinstance(content, str)
     assert content, "No output from the model."
+    assert is_valid_uuid(session.last_completion_id()), "Completion ID should be found and valid uuid."
 
 
 @pytest.mark.chat
 @pytest.mark.async_client
 @pytest.mark.asyncio
-async def test_chat_async(openai_model):
+async def test_chat_async(session, openai_model):
     client = AsyncOpenAI()
-
     completion = await client.chat.completions.create(
         model=openai_model,
         messages=[{"role": "user", "content": "Say this is a test"}],
@@ -67,11 +69,12 @@ async def test_chat_async(openai_model):
     content = completion.choices[0].message.content
     assert isinstance(content, str)
     assert content, "No output from the model."
+    assert is_valid_uuid(session.last_completion_id()), "Completion ID should be found and valid uuid."
 
 
 @pytest.mark.chat
 @pytest.mark.stream
-def test_chat_stream(openai_model):
+def test_chat_stream(session, openai_model):
     response = client.chat.completions.create(
         model=openai_model,
         messages=[{"role": "user", "content": "Count to 10"}],
@@ -86,12 +89,13 @@ def test_chat_stream(openai_model):
             output += content.strip()
 
     assert output, "No output from the model."
+    assert is_valid_uuid(session.last_completion_id()), "Completion ID should be found and valid uuid."
 
 
 @pytest.mark.async_client
 @pytest.mark.stream
 @pytest.mark.asyncio
-async def test_chat_async_stream(openai_model):
+async def test_chat_async_stream(session, openai_model):
     client = AsyncOpenAI()
 
     output = ""
@@ -106,10 +110,11 @@ async def test_chat_async_stream(openai_model):
             output += content.strip()
 
     assert output, "No output from the model."
+    assert is_valid_uuid(session.last_completion_id()), "Completion ID should be found and valid uuid."
 
 
 @pytest.mark.vision
-def test_chat_image(openai_vision_model):
+def test_chat_image(session, openai_vision_model):
     image1_url = "https://upload.wikimedia.org/wikipedia/commons/a/a7/Camponotus_flavomarginatus_ant.jpg"
     image1_media_type = "image/jpeg"
     image1_data = base64.b64encode(httpx.get(image1_url).content).decode("utf-8")
@@ -137,6 +142,7 @@ def test_chat_image(openai_vision_model):
     content = response.choices[0].message.content
     assert isinstance(content, str)
     assert content, "No output from the model."
+    assert is_valid_uuid(session.last_completion_id()), "Completion ID should be found and valid uuid."
 
 
 def get_current_weather(location, unit="fahrenheit"):
@@ -186,7 +192,7 @@ def setup_tools_messages() -> dict:
 
 
 @pytest.mark.tools
-def test_tools(openai_model):
+def test_tools(session, openai_model):
     # Step 1: send the conversation and available functions to the model
     result = setup_tools_messages()
     messages = result["messages"]
@@ -198,6 +204,8 @@ def test_tools(openai_model):
         tools=tools,
         tool_choice="auto",  # auto is default, but we'll be explicit
     )
+
+    first_completion_id = session.last_completion_id()
     response_message = response.choices[0].message
     tool_calls = response_message.tool_calls
     # Step 2: check if the model wanted to call a function
@@ -234,10 +242,13 @@ def test_tools(openai_model):
         assert isinstance(content, str)
         assert content, "No output from the model."
 
+        tool_call_completion_id = session.last_completion_id()
+        assert tool_call_completion_id != first_completion_id, "Completion ID should be different."
+
 
 @pytest.mark.stream
 @pytest.mark.tools
-def test_tools_stream(openai_model):
+def test_tools_stream(session, openai_model):
     # Step 1: send the conversation and available functions to the model
     result = setup_tools_messages()
     messages = result["messages"]
@@ -260,12 +271,14 @@ def test_tools_stream(openai_model):
     function_args = [{"function": t.function.name, "arguments": t.function.arguments} for t in tool_calls]
     assert len(function_args) == 3
 
+    assert is_valid_uuid(session.last_completion_id()), "Completion ID should be found and valid uuid."
+
 
 @pytest.mark.tools
 @pytest.mark.stream
 @pytest.mark.async_client
 @pytest.mark.asyncio
-async def test_tools_stream_async(openai_model):
+async def test_tools_stream_async(session, openai_model):
     client = AsyncOpenAI()
     # Step 1: send the conversation and available functions to the model
     result = setup_tools_messages()
@@ -291,3 +304,5 @@ async def test_tools_stream_async(openai_model):
 
     function_args = [{"function": t.function.name, "arguments": t.function.arguments} for t in tool_calls]
     assert len(function_args) == 3
+
+    assert is_valid_uuid(session.last_completion_id()), "Completion ID should be found and valid uuid."

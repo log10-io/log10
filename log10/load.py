@@ -153,6 +153,10 @@ class log10_session:
         if last_completion_response_var.get() is None:
             return None
         response = last_completion_response_var.get()
+
+        # organizationSlug won't be presented from httpx hook
+        if not response.get("organizationSlug", ""):
+            return None
         return f'{url}/app/{response["organizationSlug"]}/completions/{response["completionID"]}'
 
     def last_completion_id(self):
@@ -186,8 +190,8 @@ async def log_async(completion_url, log_row):
     res = None
     try:
         res = post_request(completion_url)
-        last_completion_response_var.set(res.json())
         completionID = res.json().get("completionID", None)
+        organizationSlug = res.json().get("organizationSlug", None)
 
         if completionID is None:
             logging.warn("LOG10: failed to get completionID from log10. Skipping log.")
@@ -212,7 +216,7 @@ async def log_async(completion_url, log_row):
         logging.warn(f"LOG10: failed to log: {e}. Skipping")
         return None
 
-    return completionID
+    return {"completionID": completionID, "organizationSlug": organizationSlug}
 
 
 def run_async_in_thread(completion_url, log_row, result_queue):
@@ -671,7 +675,9 @@ def intercepting_decorator(func):
                 with timed_block("extra time spent waiting for log10 call"):
                     while result_queue.empty():
                         pass
-                    completionID = result_queue.get()
+                    result = result_queue.get()
+                    completionID = result["completionID"]
+                    last_completion_response_var.set(result)
 
             if completionID is None:
                 logger.warning(f"LOG10: failed to get completionID from log10: {e}. Skipping log.")
@@ -698,7 +704,9 @@ def intercepting_decorator(func):
                 with timed_block("extra time spent waiting for log10 call"):
                     while result_queue.empty():
                         pass
-                    completionID = result_queue.get()
+                    result = result_queue.get()
+                    completionID = result["completionID"]
+                    last_completion_response_var.set(result)
 
             with timed_block("result call duration (sync)"):
                 response = output
