@@ -4,6 +4,7 @@ from typing import List, Optional
 from log10.llm import LLM, Kind, Log10Config
 from log10.load import last_completion_response_var
 
+
 try:
     from litellm.integrations.custom_logger import CustomLogger
 except ImportError as error:
