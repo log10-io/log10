@@ -5,10 +5,11 @@ from langchain.chat_models import ChatAnthropic, ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage
 
 from log10.load import log10
+from tests.utils import _LogAssertion
 
 
 @pytest.mark.chat
-def test_chat_openai_messages(openai_model):
+def test_chat_openai_messages(session, openai_model):
     log10(openai)
     llm = ChatOpenAI(
         model_name=openai_model,
@@ -20,10 +21,11 @@ def test_chat_openai_messages(openai_model):
     content = completion.content
     assert isinstance(content, str)
     assert content, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=content).assert_chat_response()
 
 
 @pytest.mark.chat
-def test_chat_anthropic_messages(anthropic_legacy_model):
+def test_chat_anthropic_messages(session, anthropic_legacy_model):
     log10(anthropic)
     llm = ChatAnthropic(model=anthropic_legacy_model, temperature=0.7)
     messages = [SystemMessage(content="You are a ping pong machine"), HumanMessage(content="Ping?")]
@@ -31,4 +33,4 @@ def test_chat_anthropic_messages(anthropic_legacy_model):
 
     content = completion.content
     assert isinstance(content, str)
-    assert content, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), text=content).assert_text_response()

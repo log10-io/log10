@@ -2,7 +2,7 @@ import logging
 from typing import List, Optional
 
 from log10.llm import LLM, Kind, Log10Config
-
+from log10.load import last_completion_response_var
 
 try:
     from litellm.integrations.custom_logger import CustomLogger
@@ -56,6 +56,7 @@ class Log10LitellmLogger(CustomLogger, LLM):
         request = kwargs.get("additional_args").get("complete_input_dict").copy()
         request["messages"] = messages.copy()
         completion_id = self.log_start(request, Kind.chat, self.tags)
+        last_completion_response_var.set({"completionID": completion_id})
         litellm_call_id = kwargs.get("litellm_call_id")
         self.runs[litellm_call_id] = {
             "kind": Kind.chat,
@@ -76,7 +77,11 @@ class Log10LitellmLogger(CustomLogger, LLM):
         litellm_call_id = kwargs.get("litellm_call_id")
         run = self.runs.get(litellm_call_id, None)
         duration = (end_time - start_time).total_seconds()
-        self.log_end(run["completion_id"], response_obj.dict(), duration)
+
+        completion_id = run["completion_id"]
+        print("completion_id", completion_id)
+        last_completion_response_var.set({"completionID": completion_id})
+        self.log_end(completion_id, response_obj.dict(), duration)
 
     def log_failure_event(self, kwargs, response_obj, start_time, end_time):
         update_log_row = {

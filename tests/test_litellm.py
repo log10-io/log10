@@ -1,10 +1,12 @@
 import base64
+import time
 
 import httpx
 import litellm
 import pytest
 
 from log10.litellm import Log10LitellmLogger
+from tests.utils import _LogAssertion
 
 
 ### litellm seems allowing to use multiple callbacks
@@ -17,9 +19,9 @@ litellm.callbacks = [log10_handler]
 
 @pytest.mark.chat
 @pytest.mark.stream
-def test_completion_stream(openai_model):
+def test_completion_stream(session, openai_model):
     response = litellm.completion(
-        model=openai_model, messages=[{"role": "user", "content": "Count to 10."}], stream=True
+        model=openai_model, messages=[{"role": "user", "content": "Count to 6."}], stream=True
     )
 
     output = ""
@@ -27,7 +29,9 @@ def test_completion_stream(openai_model):
         if chunk.choices[0].delta.content:
             output += chunk.choices[0].delta.content
 
-    assert output, "No output from the model."
+    time.sleep(1)
+
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
 
 @pytest.mark.async_client
@@ -36,19 +40,21 @@ def test_completion_stream(openai_model):
 @pytest.mark.asyncio
 async def test_completion_async_stream(anthropic_model):
     response = await litellm.acompletion(
-        model=anthropic_model, messages=[{"role": "user", "content": "count to 10"}], stream=True
+        model=anthropic_model, messages=[{"role": "user", "content": "count to 8"}], stream=True
     )
 
     output = ""
     async for chunk in response:
         if chunk.choices[0].delta.content:
-            output += chunk.choices[0].delta.content.strip()
+            output += chunk.choices[0].delta.content
 
+    ## This test doesn't get completion_id from the session
+    ## and logged a couple times during debug mode, punt this for now
     assert output, "No output from the model."
 
 
 @pytest.mark.vision
-def test_image(openai_vision_model):
+def test_image(session, openai_vision_model):
     image_url = "https://upload.wikimedia.org/wikipedia/commons/e/e8/Log10.png"
     image_media_type = "image/png"
     image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
@@ -71,12 +77,13 @@ def test_image(openai_vision_model):
 
     content = resp.choices[0].message.content
     assert isinstance(content, str)
-    assert content, "No output from the model."
+
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=content).assert_chat_response()
 
 
 @pytest.mark.stream
 @pytest.mark.vision
-def test_image_stream(anthropic_model):
+def test_image_stream(session, anthropic_model):
     image_url = "https://upload.wikimedia.org/wikipedia/commons/e/e8/Log10.png"
     image_media_type = "image/png"
     image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
@@ -103,14 +110,15 @@ def test_image_stream(anthropic_model):
         if chunk.choices[0].delta.content:
             output += chunk.choices[0].delta.content
 
-    assert output, "No output from the model."
+    time.sleep(1)
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
 
 @pytest.mark.async_client
 @pytest.mark.stream
 @pytest.mark.vision
 @pytest.mark.asyncio
-async def test_image_async_stream(anthropic_model):
+async def test_image_async_stream(session, anthropic_model):
     image_url = "https://upload.wikimedia.org/wikipedia/commons/e/e8/Log10.png"
     image_media_type = "image/png"
     image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
@@ -140,4 +148,5 @@ async def test_image_async_stream(anthropic_model):
         if chunk.choices[0].delta.content:
             output += chunk.choices[0].delta.content
 
-    assert output, "No output from the model."
+    time.sleep(1)
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()

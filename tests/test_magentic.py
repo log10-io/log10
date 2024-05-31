@@ -6,24 +6,25 @@ from magentic import AsyncParallelFunctionCall, AsyncStreamedStr, FunctionCall, 
 from pydantic import BaseModel
 
 from log10.load import log10, log10_session
+from tests.utils import _LogAssertion, format_magentic_function_args
 
 
 log10(openai)
 
 
 @pytest.mark.chat
-def test_prompt(magentic_model):
+def test_prompt(session, magentic_model):
     @prompt("Tell me a short joke", model=OpenaiChatModel(model=magentic_model))
     def llm() -> str: ...
 
     output = llm()
     assert isinstance(output, str)
-    assert output, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
 
 @pytest.mark.chat
 @pytest.mark.stream
-def test_prompt_stream(magentic_model):
+def test_prompt_stream(session, magentic_model):
     @prompt("Tell me a short joke", model=OpenaiChatModel(model=magentic_model))
     def llm() -> StreamedStr: ...
 
@@ -32,11 +33,11 @@ def test_prompt_stream(magentic_model):
     for chunk in response:
         output += chunk
 
-    assert output, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
 
 @pytest.mark.tools
-def test_function_logging(magentic_model):
+def test_function_logging(session, magentic_model):
     def activate_oven(temperature: int, mode: Literal["broil", "bake", "roast"]) -> str:
         """Turn the oven on with the provided settings."""
         return f"Preheating to {temperature} F with mode {mode}"
@@ -48,30 +49,32 @@ def test_function_logging(magentic_model):
         ...
 
     output = configure_oven("cookies!")
-    assert output(), "No output from the model."
+    function_args = format_magentic_function_args([output])
+    _LogAssertion(
+        completion_id=session.last_completion_id(), function_args=function_args
+    ).assert_function_call_response()
 
 
 @pytest.mark.async_client
 @pytest.mark.stream
 @pytest.mark.asyncio
-async def test_async_stream_logging(magentic_model):
+async def test_async_stream_logging(session, magentic_model):
     @prompt("Tell me a 50-word story about {topic}", model=OpenaiChatModel(model=magentic_model))
     async def tell_story(topic: str) -> AsyncStreamedStr:  # ruff: ignore
         ...
 
-    with log10_session(tags=["async_tag"]):
-        output = await tell_story("Europe.")
-        result = ""
-        async for chunk in output:
-            result += chunk
+    output = await tell_story("Europe.")
+    result = ""
+    async for chunk in output:
+        result += chunk
 
-        assert result, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=result).assert_chat_response()
 
 
 @pytest.mark.async_client
 @pytest.mark.tools
 @pytest.mark.asyncio
-async def test_async_parallel_stream_logging(magentic_model):
+async def test_async_parallel_stream_logging(session, magentic_model):
     def plus(a: int, b: int) -> int:
         return a + b
 
@@ -85,9 +88,15 @@ async def test_async_parallel_stream_logging(magentic_model):
     )
     async def plus_and_minus(a: int, b: int) -> AsyncParallelFunctionCall[int]: ...
 
+    result = []
     output = await plus_and_minus(2, 3)
     async for chunk in output:
-        assert isinstance(chunk, FunctionCall), "chunk is not an instance of FunctionCall"
+        result.append(chunk)
+
+    function_args = format_magentic_function_args(result)
+    _LogAssertion(
+        completion_id=session.last_completion_id(), function_args=function_args
+    ).assert_function_call_response()
 
 
 @pytest.mark.async_client
@@ -98,32 +107,39 @@ async def test_async_multi_session_tags(magentic_model):
     async def do_math_with_llm_async(a: int, b: int) -> AsyncStreamedStr:  # ruff: ignore
         ...
 
-    output = ""
+    final_output = ""
 
-    with log10_session(tags=["test_tag_a"]):
+    with log10_session(tags=["test_tag_a"]) as session:
         result = await do_math_with_llm_async(2, 2)
+        output = ""
         async for chunk in result:
             output += chunk
 
-    result = await do_math_with_llm_async(2.5, 2.5)
-    async for chunk in result:
-        output += chunk
+        _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
-    with log10_session(tags=["test_tag_b"]):
+    final_output += output
+    with log10_session(tags=["test_tag_b"]) as session:
+        output = ""
+        result = await do_math_with_llm_async(2.5, 2.5)
+        async for chunk in result:
+            output += chunk
+
+        _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
+
+    final_output += output
+    with log10_session(tags=["test_tag_c"]) as session:
+        output = ""
         result = await do_math_with_llm_async(3, 3)
         async for chunk in result:
             output += chunk
 
-    assert output, "No output from the model."
-    assert "4" in output
-    assert "6.25" in output
-    assert "9" in output
+        _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
 
 @pytest.mark.async_client
 @pytest.mark.widget
 @pytest.mark.asyncio
-async def test_async_widget(magentic_model):
+async def test_async_widget(session, magentic_model):
     class WidgetInfo(BaseModel):
         title: str
         description: str
@@ -146,3 +162,10 @@ async def test_async_widget(magentic_model):
     assert isinstance(r.description, str)
     assert r.title, "No title generated."
     assert r.description, "No description generated."
+
+    arguments = {"title": r.title, "description": r.description}
+
+    function_args = [{"name": "return_widgetinfo", "arguments": str(arguments)}]
+    _LogAssertion(
+        completion_id=session.last_completion_id(), function_args=function_args
+    ).assert_function_call_response()

@@ -7,7 +7,7 @@ import pytest
 from openai import NOT_GIVEN, AsyncOpenAI
 
 from log10.load import log10
-from tests.utils import _LogAssertion
+from tests.utils import _LogAssertion, format_function_args
 
 
 log10(openai)
@@ -198,7 +198,9 @@ def test_tools(session, openai_model):
     first_completion_id = session.last_completion_id()
     response_message = response.choices[0].message
     tool_calls = response_message.tool_calls
-    _LogAssertion(completion_id=first_completion_id, message_tool_calls=tool_calls).assert_function_call_response()
+
+    function_args = format_function_args(tool_calls)
+    _LogAssertion(completion_id=first_completion_id, function_args=function_args).assert_function_call_response()
     # Step 2: check if the model wanted to call a function
     if tool_calls:
         # Step 3: call the function
@@ -259,11 +261,12 @@ def test_tools_stream(session, openai_model):
                     tool_calls.append(tc[0])
                 else:
                     tool_calls[-1].function.arguments += tc[0].function.arguments
-    function_args = [{"function": t.function.name, "arguments": t.function.arguments} for t in tool_calls]
+
+    function_args = format_function_args(tool_calls)
     assert len(function_args) == 3
 
     _LogAssertion(
-        completion_id=session.last_completion_id(), message_tool_calls=tool_calls
+        completion_id=session.last_completion_id(), function_args=function_args
     ).assert_function_call_response()
 
 
@@ -295,9 +298,9 @@ async def test_tools_stream_async(session, openai_model):
                 else:
                     tool_calls[-1].function.arguments += tc[0].function.arguments
 
-    function_args = [{"function": t.function.name, "arguments": t.function.arguments} for t in tool_calls]
+    function_args = format_function_args(tool_calls)
     assert len(function_args) == 3
 
     _LogAssertion(
-        completion_id=session.last_completion_id(), message_tool_calls=tool_calls
+        completion_id=session.last_completion_id(), function_args=function_args
     ).assert_function_call_response()
