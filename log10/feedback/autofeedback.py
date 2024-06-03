@@ -4,10 +4,14 @@ import random
 from types import FunctionType
 
 import click
+import httpx
+import rich
 from rich.console import Console
 
+from log10._httpx_utils import _try_post_graphql_request
 from log10.completions.completions import _get_completion
 from log10.feedback.feedback import _get_feedback_list
+from log10.llm import Log10Config
 from log10.load import log10_session
 
 
@@ -21,6 +25,8 @@ except ImportError:
 
 logger = logging.getLogger("LOG10")
 logger.setLevel(logging.INFO)
+
+_log10_config = Log10Config()
 
 
 class AutoFeedbackICL:
@@ -95,6 +101,33 @@ class AutoFeedbackICL:
         return ret
 
 
+def _get_autofeedback(completion_id: str) -> httpx.Response:
+    query = """
+    query OrganizationCompletion($orgId: String!, $id: String!) {
+        organization(id: $orgId) {
+            completion(id: $id) {
+                id
+                autoFeedback {
+                    id
+                    status
+                    jsonValues
+                    comment
+                }
+            }
+        }
+    }
+    """
+
+    variables = {"orgId": _log10_config.org_id, "id": completion_id}
+
+    response = _try_post_graphql_request(query, variables)
+
+    if response.status_code == 200:
+        return response.json()
+    else:
+        response.raise_for_status()
+
+
 @click.command()
 @click.option("--task_id", help="Feedback task ID")
 @click.option("--content", help="Completion content")
@@ -119,3 +152,14 @@ def auto_feedback_icl(task_id: str, content: str, file: str, completion_id: str,
             content = f.read()
     results = auto_feedback_icl.predict(text=content)
     console.print_json(results)
+
+
+@click.command()
+@click.option("--completion_id", prompt="Enter completion id", help="Completion ID")
+def get_autofeedback(completion_id: str):
+    """
+    Get a auto feedback by completion id
+    """
+    res = _get_autofeedback(completion_id)
+    rich.print_json(json.dumps(res["data"], indent=4))
+    return json.dumps(res)
