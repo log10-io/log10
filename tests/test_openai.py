@@ -32,6 +32,7 @@ def test_chat(session, openai_model):
 
     content = completion.choices[0].message.content
     assert isinstance(content, str)
+    assert session.last_completion_url() is not None, "No completion URL found."
     _LogAssertion(completion_id=session.last_completion_id(), message_content=content).assert_chat_response()
 
 
@@ -51,6 +52,7 @@ def test_chat_not_given(session, openai_model):
 
     content = completion.choices[0].message.content
     assert isinstance(content, str)
+    assert session.last_completion_url() is not None, "No completion URL found."
     _LogAssertion(completion_id=session.last_completion_id(), message_content=content).assert_chat_response()
 
 
