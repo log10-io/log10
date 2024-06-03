@@ -101,7 +101,7 @@ class AutoFeedbackICL:
         return ret
 
 
-def _get_autofeedback(completion_id: str) -> httpx.Response:
+def get_autofeedback(completion_id: str) -> httpx.Response:
     query = """
     query OrganizationCompletion($orgId: String!, $id: String!) {
         organization(id: $orgId) {
@@ -122,6 +122,10 @@ def _get_autofeedback(completion_id: str) -> httpx.Response:
 
     response = _try_post_graphql_request(query, variables)
 
+    if response is None:
+        logger.error(f"Failed to get auto feedback for completion {completion_id}")
+        return None
+
     if response.status_code == 200:
         return response.json()
     else:
@@ -135,6 +139,9 @@ def _get_autofeedback(completion_id: str) -> httpx.Response:
 @click.option("--completion_id", help="Completion ID")
 @click.option("--num_samples", default=5, help="Number of samples to use for few-shot learning")
 def auto_feedback_icl(task_id: str, content: str, file: str, completion_id: str, num_samples: int):
+    """
+    Generate feedback with existing feedback
+    """
     options_count = sum([1 for option in [content, file, completion_id] if option])
     if options_count > 1:
         click.echo("Only one of --content, --file, or --completion_id should be provided.")
@@ -155,11 +162,11 @@ def auto_feedback_icl(task_id: str, content: str, file: str, completion_id: str,
 
 
 @click.command()
-@click.option("--completion_id", prompt="Enter completion id", help="Completion ID")
-def get_autofeedback(completion_id: str):
+@click.option("--completion-id", required=True, help="Completion ID")
+def get_autofeedback_cli(completion_id: str):
     """
-    Get a auto feedback by completion id
+    Get an auto feedback by completion id
     """
-    res = _get_autofeedback(completion_id)
-    rich.print_json(json.dumps(res["data"], indent=4))
-    return json.dumps(res)
+    res = get_autofeedback(completion_id)
+    if res:
+        rich.print_json(json.dumps(res["data"], indent=4))

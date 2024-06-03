@@ -14,6 +14,7 @@ from log10.load import get_log10_session_tags, last_completion_response_var, ses
 
 logger: logging.Logger = logging.getLogger("LOG10")
 
+GRAPHQL_URL = "https://graphql.log10.io/graphql"
 
 _log10_config = Log10Config()
 base_url = _log10_config.url
@@ -86,13 +87,12 @@ def _try_post_request(url: str, payload: dict = {}) -> httpx.Response:
 
 
 def _try_post_graphql_request(query: str, variables: dict = {}) -> httpx.Response:
-    url = "https://graphql.log10.io/graphql"
     headers = {"content-type": "application/json", "x-api-token": _log10_config.token}
 
     payload = {"query": query, "variables": variables}
     res = None
     try:
-        res = httpx_client.post(url, headers=headers, json=payload)
+        res = httpx_client.post(GRAPHQL_URL, headers=headers, json=payload)
         res.raise_for_status()
         return res
     except httpx.HTTPError as http_err:
