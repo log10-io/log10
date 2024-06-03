@@ -2,13 +2,14 @@ import google.generativeai as genai
 import pytest
 
 from log10.load import log10
+from tests.utils import _LogAssertion
 
 
 log10(genai)
 
 
 @pytest.mark.chat
-def test_genai_chat(google_model):
+def test_genai_chat(session, google_model):
     model = genai.GenerativeModel(google_model)
     chat = model.start_chat()
 
@@ -21,11 +22,11 @@ def test_genai_chat(google_model):
 
     text = response.text
     assert isinstance(text, str)
-    assert text, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=text).assert_chat_response()
 
 
 @pytest.mark.chat
-def test_genai_chat_w_history(google_model):
+def test_genai_chat_w_history(session, google_model):
     model = genai.GenerativeModel(google_model, system_instruction="You are a cat. Your name is Neko.")
     chat = model.start_chat(
         history=[
@@ -39,4 +40,4 @@ def test_genai_chat_w_history(google_model):
 
     text = response.text
     assert isinstance(text, str)
-    assert text, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=text).assert_chat_response()

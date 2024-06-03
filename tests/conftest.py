@@ -1,5 +1,7 @@
 import pytest
 
+from log10.load import log10_session
+
 
 def pytest_addoption(parser):
     parser.addoption("--openai_model", action="store", help="Model name for OpenAI tests")
@@ -59,3 +61,10 @@ def google_model(request):
 @pytest.fixture
 def magentic_model(request):
     return request.config.getoption("--magentic_model")
+
+
+@pytest.fixture
+def session():
+    with log10_session() as session:
+        assert session.last_completion_id() is None, "No completion ID should be found."
+        yield session

@@ -7,6 +7,7 @@ import pytest
 from openai import NOT_GIVEN, AsyncOpenAI
 
 from log10.load import log10
+from tests.utils import _LogAssertion, format_function_args
 
 
 log10(openai)
@@ -14,7 +15,7 @@ client = openai.OpenAI()
 
 
 @pytest.mark.chat
-def test_chat(openai_model):
+def test_chat(session, openai_model):
     completion = client.chat.completions.create(
         model=openai_model,
         messages=[
@@ -31,11 +32,12 @@ def test_chat(openai_model):
 
     content = completion.choices[0].message.content
     assert isinstance(content, str)
-    assert content, "No output from the model."
+    assert session.last_completion_url() is not None, "No completion URL found."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=content).assert_chat_response()
 
 
 @pytest.mark.chat
-def test_chat_not_given(openai_model):
+def test_chat_not_given(session, openai_model):
     completion = client.chat.completions.create(
         model=openai_model,
         messages=[
@@ -50,15 +52,15 @@ def test_chat_not_given(openai_model):
 
     content = completion.choices[0].message.content
     assert isinstance(content, str)
-    assert content, "No output from the model."
+    assert session.last_completion_url() is not None, "No completion URL found."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=content).assert_chat_response()
 
 
 @pytest.mark.chat
 @pytest.mark.async_client
 @pytest.mark.asyncio
-async def test_chat_async(openai_model):
+async def test_chat_async(session, openai_model):
     client = AsyncOpenAI()
-
     completion = await client.chat.completions.create(
         model=openai_model,
         messages=[{"role": "user", "content": "Say this is a test"}],
@@ -66,50 +68,46 @@ async def test_chat_async(openai_model):
 
     content = completion.choices[0].message.content
     assert isinstance(content, str)
-    assert content, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=content).assert_chat_response()
 
 
 @pytest.mark.chat
 @pytest.mark.stream
-def test_chat_stream(openai_model):
+def test_chat_stream(session, openai_model):
     response = client.chat.completions.create(
         model=openai_model,
-        messages=[{"role": "user", "content": "Count to 10"}],
+        messages=[{"role": "user", "content": "Count to 5"}],
         temperature=0,
         stream=True,
     )
 
     output = ""
     for chunk in response:
-        content = chunk.choices[0].delta.content
-        if content:
-            output += content.strip()
+        output += chunk.choices[0].delta.content
 
-    assert output, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
 
 @pytest.mark.async_client
 @pytest.mark.stream
 @pytest.mark.asyncio
-async def test_chat_async_stream(openai_model):
+async def test_chat_async_stream(session, openai_model):
     client = AsyncOpenAI()
 
     output = ""
     stream = await client.chat.completions.create(
         model=openai_model,
-        messages=[{"role": "user", "content": "Count to 10"}],
+        messages=[{"role": "user", "content": "Count to 8"}],
         stream=True,
     )
     async for chunk in stream:
-        content = chunk.choices[0].delta.content
-        if content:
-            output += content.strip()
+        output += chunk.choices[0].delta.content or ""
 
-    assert output, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
 
 @pytest.mark.vision
-def test_chat_image(openai_vision_model):
+def test_chat_image(session, openai_vision_model):
     image1_url = "https://upload.wikimedia.org/wikipedia/commons/a/a7/Camponotus_flavomarginatus_ant.jpg"
     image1_media_type = "image/jpeg"
     image1_data = base64.b64encode(httpx.get(image1_url).content).decode("utf-8")
@@ -136,7 +134,7 @@ def test_chat_image(openai_vision_model):
 
     content = response.choices[0].message.content
     assert isinstance(content, str)
-    assert content, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=content).assert_chat_response()
 
 
 def get_current_weather(location, unit="fahrenheit"):
@@ -186,7 +184,7 @@ def setup_tools_messages() -> dict:
 
 
 @pytest.mark.tools
-def test_tools(openai_model):
+def test_tools(session, openai_model):
     # Step 1: send the conversation and available functions to the model
     result = setup_tools_messages()
     messages = result["messages"]
@@ -198,8 +196,13 @@ def test_tools(openai_model):
         tools=tools,
         tool_choice="auto",  # auto is default, but we'll be explicit
     )
+
+    first_completion_id = session.last_completion_id()
     response_message = response.choices[0].message
     tool_calls = response_message.tool_calls
+
+    function_args = format_function_args(tool_calls)
+    _LogAssertion(completion_id=first_completion_id, function_args=function_args).assert_function_call_response()
     # Step 2: check if the model wanted to call a function
     if tool_calls:
         # Step 3: call the function
@@ -232,12 +235,15 @@ def test_tools(openai_model):
         )  # get a new response from the model where it can see the function response
         content = second_response.choices[0].message.content
         assert isinstance(content, str)
-        assert content, "No output from the model."
+
+        tool_call_completion_id = session.last_completion_id()
+        assert tool_call_completion_id != first_completion_id, "Completion IDs should be different."
+        _LogAssertion(completion_id=tool_call_completion_id, message_content=content).assert_chat_response()
 
 
 @pytest.mark.stream
 @pytest.mark.tools
-def test_tools_stream(openai_model):
+def test_tools_stream(session, openai_model):
     # Step 1: send the conversation and available functions to the model
     result = setup_tools_messages()
     messages = result["messages"]
@@ -257,15 +263,20 @@ def test_tools_stream(openai_model):
                     tool_calls.append(tc[0])
                 else:
                     tool_calls[-1].function.arguments += tc[0].function.arguments
-    function_args = [{"function": t.function.name, "arguments": t.function.arguments} for t in tool_calls]
+
+    function_args = format_function_args(tool_calls)
     assert len(function_args) == 3
+
+    _LogAssertion(
+        completion_id=session.last_completion_id(), function_args=function_args
+    ).assert_function_call_response()
 
 
 @pytest.mark.tools
 @pytest.mark.stream
 @pytest.mark.async_client
 @pytest.mark.asyncio
-async def test_tools_stream_async(openai_model):
+async def test_tools_stream_async(session, openai_model):
     client = AsyncOpenAI()
     # Step 1: send the conversation and available functions to the model
     result = setup_tools_messages()
@@ -289,5 +300,9 @@ async def test_tools_stream_async(openai_model):
                 else:
                     tool_calls[-1].function.arguments += tc[0].function.arguments
 
-    function_args = [{"function": t.function.name, "arguments": t.function.arguments} for t in tool_calls]
+    function_args = format_function_args(tool_calls)
     assert len(function_args) == 3
+
+    _LogAssertion(
+        completion_id=session.last_completion_id(), function_args=function_args
+    ).assert_function_call_response()
