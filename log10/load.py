@@ -154,7 +154,7 @@ class log10_session:
             return None
         response = last_completion_response_var.get()
 
-        # organizationSlug won't be presented from httpx hook
+        # organizationSlug will not be returned from httpx hook
         if not response.get("organizationSlug", ""):
             return None
         return f'{url}/app/{response["organizationSlug"]}/completions/{response["completionID"]}'

@@ -80,7 +80,6 @@ class Log10LitellmLogger(CustomLogger, LLM):
         duration = (end_time - start_time).total_seconds()
 
         completion_id = run["completion_id"]
-        print("completion_id", completion_id)
         last_completion_response_var.set({"completionID": completion_id})
         self.log_end(completion_id, response_obj.dict(), duration)
 
