@@ -9,7 +9,7 @@ import httpx
 from httpx import Request, Response
 
 from log10.llm import Log10Config
-from log10.load import get_log10_session_tags, session_id_var
+from log10.load import get_log10_session_tags, last_completion_response_var, session_id_var
 
 
 logger: logging.Logger = logging.getLogger("LOG10")
@@ -162,6 +162,7 @@ async def log_request(request: Request):
     if not completion_id:
         return
 
+    last_completion_response_var.set({"completionID": completion_id})
     orig_module = ""
     orig_qualname = ""
     request_content_decode = request.content.decode("utf-8")

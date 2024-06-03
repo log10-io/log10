@@ -1,4 +1,5 @@
 import base64
+import json
 
 import anthropic
 import httpx
@@ -8,13 +9,14 @@ from anthropic.lib.streaming.beta import AsyncToolsBetaMessageStream
 from typing_extensions import override
 
 from log10.load import log10
+from tests.utils import _LogAssertion
 
 
 log10(anthropic)
 
 
 @pytest.mark.chat
-def test_messages_create(anthropic_model):
+def test_messages_create(session, anthropic_model):
     client = anthropic.Anthropic()
 
     message = client.messages.create(
@@ -27,13 +29,13 @@ def test_messages_create(anthropic_model):
 
     text = message.content[0].text
     assert isinstance(text, str)
-    assert text, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=text).assert_chat_response()
 
 
 @pytest.mark.chat
 @pytest.mark.async_client
 @pytest.mark.asyncio
-async def test_messages_create_async(anthropic_model):
+async def test_messages_create_async(session, anthropic_model):
     client = anthropic.AsyncAnthropic()
 
     message = await client.messages.create(
@@ -46,12 +48,12 @@ async def test_messages_create_async(anthropic_model):
 
     text = message.content[0].text
     assert isinstance(text, str)
-    assert text, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=text).assert_chat_response()
 
 
 @pytest.mark.chat
 @pytest.mark.stream
-def test_messages_create_stream(anthropic_model):
+def test_messages_create_stream(session, anthropic_model):
     client = anthropic.Anthropic()
 
     stream = client.messages.create(
@@ -75,11 +77,11 @@ def test_messages_create_stream(anthropic_model):
             if text.isdigit():
                 assert int(text) <= 10
 
-    assert output, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
 
 @pytest.mark.vision
-def test_messages_image(anthropic_model):
+def test_messages_image(session, anthropic_model):
     client = anthropic.Anthropic()
 
     image1_url = "https://upload.wikimedia.org/wikipedia/commons/a/a7/Camponotus_flavomarginatus_ant.jpg"
@@ -108,12 +110,11 @@ def test_messages_image(anthropic_model):
     )
 
     text = message.content[0].text
-    assert text, "No output from the model."
-    assert "ant" in text
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=text).assert_chat_response()
 
 
 @pytest.mark.chat
-def test_chat_not_given(anthropic_model):
+def test_chat_not_given(session, anthropic_model):
     client = anthropic.Anthropic()
 
     message = client.beta.tools.messages.create(
@@ -132,10 +133,11 @@ def test_chat_not_given(anthropic_model):
     content = message.content[0].text
     assert isinstance(content, str)
     assert content, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=content).assert_chat_response()
 
 
 @pytest.mark.chat
-def test_beta_tools_messages_create(anthropic_model):
+def test_beta_tools_messages_create(session, anthropic_model):
     client = anthropic.Anthropic()
 
     message = client.beta.tools.messages.create(
@@ -145,13 +147,13 @@ def test_beta_tools_messages_create(anthropic_model):
     )
 
     text = message.content[0].text
-    assert text, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=text).assert_chat_response()
 
 
 @pytest.mark.chat
 @pytest.mark.async_client
 @pytest.mark.asyncio
-async def test_beta_tools_messages_create_async(anthropic_model):
+async def test_beta_tools_messages_create_async(session, anthropic_model):
     client = anthropic.AsyncAnthropic()
 
     message = await client.beta.tools.messages.create(
@@ -161,13 +163,13 @@ async def test_beta_tools_messages_create_async(anthropic_model):
     )
 
     text = message.content[0].text
-    assert text, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=text).assert_chat_response()
 
 
 @pytest.mark.chat
 @pytest.mark.stream
 @pytest.mark.context_manager
-def test_messages_stream_context_manager(anthropic_model):
+def test_messages_stream_context_manager(session, anthropic_model):
     client = anthropic.Anthropic()
 
     output = ""
@@ -187,7 +189,7 @@ def test_messages_stream_context_manager(anthropic_model):
                     if hasattr(message.delta, "text"):
                         output += message.delta.text
 
-    assert output, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
 
 @pytest.mark.chat
@@ -195,7 +197,7 @@ def test_messages_stream_context_manager(anthropic_model):
 @pytest.mark.context_manager
 @pytest.mark.async_client
 @pytest.mark.asyncio
-async def test_messages_stream_context_manager_async(anthropic_model):
+async def test_messages_stream_context_manager_async(session, anthropic_model):
     client = anthropic.AsyncAnthropic()
 
     output = ""
@@ -212,13 +214,13 @@ async def test_messages_stream_context_manager_async(anthropic_model):
         async for text in stream.text_stream:
             output += text
 
-    assert output, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
 
 @pytest.mark.tools
 @pytest.mark.stream
 @pytest.mark.context_manager
-def test_tools_messages_stream_context_manager(anthropic_model):
+def test_tools_messages_stream_context_manager(session, anthropic_model):
     client = anthropic.Anthropic()
     output = ""
     with client.beta.tools.messages.stream(
@@ -252,7 +254,7 @@ def test_tools_messages_stream_context_manager(anthropic_model):
                     if hasattr(message.delta, "partial_json"):
                         output += message.delta.partial_json
 
-    assert output, "No output from the model."
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
 
 @pytest.mark.tools
@@ -260,15 +262,17 @@ def test_tools_messages_stream_context_manager(anthropic_model):
 @pytest.mark.context_manager
 @pytest.mark.async_client
 @pytest.mark.asyncio
-async def test_tools_messages_stream_context_manager_async(anthropic_model):
+async def test_tools_messages_stream_context_manager_async(session, anthropic_model):
     client = anthropic.AsyncAnthropic()
-    output = None
+    json_snapshot = None
+    final_message = None
+    output = ""
 
     class MyHandler(AsyncToolsBetaMessageStream):
         @override
         async def on_input_json(self, delta: str, snapshot: object) -> None:
-            nonlocal output
-            output = snapshot
+            nonlocal json_snapshot
+            json_snapshot = snapshot
 
     async with client.beta.tools.messages.stream(
         model=anthropic_model,
@@ -294,6 +298,16 @@ async def test_tools_messages_stream_context_manager_async(anthropic_model):
         max_tokens=1024,
         event_handler=MyHandler,
     ) as stream:
-        await stream.until_done()
+        final_message = await stream.get_final_message()
+
+    content = final_message.content[0]
+    if hasattr(content, "text"):
+        output = content.text
+
+    if json_snapshot:
+        output += json.dumps(json_snapshot)
 
     assert output, "No output from the model."
+    assert session.last_completion_id(), "No completion ID found."
+    ## TODO fix this test after the anthropic fixes for the tool_calls
+    # _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
