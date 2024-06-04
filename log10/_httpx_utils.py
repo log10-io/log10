@@ -231,6 +231,10 @@ class _LogResponse(Response):
         self.full_argument = ""
         self.tool_calls = []
         self.finish_reason = ""
+        # self.full_content = ""
+        # self.function_name = ""
+        # self.full_argument = ""
+        # self.tool_calls = []
 
     async def aiter_bytes(self, *args, **kwargs):
         full_response = ""
@@ -255,10 +259,10 @@ class _LogResponse(Response):
                     ]
 
                     responses = full_response.split("\n\n")
-                    r_json = self.parse_response_data(responses)
+                    response_json = self.parse_response_data(responses)
 
-                    response_json = r_json.copy()
-                    # r_json is the last response before "data: [DONE]"
+                    # response_json = response_json.copy()
+                    # # r_json is the last response before "data: [DONE]"
 
                     # Choices can be empty list with the openai version > 1.26.0
                     if not response_json.get("choices"):
@@ -327,13 +331,16 @@ class _LogResponse(Response):
         message_id = None
         model = None
         finish_reason = None
+        full_content = ""
         input_tokens = 0
         output_tokens = 0
-        tool_call = {}
+        tool_calls = []
         arguments = ""
         for r in responses:
             if not r:
                 break
+
+            tool_call = {}
 
             data_index = r.find("data:")
             r_json = json.loads(r[data_index + len("data:") :])
@@ -347,8 +354,8 @@ class _LogResponse(Response):
                 input_tokens = r_json["message"]["usage"]["input_tokens"]
             elif type == "content_block_start":
                 content_block = r_json["content_block"]
-                type = content_block["type"]
-                if type == "tool_use":
+                content_block_type = content_block["type"]
+                if content_block_type == "tool_use":
                     id = content_block["id"]
                     tool_call = {
                         "id": id,
@@ -374,11 +381,10 @@ class _LogResponse(Response):
             elif type == "content_block_end" or type == "message_end":
                 if tool_call:
                     tool_call["function"]["arguments"] = arguments
-                    self.tool_calls.append(tool_call)
-                    tool_call = {}
+                    tool_calls.append(tool_call)
                     arguments = ""
 
-        return {
+        response = {
             "id": message_id,
             "object": "chat",
             "model": model,
@@ -395,8 +401,33 @@ class _LogResponse(Response):
             },
         }
 
+        response_json = response.copy()
+        message = {
+            "role": "assistant",
+        }
+        if full_content:
+            message["content"] = full_content
+            # response_json["choices"][0]["message"] = {"role": "assistant", "content": full_content}
+
+        if tool_calls:
+            message["tool_calls"] = tool_calls
+            # response_json["choices"][0]["message"] = {
+            #     "content": None,
+            #     "role": "assistant",
+            #     "tool_calls": tool_calls,
+            # }
+
+        response_json["choices"][0]["message"] = message
+        return response_json
+
     def parse_openai_responses(self, responses: list[str]):
         r_json = {}
+        # r_json = None
+        tool_calls = []
+        full_content = ""
+        function_name = ""
+        full_argument = ""
+
         for r in responses:
             if self.is_openai_response_end_reached(r):
                 break
@@ -433,8 +464,36 @@ class _LogResponse(Response):
                     self.finish_reason = fr
 
         r_json["object"] = "chat.completion"
+        # r_json is the last response before "data: [DONE]"
+        response_json = response_json.copy()
 
-        return r_json
+        if not response_json.get("choices"):
+            response_json["choices"] = [{"index": 0}]
+
+        if response_json.get("choices", []):
+            # It will only set finish_reason for openai version > 1.26.0
+            if self.finish_reason:
+                response_json["choices"][0]["finish_reason"] = self.finish_reason
+
+            if self.full_content:
+                response_json["choices"][0]["message"] = {
+                    "role": "assistant",
+                    "content": self.full_content,
+                }
+            elif self.tool_calls:
+                response_json["choices"][0]["message"] = {
+                    "content": None,
+                    "role": "assistant",
+                    "tool_calls": self.tool_calls,
+                }
+            elif self.function_name and self.full_argument:
+                # function is deprecated in openai api
+                response_json["choices"][0]["function_call"] = {
+                    "name": self.function_name,
+                    "arguments": self.full_argument,
+                }
+
+        return response_json
 
     def parse_response_data(self, responses: list[str]):
         host = self.request.headers.get("host")

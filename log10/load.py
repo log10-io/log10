@@ -418,6 +418,7 @@ class AnthropicStreamingResponseWrapper:
         self.finish_reason = None
         self.input_tokens = 0
         self.output_tokens = 0
+        self.tool_calls = []
 
     def __iter__(self):
         return self
@@ -433,8 +434,18 @@ class AnthropicStreamingResponseWrapper:
             self.message_id = chunk.message.id
             self.input_tokens = chunk.message.usage.input_tokens
         if chunk.type == "content_block_start":
-            if hasattr(chunk.content_block, "text"):
-                self.final_result += chunk.content_block.text
+            content_block = chunk.content_block
+            if hasattr(content_block, "text"):
+                self.final_result += content_block.text
+            if hasattr(content_block, "partial_json"):
+                content_block_type = content_block["type"]
+                if content_block_type == "tool_use":
+                    id = content_block["id"]
+                    tool_call = {
+                        "id": id,
+                        "type": "function",
+                        "function": {"name": content_block["name"], "arguments": ""},
+                    }
         elif chunk.type == "message_delta":
             self.finish_reason = chunk.delta.stop_reason
             self.output_tokens = chunk.usage.output_tokens
@@ -444,6 +455,11 @@ class AnthropicStreamingResponseWrapper:
             if hasattr(chunk.delta, "partial_json"):
                 self.final_result += chunk.delta.partial_json
         elif chunk.type == "message_stop" or chunk.type == "content_block_stop":
+            if tool_call:
+                tool_call["function"]["arguments"] = arguments
+                self.tool_calls.append(tool_call)
+                arguments = ""
+
             response = {
                 "id": self.message_id,
                 "object": "chat",
@@ -466,11 +482,13 @@ class AnthropicStreamingResponseWrapper:
             }
             self.partial_log_row["response"] = json.dumps(response)
             self.partial_log_row["duration"] = int((time.perf_counter() - self.start_time) * 1000)
-
             _url = f"{self.completion_url}/{self.completionID}"
             res = post_request(_url, self.partial_log_row)
             if res.status_code != 200:
                 logger.error(f"Failed to insert in log10: {self.partial_log_row} with error {res.text}. Skipping")
+
+    # def model_dump_json(self, **kwargs):
+    #     return self.response.model_dump_json(**kwargs)
 
 
 def flatten_messages(messages):
@@ -982,14 +1000,6 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         setattr(attr, "create", intercepting_decorator(method))
 
         attr = module.resources.messages.Messages
-        method = getattr(attr, "stream")
-        setattr(attr, "stream", intercepting_decorator(method))
-
-        attr = module.resources.beta.tools.Messages
-        method = getattr(attr, "create")
-        setattr(attr, "create", intercepting_decorator(method))
-
-        attr = module.resources.beta.tools.Messages
         method = getattr(attr, "stream")
         setattr(attr, "stream", intercepting_decorator(method))
 
