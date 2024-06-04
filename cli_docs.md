@@ -194,6 +194,8 @@ And to download to a JSONL file, use `log10 feedback download --task_id 04405cbc
 
 To leverage your feedback and use AI to generate more feedback automatically, use [`log10 feedback predict`](#log10-feedback-predict). Please refer to this [doc](https://log10.io/docs/feedback/auto_feedback) for more details.
 
+To get auto generated feedback for a completion, use [`log10 feedback autofeedback get`](#log10-feedback-autofeedback-get)
+
 ## CLI References
 
 ### Completions
@@ -399,12 +401,25 @@ Options:
 $ log10 feedback predict --help
 Usage: log10 feedback predict [OPTIONS]
 
+  Generate feedback with existing human feedback based on in context learning
+
 Options:
   --task_id TEXT         Feedback task ID
   --content TEXT         Completion content
   -f, --file TEXT        File containing completion content
   --completion_id TEXT   Completion ID
   --num_samples INTEGER  Number of samples to use for few-shot learning
+```
+
+#### log10 feedback autofeedback get
+```bash
+$ log10 feedback autofeedback get --help
+Usage: log10 feedback autofeedback get [OPTIONS]
+
+  Get an auto feedback by completion id
+
+Options:
+  --completion-id TEXT  Completion ID  [required]
 ```
 
 ### Feedback Task

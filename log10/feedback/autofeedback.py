@@ -4,10 +4,14 @@ import random
 from types import FunctionType
 
 import click
+import httpx
+import rich
 from rich.console import Console
 
+from log10._httpx_utils import _try_post_graphql_request
 from log10.completions.completions import _get_completion
 from log10.feedback.feedback import _get_feedback_list
+from log10.llm import Log10Config
 from log10.load import log10_session
 
 
@@ -21,6 +25,8 @@ except ImportError:
 
 logger = logging.getLogger("LOG10")
 logger.setLevel(logging.INFO)
+
+_log10_config = Log10Config()
 
 
 class AutoFeedbackICL:
@@ -95,6 +101,37 @@ class AutoFeedbackICL:
         return ret
 
 
+def get_autofeedback(completion_id: str) -> httpx.Response:
+    query = """
+    query OrganizationCompletion($orgId: String!, $id: String!) {
+        organization(id: $orgId) {
+            completion(id: $id) {
+                id
+                autoFeedback {
+                    id
+                    status
+                    jsonValues
+                    comment
+                }
+            }
+        }
+    }
+    """
+
+    variables = {"orgId": _log10_config.org_id, "id": completion_id}
+
+    response = _try_post_graphql_request(query, variables)
+
+    if response is None:
+        logger.error(f"Failed to get auto feedback for completion {completion_id}")
+        return None
+
+    if response.status_code == 200:
+        return response.json()
+    else:
+        response.raise_for_status()
+
+
 @click.command()
 @click.option("--task_id", help="Feedback task ID")
 @click.option("--content", help="Completion content")
@@ -102,6 +139,9 @@ class AutoFeedbackICL:
 @click.option("--completion_id", help="Completion ID")
 @click.option("--num_samples", default=5, help="Number of samples to use for few-shot learning")
 def auto_feedback_icl(task_id: str, content: str, file: str, completion_id: str, num_samples: int):
+    """
+    Generate feedback with existing human feedback based on in context learning
+    """
     options_count = sum([1 for option in [content, file, completion_id] if option])
     if options_count > 1:
         click.echo("Only one of --content, --file, or --completion_id should be provided.")
@@ -119,3 +159,14 @@ def auto_feedback_icl(task_id: str, content: str, file: str, completion_id: str,
             content = f.read()
     results = auto_feedback_icl.predict(text=content)
     console.print_json(results)
+
+
+@click.command()
+@click.option("--completion-id", required=True, help="Completion ID")
+def get_autofeedback_cli(completion_id: str):
+    """
+    Get an auto feedback by completion id
+    """
+    res = get_autofeedback(completion_id)
+    if res:
+        rich.print_json(json.dumps(res["data"], indent=4))

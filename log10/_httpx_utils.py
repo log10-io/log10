@@ -14,6 +14,7 @@ from log10.load import get_log10_session_tags, last_completion_response_var, ses
 
 logger: logging.Logger = logging.getLogger("LOG10")
 
+GRAPHQL_URL = "https://graphql.log10.io/graphql"
 
 _log10_config = Log10Config()
 base_url = _log10_config.url
@@ -83,6 +84,48 @@ def _try_post_request(url: str, payload: dict = {}) -> httpx.Response:
             logger.error(f"Failed with error: {http_err}")
     except Exception as err:
         logger.error(f"Failed to insert in log10: {payload} with error {err}")
+
+
+def _try_post_graphql_request(query: str, variables: dict = {}) -> httpx.Response:
+    headers = {"content-type": "application/json", "x-api-token": _log10_config.token}
+
+    payload = {"query": query, "variables": variables}
+    res = None
+    try:
+        res = httpx_client.post(GRAPHQL_URL, headers=headers, json=payload)
+        res.raise_for_status()
+        return res
+    except httpx.HTTPError as http_err:
+        if "401" in str(http_err):
+            logger.error(
+                "Failed anthorization. Please verify that LOG10_TOKEN and LOG10_ORG_ID are set correctly and try again."
+                + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
+            )
+        else:
+            logger.error(f"Failed with error: {http_err}")
+    except Exception as err:
+        logger.error(f"Failed to make requests to log10 graphQL: {payload} with error {err}")
+
+
+async def _try_post_graphql_request_async(query: str, variables: dict = {}) -> httpx.Response:
+    headers = {"content-type": "application/json", "x-api-token": _log10_config.token}
+
+    payload = {"query": query, "variables": variables}
+    res = None
+    try:
+        res = await httpx_async_client.post(GRAPHQL_URL, headers=headers, json=payload)
+        res.raise_for_status()
+        return res
+    except httpx.HTTPError as http_err:
+        if "401" in str(http_err):
+            logger.error(
+                "Failed anthorization. Please verify that LOG10_TOKEN and LOG10_ORG_ID are set correctly and try again."
+                + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
+            )
+        else:
+            logger.error(f"Failed with error: {http_err}")
+    except Exception as err:
+        logger.error(f"Failed to make requests to log10 graphQL: {payload} with error {err}")
 
 
 async def _try_post_request_async(url: str, payload: dict = {}) -> httpx.Response:

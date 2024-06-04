@@ -181,7 +181,7 @@ def list_feedback(offset, limit, task_id):
 
 
 @click.command()
-@click.option("--id", help="Get feedback by ID")
+@click.option("--id", required=True, help="Get feedback by ID")
 def get_feedback(id):
     """
     Get feedback based on provided ID.

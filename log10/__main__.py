@@ -1,7 +1,7 @@
 import click
 
 from log10.completions.completions import benchmark_models, download_completions, get_completion, list_completions
-from log10.feedback.autofeedback import auto_feedback_icl
+from log10.feedback.autofeedback import auto_feedback_icl, get_autofeedback_cli
 from log10.feedback.feedback import create_feedback, download_feedback, get_feedback, list_feedback
 from log10.feedback.feedback_task import create_feedback_task, get_feedback_task, list_feedback_task
 
@@ -19,10 +19,18 @@ def completions():
     pass
 
 
-@click.group()
+@click.group(name="feedback")
 def feedback():
     """
     Manage feedback for completions i.e. capturing feedback from users
+    """
+    pass
+
+
+@click.group(name="auto_feedback")
+def auto_feedback():
+    """
+    Manage auto feedback for completions i.e. capturing feedback from users
     """
     pass
 
@@ -47,6 +55,9 @@ feedback.add_command(list_feedback, "list")
 feedback.add_command(get_feedback, "get")
 feedback.add_command(download_feedback, "download")
 feedback.add_command(auto_feedback_icl, "predict")
+feedback.add_command(auto_feedback, "autofeedback")
+# Subcommands for auto_feedback under feedback command
+auto_feedback.add_command(get_autofeedback_cli, "get")
 
 cli.add_command(feedback_task)
 feedback_task.add_command(create_feedback_task, "create")
