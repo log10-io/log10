@@ -3,7 +3,7 @@ import asyncio
 import openai
 from openai import AsyncOpenAI
 
-from log10._httpx_utils import gather_pending_async_tasks
+from log10._httpx_utils import finalize
 from log10.load import log10
 
 
@@ -20,7 +20,7 @@ async def main():
     )
     async for chunk in stream:
         print(chunk.choices[0].delta.content or "", end="", flush=True)
-    await gather_pending_async_tasks()
+    await finalize()
 
 
 asyncio.run(main())

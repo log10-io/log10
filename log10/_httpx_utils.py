@@ -523,7 +523,7 @@ class _LogTransport(httpx.AsyncBaseTransport):
         return response
 
 
-async def gather_pending_async_tasks():
+async def finalize():
     pending = asyncio.all_tasks()
     pending.remove(asyncio.current_task())
     await asyncio.gather(*pending)
