@@ -555,19 +555,38 @@ def _init_log_row(func, *args, **kwargs):
         if "system" in kwargs_copy:
             kwargs_copy["messages"].insert(0, {"role": "system", "content": kwargs_copy["system"]})
         if "messages" in kwargs_copy:
+            tools = kwargs_copy.get("tools", [])
+            tool_calls = []
             for m in kwargs_copy["messages"]:
                 if isinstance(m.get("content"), list):
                     new_content = []
                     for c in m.get("content", ""):
-                        if c.get("type") == "image":
-                            image_type = c.get("source", {}).get("media_type", "")
-                            image_data = c.get("source", {}).get("data", "")
-                            new_content.append(
-                                {
-                                    "type": "image_url",
-                                    "image_url": {"url": f"data:{image_type};base64,{image_data}"},
-                                }
-                            )
+                        if isinstance(c, anthropic.types.ToolUseBlock):
+                            for tool in tools:
+                                if tool.get("name") == c.name:
+                                    tool_call = {
+                                        "type": "function",
+                                        "function": {
+                                            "name": c.name,
+                                            "description": tools[0].get("description", ""),
+                                            "parameters": {
+                                                "type": "object",
+                                                "properties": tool.get("input_schema", {}).get("properties", {}),
+                                            },
+                                        },
+                                    }
+
+                                    tool_calls.append(tool_call)
+                        ### TODO need to test with image scenario
+                        # if hasattr(c, "type") and c.get("type") == "image":
+                        #     image_type = c.get("source", {}).get("media_type", "")
+                        #     image_data = c.get("source", {}).get("data", "")
+                        #     new_content.append(
+                        #         {
+                        #             "type": "image_url",
+                        #             "image_url": {"url": f"data:{image_type};base64,{image_data}"},
+                        #         }
+                        #     )
                         else:
                             new_content.append(c)
                     m["content"] = new_content
@@ -990,23 +1009,43 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         return
 
     if module.__name__ == "anthropic":
-        attr = module.resources.completions.Completions
-        method = getattr(attr, "create")
-        setattr(attr, "create", intercepting_decorator(method))
+        # attr = module.resources.completions.Completions
+        # method = getattr(attr, "create")
+        # setattr(attr, "create", intercepting_decorator(method))
 
-        # anthropic Messages completion
-        attr = module.resources.messages.Messages
-        method = getattr(attr, "create")
-        setattr(attr, "create", intercepting_decorator(method))
+        # # anthropic Messages completion
+        # attr = module.resources.messages.Messages
+        # method = getattr(attr, "create")
+        # setattr(attr, "create", intercepting_decorator(method))
 
-        attr = module.resources.messages.Messages
-        method = getattr(attr, "stream")
-        setattr(attr, "stream", intercepting_decorator(method))
+        # attr = module.resources.messages.Messages
+        # method = getattr(attr, "stream")
+        # setattr(attr, "stream", intercepting_decorator(method))
 
-        origin_init = module.AsyncAnthropic.__init__
+        # def new_init(self, *args, **kwargs):
+        #     logger.debug("LOG10: patching Anthropic.__init__")
+        #     import httpx
+
+        #     from log10._httpx_utils import (
+        #         _LogTransport,
+        #         get_completion_id,
+        #         log_request,
+        #     )
+
+        #     event_hooks = {
+        #         "request": [get_completion_id, log_request],
+        #     }
+        #     httpx_client = httpx.Client(
+        #         event_hooks=event_hooks,
+        #         transport=_LogTransport(httpx.AsyncHTTPTransport()),
+        #     )
+        #     kwargs["http_client"] = httpx_client
+        #     origin_init(self, *args, **kwargs)
+
+        origin_init = module.Anthropic.__init__
 
         def new_init(self, *args, **kwargs):
-            logger.debug("LOG10: patching AsyncAnthropic.__init__")
+            logger.debug("LOG10: patching Anthropic.__init__")
             import httpx
 
             from log10._httpx_utils import (
@@ -1018,14 +1057,38 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
             event_hooks = {
                 "request": [get_completion_id, log_request],
             }
-            async_httpx_client = httpx.AsyncClient(
+            httpx_client = httpx.Client(
                 event_hooks=event_hooks,
-                transport=_LogTransport(httpx.AsyncHTTPTransport()),
+                transport=_LogTransport(httpx.HTTPTransport()),
             )
-            kwargs["http_client"] = async_httpx_client
+            kwargs["http_client"] = httpx_client
             origin_init(self, *args, **kwargs)
 
-        module.AsyncAnthropic.__init__ = new_init
+        module.Anthropic.__init__ = new_init
+
+        aorigin_init = module.AsyncAnthropic.__init__
+
+        def anew_init(self, *args, **kwargs):
+            logger.debug("LOG10: patching AsyncAnthropic.__init__")
+            import httpx
+
+            from log10._httpx_utils import (
+                _ALogTransport,
+                alog_request,
+                get_completion_id,
+            )
+
+            event_hooks = {
+                "request": [get_completion_id, alog_request],
+            }
+            async_httpx_client = httpx.AsyncClient(
+                event_hooks=event_hooks,
+                transport=_ALogTransport(httpx.AsyncHTTPTransport()),
+            )
+            kwargs["http_client"] = async_httpx_client
+            aorigin_init(self, *args, **kwargs)
+
+        module.AsyncAnthropic.__init__ = anew_init
     elif module.__name__ == "lamini":
         attr = module.api.utils.completion.Completion
         method = getattr(attr, "generate")
@@ -1062,12 +1125,12 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
 
                 from log10._httpx_utils import (
                     _LogTransport,
+                    alog_request,
                     get_completion_id,
-                    log_request,
                 )
 
                 event_hooks = {
-                    "request": [get_completion_id, log_request],
+                    "request": [get_completion_id, alog_request],
                 }
                 async_httpx_client = httpx.AsyncClient(
                     event_hooks=event_hooks,

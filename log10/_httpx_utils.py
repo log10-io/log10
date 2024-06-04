@@ -152,8 +152,31 @@ async def _try_post_request_async(url: str, payload: dict = {}) -> httpx.Respons
 
 
 def format_anthropic_tools_request(request_content) -> str:
+    for message in request_content.get("messages", []):
+        message_content = message.get("content")
+
+        if isinstance(message_content, list):
+            for content_block in message_content:
+                if content_block.get("type", "") == "tool_use":
+                    tool_call = {
+                        "id": content_block.get("id", ""),
+                        "type": "function",
+                        "function": {
+                            "name": content_block.get("name", ""),
+                            "arguments": str(content_block.get("input", {})),
+                        },
+                    }
+                    message["tool_calls"] = [tool_call]
+                    del message["content"]
+                elif content_block.get("type", "") == "tool_result":
+                    content_block_content = content_block.get("content", "")
+                    if isinstance(content_block_content, list):
+                        for content in content_block_content:
+                            if content.get("type", "") == "text":
+                                message["content"] = content.get("text", "")
+
     new_tools = []
-    for tool in request_content["tools"]:
+    for tool in request_content.get("tools", []):
         new_tool = {
             "type": "function",
             "function": {"name": tool["name"], "description": tool["description"], "parameters": tool["input_schema"]},
@@ -163,7 +186,7 @@ def format_anthropic_tools_request(request_content) -> str:
     return json.dumps(request_content)
 
 
-async def get_completion_id(request: Request):
+def get_completion_id(request: Request):
     host = request.headers.get("host")
     if "anthropic" in host and "/v1/messages" not in str(request.url):
         logger.warning("Currently logging is only available for anthropic v1/messages.")
@@ -176,7 +199,58 @@ async def get_completion_id(request: Request):
     request.headers["x-log10-completion-id"] = str(uuid.uuid4())
 
 
-async def log_request(request: Request):
+def log_request(request: Request):
+    start_time = time.time()
+    request.started = start_time
+    completion_id = request.headers.get("x-log10-completion-id", "")
+    if not completion_id:
+        return
+
+    last_completion_response_var.set({"completionID": completion_id})
+    orig_module = ""
+    orig_qualname = ""
+    request_content_decode = request.content.decode("utf-8")
+    host = request.headers.get("host")
+    if "openai" in host:
+        if "chat" in str(request.url):
+            kind = "chat"
+            orig_module = "openai.api_resources.chat_completion"
+            orig_qualname = "ChatCompletion.create"
+        else:
+            kind = "completion"
+            orig_module = "openai.api_resources.completion"
+            orig_qualname = "Completion.create"
+    elif "anthropic" in host:
+        kind = "chat"
+        ### TODO how to know whether it's create or stream?
+        content_type = request.headers.get("content-type")
+        request_content = json.loads(request_content_decode)
+        if content_type == "application/json":
+            orig_module = "anthropic.resources.messages"
+            orig_qualname = "Messages.create"
+        else:
+            orig_module = "anthropic.resources.messages"
+            orig_qualname = "Messages.stream"
+
+        request_content_decode = format_anthropic_tools_request(request_content)
+
+    else:
+        logger.warning("Currently logging is only available for async openai and anthropic.")
+        return
+    log_row = {
+        "status": "started",
+        "kind": kind,
+        "orig_module": orig_module,
+        "orig_qualname": orig_qualname,
+        "request": request_content_decode,
+        "session_id": session_id_var.get(),
+    }
+    if get_log10_session_tags():
+        log_row["tags"] = get_log10_session_tags()
+    _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+
+
+async def alog_request(request: Request):
     start_time = time.time()
     request.started = start_time
     completion_id = request.headers.get("x-log10-completion-id", "")
@@ -506,7 +580,77 @@ class _LogResponse(Response):
             return None
 
 
-class _LogTransport(httpx.AsyncBaseTransport):
+class _LogTransport(httpx.BaseTransport):
+    def __init__(self, transport: httpx.BaseTransport):
+        self.transport = transport
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        try:
+            response = self.transport.handle_request(request)
+        except Exception as e:
+            logger.warning(f"Failed to send request: {e}")
+            return
+
+        if response.status_code >= 400:
+            logger.warning(f"HTTP error occurred: {response.status_code}")
+            return
+
+        completion_id = request.headers.get("x-log10-completion-id", "")
+        if not completion_id:
+            return response
+
+        if response.headers.get("content-type").startswith("application/json"):
+            response.read()
+            llm_response = response.json()
+
+            current_stack_frame = traceback.extract_stack()
+            stacktrace = [
+                {
+                    "file": frame.filename,
+                    "line": frame.line,
+                    "lineno": frame.lineno,
+                    "name": frame.name,
+                }
+                for frame in current_stack_frame
+            ]
+
+            elapsed = time.time() - request.started
+            if "anthropic" in request.url.host:
+                from anthropic.types.message import Message
+
+                from log10.anthropic import Anthropic
+
+                llm_response = Anthropic.prepare_response(Message(**llm_response))
+
+            request_content = json.loads(request.content.decode("utf-8"))
+
+            log_row = {
+                "response": json.dumps(llm_response),
+                "status": "finished",
+                "duration": int(elapsed * 1000),
+                "stacktrace": json.dumps(stacktrace),
+                "kind": "chat",
+                "request": format_anthropic_tools_request(request_content),
+                "session_id": session_id_var.get(),
+            }
+            if get_log10_session_tags():
+                log_row["tags"] = get_log10_session_tags()
+            _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+            return response
+        elif response.headers.get("content-type").startswith("text/event-stream"):
+            return _LogResponse(
+                status_code=response.status_code,
+                headers=response.headers,
+                stream=response.stream,
+                extensions=response.extensions,
+                request=request,
+            )
+
+        # In case of an error, get out of the way
+        return response
+
+
+class _ALogTransport(httpx.AsyncBaseTransport):
     def __init__(self, transport: httpx.AsyncBaseTransport):
         self.transport = transport
 
@@ -541,14 +685,14 @@ class _LogTransport(httpx.AsyncBaseTransport):
             ]
 
             elapsed = time.time() - request.started
-            if "anthropic" in request.url.host:
-                from anthropic.types.beta.tools import (
-                    ToolsBetaMessage,
-                )
+            # if "anthropic" in request.url.host:
+            # from anthropic.types.beta.tools import (
+            #     ToolsBetaMessage,
+            # )
 
-                from log10.anthropic import Anthropic
+            # from log10.anthropic import Anthropic
 
-                llm_response = Anthropic.prepare_response(ToolsBetaMessage(**llm_response))
+            # llm_response = Anthropic.prepare_response(ToolsBetaMessage(**llm_response))
 
             log_row = {
                 "response": json.dumps(llm_response),
