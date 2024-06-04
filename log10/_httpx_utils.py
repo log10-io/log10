@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import time
@@ -220,7 +221,7 @@ async def log_request(request: Request):
     }
     if get_log10_session_tags():
         log_row["tags"] = get_log10_session_tags()
-    await _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+    asyncio.create_task(_try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row))
 
 
 class _LogResponse(Response):
@@ -304,7 +305,10 @@ class _LogResponse(Response):
                     }
                     if get_log10_session_tags():
                         log_row["tags"] = get_log10_session_tags()
-                    await _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+                    asyncio.create_task(
+                        _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+                    )
+
             yield chunk
 
     def is_response_end_reached(self, text: str):
@@ -502,7 +506,9 @@ class _LogTransport(httpx.AsyncBaseTransport):
             }
             if get_log10_session_tags():
                 log_row["tags"] = get_log10_session_tags()
-            await _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+            asyncio.create_task(
+                _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+            )
             return response
         elif response.headers.get("content-type").startswith("text/event-stream"):
             return _LogResponse(
@@ -515,3 +521,9 @@ class _LogTransport(httpx.AsyncBaseTransport):
 
         # In case of an error, get out of the way
         return response
+
+
+async def gather_pending_async_tasks():
+    pending = asyncio.all_tasks()
+    pending.remove(asyncio.current_task())
+    await asyncio.gather(*pending)
