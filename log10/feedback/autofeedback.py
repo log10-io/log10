@@ -140,7 +140,7 @@ def get_autofeedback(completion_id: str) -> httpx.Response:
 @click.option("--num_samples", default=5, help="Number of samples to use for few-shot learning")
 def auto_feedback_icl(task_id: str, content: str, file: str, completion_id: str, num_samples: int):
     """
-    Generate feedback with existing feedback
+    Generate feedback with existing human feedback based on in context learning
     """
     options_count = sum([1 for option in [content, file, completion_id] if option])
     if options_count > 1:

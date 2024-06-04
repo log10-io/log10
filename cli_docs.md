@@ -401,7 +401,7 @@ Options:
 $ log10 feedback predict --help
 Usage: log10 feedback predict [OPTIONS]
 
-  Generate feedback with existing feedback
+  Generate feedback with existing human feedback based on in context learning
 
 Options:
   --task_id TEXT         Feedback task ID
