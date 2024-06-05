@@ -153,27 +153,43 @@ async def _try_post_request_async(url: str, payload: dict = {}) -> httpx.Respons
 
 def format_anthropic_tools_request(request_content) -> str:
     for message in request_content.get("messages", []):
+        new_content = []
         message_content = message.get("content")
 
         if isinstance(message_content, list):
-            for content_block in message_content:
-                if content_block.get("type", "") == "tool_use":
+            for c in message_content:
+                c_type = c.get("type", "")
+                if c_type == "image":
+                    image_type = c.get("source", {}).get("media_type", "")
+                    image_data = c.get("source", {}).get("data", "")
+                    new_content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:{image_type};base64,{image_data}"},
+                        }
+                    )
+                elif c_type == "tool_use":
                     tool_call = {
-                        "id": content_block.get("id", ""),
+                        "id": c.get("id", ""),
                         "type": "function",
                         "function": {
-                            "name": content_block.get("name", ""),
-                            "arguments": str(content_block.get("input", {})),
+                            "name": c.get("name", ""),
+                            "arguments": str(c.get("input", {})),
                         },
                     }
                     message["tool_calls"] = [tool_call]
                     del message["content"]
-                elif content_block.get("type", "") == "tool_result":
-                    content_block_content = content_block.get("content", "")
+                elif c_type == "tool_result":
+                    content_block_content = c.get("content", "")
                     if isinstance(content_block_content, list):
                         for content in content_block_content:
                             if content.get("type", "") == "text":
                                 message["content"] = content.get("text", "")
+                else:
+                    new_content.append(c)
+
+        if new_content:
+            message["content"] = new_content
 
     new_tools = []
     for tool in request_content.get("tools", []):
@@ -190,7 +206,10 @@ def format_anthropic_tools_request(request_content) -> str:
             },
         }
         new_tools.append(new_tool)
-    request_content["tools"] = new_tools
+
+    if new_tools:
+        request_content["tools"] = new_tools
+
     return json.dumps(request_content)
 
 

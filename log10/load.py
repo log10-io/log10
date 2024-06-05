@@ -901,7 +901,7 @@ def set_sync_log_text(USE_ASYNC=True):
     return "async" if USE_ASYNC else "sync"
 
 
-def log10(module, DEBUG_=False, USE_ASYNC_=True):
+def log10(module, DEBUG_=True, USE_ASYNC_=True):
     """Intercept and overload module for logging purposes
     support both openai V0 and V1, anthropic, vertexai, and mistralai
 
