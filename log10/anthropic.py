@@ -164,8 +164,13 @@ class Anthropic(LLM):
 
             if isinstance(response.content, list):
                 tool_calls = []
+                message_choices = []
 
                 for index, content in enumerate(response.content):
+                    if isinstance(content, anthropic.types.TextBlock):
+                        message = {"message": {"role": response.role, "content": content.text}}
+                        message_choices.append(message)
+
                     if isinstance(content, anthropic.types.ToolUseBlock):
                         tool_call = {
                             "index": index,
@@ -178,14 +183,17 @@ class Anthropic(LLM):
                         }
 
                         tool_calls.append(tool_call)
-                    elif isinstance(content, anthropic.types.TextBlock):
-                        ret_response["choices"][0]["message"] = {"role": response.role, "content": content.text}
 
                 if tool_calls:
-                    ret_response["choices"][0]["message"] = {
-                        "role": response.role,
-                        "tool_calls": tool_calls,
+                    message = {
+                        "message": {
+                            "role": response.role,
+                            "tool_calls": tool_calls,
+                        }
                     }
+                    message_choices.append(message)
+
+                ret_response["choices"] = message_choices
 
         elif isinstance(response, anthropic.types.Completion):
             tokens_usage = Anthropic.create_tokens_usage(input_prompt, response.completion)

@@ -177,9 +177,17 @@ def format_anthropic_tools_request(request_content) -> str:
 
     new_tools = []
     for tool in request_content.get("tools", []):
+        if input_schema := tool.get("input_schema", {}):
+            parameters = input_schema
+        else:
+            parameters = {}
         new_tool = {
             "type": "function",
-            "function": {"name": tool["name"], "description": tool["description"], "parameters": tool["input_schema"]},
+            "function": {
+                "name": tool.get("name", ""),
+                "description": tool.get("description", ""),
+                "parameters": parameters,
+            },
         }
         new_tools.append(new_tool)
     request_content["tools"] = new_tools
