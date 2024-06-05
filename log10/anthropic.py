@@ -194,7 +194,6 @@ class Anthropic(LLM):
                     message_choices.append(message)
 
                 ret_response["choices"] = message_choices
-
         elif isinstance(response, anthropic.types.Completion):
             tokens_usage = Anthropic.create_tokens_usage(input_prompt, response.completion)
             ret_response["choices"][0]["text"] = response.completion

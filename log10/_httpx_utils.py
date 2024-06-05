@@ -196,9 +196,11 @@ def format_anthropic_tools_request(request_content) -> str:
 
 def get_completion_id(request: Request):
     host = request.headers.get("host")
-    if "anthropic" in host and "/v1/messages" not in str(request.url):
-        logger.warning("Currently logging is only available for anthropic v1/messages.")
-        return
+    if "anthropic" in host:
+        paths = ["/v1/messages", "/v1/complete"]
+        if not any(path in str(request.url) for path in paths):
+            logger.warning("Currently logging is only available for anthropic v1/messages and v1/complete.")
+            return
 
     if "openai" in host and "v1/chat/completions" not in str(request.url):
         logger.warning("Currently logging is only available for openai v1/chat/completions.")
@@ -207,14 +209,18 @@ def get_completion_id(request: Request):
     request.headers["x-log10-completion-id"] = str(uuid.uuid4())
 
 
-def log_request(request: Request):
-    start_time = time.time()
-    request.started = start_time
+def _get_completion_id_from_request(request: Request):
     completion_id = request.headers.get("x-log10-completion-id", "")
     if not completion_id:
         return
 
     last_completion_response_var.set({"completionID": completion_id})
+    return completion_id
+
+
+def _init_log_row(request: Request):
+    start_time = time.time()
+    request.started = start_time
     orig_module = ""
     orig_qualname = ""
     request_content_decode = request.content.decode("utf-8")
@@ -231,14 +237,20 @@ def log_request(request: Request):
     elif "anthropic" in host:
         kind = "chat"
         ### TODO how to know whether it's create or stream?
+        url_path = request.url
         content_type = request.headers.get("content-type")
         request_content = json.loads(request_content_decode)
-        if content_type == "application/json":
-            orig_module = "anthropic.resources.messages"
-            orig_qualname = "Messages.create"
+        if "/v1/messages" in str(url_path):
+            if content_type == "application/json":
+                orig_module = "anthropic.resources.messages"
+                orig_qualname = "Messages.create"
+            else:
+                orig_module = "anthropic.resources.messages"
+                orig_qualname = "Messages.stream"
         else:
-            orig_module = "anthropic.resources.messages"
-            orig_qualname = "Messages.stream"
+            kind = "completion"
+            orig_module = "anthropic.resources.completions"
+            orig_qualname = "Completions.create"
 
         request_content_decode = format_anthropic_tools_request(request_content)
 
@@ -255,53 +267,19 @@ def log_request(request: Request):
     }
     if get_log10_session_tags():
         log_row["tags"] = get_log10_session_tags()
+
+    return log_row
+
+
+def log_request(request: Request):
+    log_row = _init_log_row(request)
+    completion_id = _get_completion_id_from_request(request)
     _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
 
 
 async def alog_request(request: Request):
-    start_time = time.time()
-    request.started = start_time
-    completion_id = request.headers.get("x-log10-completion-id", "")
-    if not completion_id:
-        return
-
-    last_completion_response_var.set({"completionID": completion_id})
-    orig_module = ""
-    orig_qualname = ""
-    request_content_decode = request.content.decode("utf-8")
-    host = request.headers.get("host")
-    if "openai" in host:
-        if "chat" in str(request.url):
-            kind = "chat"
-            orig_module = "openai.api_resources.chat_completion"
-            orig_qualname = "ChatCompletion.create"
-        else:
-            kind = "completion"
-            orig_module = "openai.api_resources.completion"
-            orig_qualname = "Completion.create"
-    elif "anthropic" in host:
-        kind = "chat"
-        request_content = json.loads(request_content_decode)
-        if "tools" in request_content:
-            orig_module = "anthropic.resources.beta.tools"
-            orig_qualname = "Messages.stream"
-            request_content_decode = format_anthropic_tools_request(request_content)
-        else:
-            orig_module = "anthropic.resources.messages"
-            orig_qualname = "Messages.stream"
-    else:
-        logger.warning("Currently logging is only available for async openai and anthropic.")
-        return
-    log_row = {
-        "status": "started",
-        "kind": kind,
-        "orig_module": orig_module,
-        "orig_qualname": orig_qualname,
-        "request": request_content_decode,
-        "session_id": session_id_var.get(),
-    }
-    if get_log10_session_tags():
-        log_row["tags"] = get_log10_session_tags()
+    log_row = _init_log_row(request)
+    completion_id = _get_completion_id_from_request(request)
     await _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
 
 
@@ -624,23 +602,25 @@ class _LogTransport(httpx.BaseTransport):
 
             elapsed = time.time() - request.started
             if "anthropic" in request.url.host:
+                from anthropic.types.completion import Completion
                 from anthropic.types.message import Message
 
                 from log10.anthropic import Anthropic
 
-                llm_response = Anthropic.prepare_response(Message(**llm_response))
+                if "v1/messages" in str(request.url):
+                    llm_response = Anthropic.prepare_response(Message(**llm_response))
+                elif "v1/complete" in str(request.url):
+                    llm_response = Anthropic.prepare_response(Completion(**llm_response))
+                else:
+                    logger.warning("Currently logging is only available for anthropic v1/messages and v1/complete.")
+                    return
 
-            request_content = json.loads(request.content.decode("utf-8"))
+            log_row = _init_log_row(request)
+            log_row["status"] = "finished"
+            log_row["response"] = json.dumps(llm_response)
+            log_row["duration"] = int(elapsed * 1000)
+            log_row["stacktrace"] = json.dumps(stacktrace)
 
-            log_row = {
-                "response": json.dumps(llm_response),
-                "status": "finished",
-                "duration": int(elapsed * 1000),
-                "stacktrace": json.dumps(stacktrace),
-                "kind": "chat",
-                "request": format_anthropic_tools_request(request_content),
-                "session_id": session_id_var.get(),
-            }
             if get_log10_session_tags():
                 log_row["tags"] = get_log10_session_tags()
             _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
