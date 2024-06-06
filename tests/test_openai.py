@@ -59,8 +59,8 @@ def test_chat_not_given(session, openai_model):
 
 @pytest.mark.chat
 @pytest.mark.async_client
-@pytest.mark.asyncio
-async def test_chat_async(async_session, openai_model):
+@pytest.mark.asyncio(scope="module")
+async def test_chat_async(session, openai_model):
     client = AsyncOpenAI()
     completion = await client.chat.completions.create(
         model=openai_model,
@@ -70,7 +70,7 @@ async def test_chat_async(async_session, openai_model):
     content = completion.choices[0].message.content
     assert isinstance(content, str)
     await finalize()
-    _LogAssertion(completion_id=async_session.last_completion_id(), message_content=content).assert_chat_response()
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=content).assert_chat_response()
 
 
 @pytest.mark.chat
@@ -92,8 +92,8 @@ def test_chat_stream(session, openai_model):
 
 @pytest.mark.async_client
 @pytest.mark.stream
-@pytest.mark.asyncio
-async def test_chat_async_stream(async_session, openai_model):
+@pytest.mark.asyncio(scope="module")
+async def test_chat_async_stream(session, openai_model):
     client = AsyncOpenAI()
 
     output = ""
@@ -106,7 +106,7 @@ async def test_chat_async_stream(async_session, openai_model):
         output += chunk.choices[0].delta.content or ""
 
     await finalize()
-    _LogAssertion(completion_id=async_session.last_completion_id(), message_content=output).assert_chat_response()
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
 
 @pytest.mark.vision
@@ -278,8 +278,8 @@ def test_tools_stream(session, openai_model):
 @pytest.mark.tools
 @pytest.mark.stream
 @pytest.mark.async_client
-@pytest.mark.asyncio
-async def test_tools_stream_async(async_session, openai_model):
+@pytest.mark.asyncio(scope="module")
+async def test_tools_stream_async(session, openai_model):
     client = AsyncOpenAI()
     # Step 1: send the conversation and available functions to the model
     result = setup_tools_messages()
@@ -308,5 +308,5 @@ async def test_tools_stream_async(async_session, openai_model):
 
     await finalize()
     _LogAssertion(
-        completion_id=async_session.last_completion_id(), function_args=function_args
+        completion_id=session.last_completion_id(), function_args=function_args
     ).assert_function_call_response()

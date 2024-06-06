@@ -1,5 +1,4 @@
 import pytest
-import pytest_asyncio
 
 from log10.load import log10_session
 
@@ -66,13 +65,6 @@ def magentic_model(request):
 
 @pytest.fixture
 def session():
-    with log10_session() as session:
-        assert session.last_completion_id() is None, "No completion ID should be found."
-        yield session
-
-
-@pytest_asyncio.fixture()
-def async_session():
     with log10_session() as session:
         assert session.last_completion_id() is None, "No completion ID should be found."
         yield session

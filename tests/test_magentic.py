@@ -58,8 +58,8 @@ def test_function_logging(session, magentic_model):
 
 @pytest.mark.async_client
 @pytest.mark.stream
-@pytest.mark.asyncio
-async def test_async_stream_logging(async_session, magentic_model):
+@pytest.mark.asyncio(scope="module")
+async def test_async_stream_logging(session, magentic_model):
     @prompt("Tell me a 50-word story about {topic}", model=OpenaiChatModel(model=magentic_model))
     async def tell_story(topic: str) -> AsyncStreamedStr:  # ruff: ignore
         ...
@@ -70,13 +70,13 @@ async def test_async_stream_logging(async_session, magentic_model):
         result += chunk
 
     await finalize()
-    _LogAssertion(completion_id=async_session.last_completion_id(), message_content=result).assert_chat_response()
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=result).assert_chat_response()
 
 
 @pytest.mark.async_client
 @pytest.mark.tools
-@pytest.mark.asyncio
-async def test_async_parallel_stream_logging(async_session, magentic_model):
+@pytest.mark.asyncio(scope="module")
+async def test_async_parallel_stream_logging(session, magentic_model):
     def plus(a: int, b: int) -> int:
         return a + b
 
@@ -98,13 +98,13 @@ async def test_async_parallel_stream_logging(async_session, magentic_model):
     function_args = format_magentic_function_args(result)
     await finalize()
     _LogAssertion(
-        completion_id=async_session.last_completion_id(), function_args=function_args
+        completion_id=session.last_completion_id(), function_args=function_args
     ).assert_function_call_response()
 
 
 @pytest.mark.async_client
 @pytest.mark.stream
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="module")
 async def test_async_multi_session_tags(magentic_model):
     @prompt("What is {a} * {b}?", model=OpenaiChatModel(model=magentic_model))
     async def do_math_with_llm_async(a: int, b: int) -> AsyncStreamedStr:  # ruff: ignore
@@ -144,8 +144,8 @@ async def test_async_multi_session_tags(magentic_model):
 
 @pytest.mark.async_client
 @pytest.mark.widget
-@pytest.mark.asyncio
-async def test_async_widget(async_session, magentic_model):
+@pytest.mark.asyncio(scope="module")
+async def test_async_widget(session, magentic_model):
     class WidgetInfo(BaseModel):
         title: str
         description: str
@@ -174,5 +174,5 @@ async def test_async_widget(async_session, magentic_model):
     function_args = [{"name": "return_widgetinfo", "arguments": str(arguments)}]
     await finalize()
     _LogAssertion(
-        completion_id=async_session.last_completion_id(), function_args=function_args
+        completion_id=session.last_completion_id(), function_args=function_args
     ).assert_function_call_response()

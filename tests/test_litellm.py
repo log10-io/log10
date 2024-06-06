@@ -38,7 +38,7 @@ def test_completion_stream(session, openai_model):
 @pytest.mark.async_client
 @pytest.mark.chat
 @pytest.mark.stream
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="module")
 async def test_completion_async_stream(anthropic_model):
     response = await litellm.acompletion(
         model=anthropic_model, messages=[{"role": "user", "content": "count to 8"}], stream=True
@@ -121,8 +121,8 @@ def test_image_stream(session, anthropic_model):
 @pytest.mark.async_client
 @pytest.mark.stream
 @pytest.mark.vision
-@pytest.mark.asyncio
-async def test_image_async_stream(async_session, anthropic_model):
+@pytest.mark.asyncio(scope="module")
+async def test_image_async_stream(session, anthropic_model):
     image_url = "https://upload.wikimedia.org/wikipedia/commons/e/e8/Log10.png"
     image_media_type = "image/png"
     image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
@@ -154,4 +154,4 @@ async def test_image_async_stream(async_session, anthropic_model):
 
     time.sleep(3)
     await finalize()
-    _LogAssertion(completion_id=async_session.last_completion_id(), message_content=output).assert_chat_response()
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()

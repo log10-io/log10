@@ -35,8 +35,8 @@ def test_messages_create(session, anthropic_model):
 
 @pytest.mark.chat
 @pytest.mark.async_client
-@pytest.mark.asyncio
-async def test_messages_create_async(async_session, anthropic_model):
+@pytest.mark.asyncio(scope="module")
+async def test_messages_create_async(session, anthropic_model):
     client = anthropic.AsyncAnthropic()
 
     message = await client.messages.create(
@@ -51,7 +51,7 @@ async def test_messages_create_async(async_session, anthropic_model):
     assert isinstance(text, str)
 
     await finalize()
-    _LogAssertion(completion_id=async_session.last_completion_id(), message_content=text).assert_chat_response()
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=text).assert_chat_response()
 
 
 @pytest.mark.chat
@@ -155,8 +155,8 @@ def test_beta_tools_messages_create(session, anthropic_model):
 
 @pytest.mark.chat
 @pytest.mark.async_client
-@pytest.mark.asyncio
-async def test_beta_tools_messages_create_async(async_session, anthropic_model):
+@pytest.mark.asyncio(scope="module")
+async def test_beta_tools_messages_create_async(session, anthropic_model):
     client = anthropic.AsyncAnthropic()
 
     message = await client.beta.tools.messages.create(
@@ -167,7 +167,7 @@ async def test_beta_tools_messages_create_async(async_session, anthropic_model):
 
     text = message.content[0].text
     await finalize()
-    _LogAssertion(completion_id=async_session.last_completion_id(), message_content=text).assert_chat_response()
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=text).assert_chat_response()
 
 
 @pytest.mark.chat
@@ -200,8 +200,8 @@ def test_messages_stream_context_manager(session, anthropic_model):
 @pytest.mark.stream
 @pytest.mark.context_manager
 @pytest.mark.async_client
-@pytest.mark.asyncio
-async def test_messages_stream_context_manager_async(async_session, anthropic_model):
+@pytest.mark.asyncio(scope="module")
+async def test_messages_stream_context_manager_async(session, anthropic_model):
     client = anthropic.AsyncAnthropic()
 
     output = ""
@@ -219,7 +219,7 @@ async def test_messages_stream_context_manager_async(async_session, anthropic_mo
             output += text
 
     await finalize()
-    _LogAssertion(completion_id=async_session.last_completion_id(), message_content=output).assert_chat_response()
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
 
 @pytest.mark.tools
@@ -266,8 +266,8 @@ def test_tools_messages_stream_context_manager(session, anthropic_model):
 @pytest.mark.stream
 @pytest.mark.context_manager
 @pytest.mark.async_client
-@pytest.mark.asyncio
-async def test_tools_messages_stream_context_manager_async(async_session, anthropic_model):
+@pytest.mark.asyncio(scope="module")
+async def test_tools_messages_stream_context_manager_async(session, anthropic_model):
     client = anthropic.AsyncAnthropic()
     json_snapshot = None
     final_message = None
@@ -314,6 +314,6 @@ async def test_tools_messages_stream_context_manager_async(async_session, anthro
 
     await finalize()
     assert output, "No output from the model."
-    assert async_session.last_completion_id(), "No completion ID found."
+    assert session.last_completion_id(), "No completion ID found."
     ## TODO fix this test after the anthropic fixes for the tool_calls
     # _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
