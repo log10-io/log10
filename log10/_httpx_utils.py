@@ -9,7 +9,7 @@ import httpx
 from httpx import Request, Response
 
 from log10.llm import Log10Config
-from log10.load import get_log10_session_tags, last_completion_response_var, session_id_var
+from log10.load import get_log10_session_tags, session_id_var
 
 
 logger: logging.Logger = logging.getLogger("LOG10")
@@ -213,28 +213,28 @@ def format_anthropic_tools_request(request_content) -> str:
     return json.dumps(request_content)
 
 
-def get_completion_id(request: Request):
-    host = request.headers.get("host")
-    if "anthropic" in host:
-        paths = ["/v1/messages", "/v1/complete"]
-        if not any(path in str(request.url) for path in paths):
-            logger.warning("Currently logging is only available for anthropic v1/messages and v1/complete.")
-            return
+# def get_completion_id(request: Request):
+#     host = request.headers.get("host")
+#     if "anthropic" in host:
+#         paths = ["/v1/messages", "/v1/complete"]
+#         if not any(path in str(request.url) for path in paths):
+#             logger.warning("Currently logging is only available for anthropic v1/messages and v1/complete.")
+#             return
 
-    if "openai" in host and "v1/chat/completions" not in str(request.url):
-        logger.warning("Currently logging is only available for openai v1/chat/completions.")
-        return
+#     if "openai" in host and "v1/chat/completions" not in str(request.url):
+#         logger.warning("Currently logging is only available for openai v1/chat/completions.")
+#         return
 
-    request.headers["x-log10-completion-id"] = str(uuid.uuid4())
+#     request.headers["x-log10-completion-id"] = str(uuid.uuid4())
 
 
-def _get_completion_id_from_request(request: Request):
-    completion_id = request.headers.get("x-log10-completion-id", "")
-    if not completion_id:
-        return
+# def _get_completion_id_from_request(request: Request):
+#     completion_id = request.headers.get("x-log10-completion-id", "")
+#     if not completion_id:
+#         return
 
-    last_completion_response_var.set({"completionID": completion_id})
-    return completion_id
+#     last_completion_response_var.set({"completionID": completion_id})
+#     return completion_id
 
 
 def _init_log_row(request: Request):
@@ -290,30 +290,148 @@ def _init_log_row(request: Request):
     return log_row
 
 
-def log_request(request: Request):
-    log_row = _init_log_row(request)
-    completion_id = _get_completion_id_from_request(request)
-    _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+# def log_request(request: Request):
+#     log_row = _init_log_row(request)
+#     completion_id = _get_completion_id_from_request(request)
+#     _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
 
 
-async def alog_request(request: Request):
-    log_row = _init_log_row(request)
-    completion_id = _get_completion_id_from_request(request)
-    await _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+# async def alog_request(request: Request):
+#     log_row = _init_log_row(request)
+#     completion_id = _get_completion_id_from_request(request)
+#     await _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+
+
+def check_provider_request(request: Request):
+    host = request.headers.get("host")
+    if "anthropic" in host:
+        paths = ["/v1/messages", "/v1/complete"]
+        if not any(path in str(request.url) for path in paths):
+            logger.warning("Currently logging is only available for anthropic v1/messages and v1/complete.")
+            return
+
+    if "openai" in host and "v1/chat/completions" not in str(request.url):
+        logger.warning("Currently logging is only available for openai v1/chat/completions.")
+        return
+
+
+class _EventHookManager:
+    def __init__(self):
+        self.event_hooks = {
+            "request": [self.get_completion_id, self.log_request],
+        }
+        self.completion_id = ""
+        self.log_row = {}
+
+    def get_completion_id(self, request: httpx.Request):
+        logger.debug("LOG10: generating completion id")
+        check_provider_request(request)
+        self.completion_id = str(uuid.uuid4())
+        request.headers["x-log10-completion-id"] = self.completion_id
+
+    def log_request(self, request: httpx.Request):
+        logger.debug("LOG10: sending sync request")
+        self.log_row = _init_log_row(request)
+        _try_post_request(url=f"{base_url}/api/completions/{self.completion_id}", payload=self.log_row)
+
+    # async def alog_request(self, request: httpx.Request):
+    #     logger.debug("LOG10: sending async request")
+    #     self.log_row = _init_log_row(request)
+    #     await _try_post_request_async(url=f"{base_url}/api/completions/{self.completion_id}", payload=self.log_row)
+
+
+class _AsyncEventHookManager:
+    def __init__(self):
+        self.event_hooks = {
+            "request": [self.get_completion_id, self.log_request],
+        }
+        self.completion_id = ""
+        self.log_row = {}
+
+    async def get_completion_id(self, request: httpx.Request):
+        logger.debug("LOG10: generating completion id")
+        check_provider_request(request)
+        self.completion_id = str(uuid.uuid4())
+        request.headers["x-log10-completion-id"] = self.completion_id
+
+    async def log_request(self, request: httpx.Request):
+        logger.debug("LOG10: sending async request")
+        self.log_row = _init_log_row(request)
+        await _try_post_request_async(url=f"{base_url}/api/completions/{self.completion_id}", payload=self.log_row)
 
 
 class _LogResponse(Response):
     def __init__(self, *args, **kwargs):
+        self.log_row = kwargs["log_row"]
+        del kwargs["log_row"]
         super().__init__(*args, **kwargs)
         self.full_content = ""
         self.function_name = ""
         self.full_argument = ""
         self.tool_calls = []
         self.finish_reason = ""
-        # self.full_content = ""
-        # self.function_name = ""
-        # self.full_argument = ""
-        # self.tool_calls = []
+
+    def patch_streaming_log(self, duration: int, full_response: str):
+        current_stack_frame = traceback.extract_stack()
+        stacktrace = [
+            {
+                "file": frame.filename,
+                "line": frame.line,
+                "lineno": frame.lineno,
+                "name": frame.name,
+            }
+            for frame in current_stack_frame
+        ]
+
+        responses = full_response.split("\n\n")
+        response_json = self.parse_response_data(responses)
+
+        # Choices can be empty list with the openai version > 1.26.0
+        if not response_json.get("choices"):
+            response_json["choices"] = [{"index": 0}]
+
+        if response_json.get("choices", []):
+            # It will only set finish_reason for openai version > 1.26.0
+            if self.finish_reason:
+                response_json["choices"][0]["finish_reason"] = self.finish_reason
+
+            if self.full_content:
+                response_json["choices"][0]["message"] = {
+                    "role": "assistant",
+                    "content": self.full_content,
+                }
+            elif self.tool_calls:
+                response_json["choices"][0]["message"] = {
+                    "content": None,
+                    "role": "assistant",
+                    "tool_calls": self.tool_calls,
+                }
+            elif self.function_name and self.full_argument:
+                # function is deprecated in openai api
+                response_json["choices"][0]["function_call"] = {
+                    "name": self.function_name,
+                    "arguments": self.full_argument,
+                }
+
+        self.log_row["response"] = json.dumps(response_json)
+        self.log_row["status"] = "finished"
+        self.log_row["duration"] = duration
+        self.log_row["stacktrace"] = json.dumps(stacktrace)
+
+    def iter_bytes(self, *args, **kwargs):
+        full_response = ""
+        finished = False
+        for chunk in super().iter_bytes(*args, **kwargs):
+            full_response += chunk.decode(errors="ignore")
+            if self.is_response_end_reached(full_response):
+                finished = True
+                duration = int(time.time() - self.request.started) * 1000
+
+                completion_id = self.request.headers.get("x-log10-completion-id", "")
+                if finished and completion_id:
+                    self.patch_streaming_log(duration, full_response)
+                    _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=self.log_row)
+            yield chunk
 
     async def aiter_bytes(self, *args, **kwargs):
         full_response = ""
@@ -326,68 +444,10 @@ class _LogResponse(Response):
 
                 completion_id = self.request.headers.get("x-log10-completion-id", "")
                 if finished and completion_id:
-                    current_stack_frame = traceback.extract_stack()
-                    stacktrace = [
-                        {
-                            "file": frame.filename,
-                            "line": frame.line,
-                            "lineno": frame.lineno,
-                            "name": frame.name,
-                        }
-                        for frame in current_stack_frame
-                    ]
-
-                    responses = full_response.split("\n\n")
-                    response_json = self.parse_response_data(responses)
-
-                    # response_json = response_json.copy()
-                    # # r_json is the last response before "data: [DONE]"
-
-                    # Choices can be empty list with the openai version > 1.26.0
-                    if not response_json.get("choices"):
-                        response_json["choices"] = [{"index": 0}]
-
-                    if response_json.get("choices", []):
-                        # It will only set finish_reason for openai version > 1.26.0
-                        if self.finish_reason:
-                            response_json["choices"][0]["finish_reason"] = self.finish_reason
-
-                        if self.full_content:
-                            response_json["choices"][0]["message"] = {
-                                "role": "assistant",
-                                "content": self.full_content,
-                            }
-                        elif self.tool_calls:
-                            response_json["choices"][0]["message"] = {
-                                "content": None,
-                                "role": "assistant",
-                                "tool_calls": self.tool_calls,
-                            }
-                        elif self.function_name and self.full_argument:
-                            # function is deprecated in openai api
-                            response_json["choices"][0]["function_call"] = {
-                                "name": self.function_name,
-                                "arguments": self.full_argument,
-                            }
-
-                    request_content_decode = self.request.content.decode("utf-8")
-                    if "anthropic" in self.request.headers.get("host"):
-                        request_content = json.loads(request_content_decode)
-                        if "tools" in request_content:
-                            request_content_decode = format_anthropic_tools_request(request_content)
-
-                    log_row = {
-                        "response": json.dumps(response_json),
-                        "status": "finished",
-                        "duration": duration,
-                        "stacktrace": json.dumps(stacktrace),
-                        "kind": "chat",
-                        "request": request_content_decode,
-                        "session_id": session_id_var.get(),
-                    }
-                    if get_log10_session_tags():
-                        log_row["tags"] = get_log10_session_tags()
-                    await _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+                    self.patch_streaming_log(duration, full_response)
+                    await _try_post_request_async(
+                        url=f"{base_url}/api/completions/{completion_id}", payload=self.log_row
+                    )
             yield chunk
 
     def is_response_end_reached(self, text: str):
@@ -428,24 +488,25 @@ class _LogResponse(Response):
             ### {"event":"message_start","data":{"message":{"role":"user","content":"Hello, how are you today?"}}}
             type = r_json["type"]
             if type == "message_start":
-                message_id = r_json["message"]["id"]
-                model = r_json["message"]["model"]
-                input_tokens = r_json["message"]["usage"]["input_tokens"]
+                message = r_json.get("message", {})
+                message_id = message.get("id", "")
+                model = message.get("model", "")
+                input_tokens = message.get("usage", {}).get("input_tokens", 0)
             elif type == "content_block_start":
-                content_block = r_json["content_block"]
-                content_block_type = content_block["type"]
+                content_block = r_json.get("content_block", {})
+                content_block_type = content_block.get("type", "")
                 if content_block_type == "tool_use":
-                    id = content_block["id"]
+                    id = content_block.get("id", "")
                     tool_call = {
                         "id": id,
                         "type": "function",
-                        "function": {"name": content_block["name"], "arguments": ""},
+                        "function": {"name": content_block.get("name", ""), "arguments": ""},
                     }
 
                 if content_block_text := content_block.get("text", ""):
                     self.full_content += content_block_text
             elif type == "content_block_delta":
-                delta = r_json["delta"]
+                delta = r_json.get("delta", {})
                 if delta_text := delta.get("text", ""):
                     self.full_content += delta_text
 
@@ -455,8 +516,8 @@ class _LogResponse(Response):
                     else:
                         arguments += delta_partial_json
             elif type == "message_delta":
-                finish_reason = r_json["delta"]["stop_reason"]
-                output_tokens = r_json["usage"]["output_tokens"]
+                finish_reason = r_json.get("delta", {}).get("stop_reason", "")
+                output_tokens = r_json.get("usage", {}).get("output_tokens", 0)
             elif type == "content_block_end" or type == "message_end":
                 if tool_call:
                     tool_call["function"]["arguments"] = arguments
@@ -484,6 +545,7 @@ class _LogResponse(Response):
         message = {
             "role": "assistant",
         }
+
         if full_content:
             message["content"] = full_content
             # response_json["choices"][0]["message"] = {"role": "assistant", "content": full_content}
@@ -544,7 +606,7 @@ class _LogResponse(Response):
 
         r_json["object"] = "chat.completion"
         # r_json is the last response before "data: [DONE]"
-        response_json = response_json.copy()
+        response_json = r_json.copy()
 
         if not response_json.get("choices"):
             response_json["choices"] = [{"index": 0}]
@@ -585,11 +647,48 @@ class _LogResponse(Response):
             return None
 
 
-class _LogTransport(httpx.BaseTransport):
-    def __init__(self, transport: httpx.BaseTransport):
-        self.transport = transport
+def patch_response(log_row: dict, llm_response: dict, request: Request):
+    current_stack_frame = traceback.extract_stack()
+    stacktrace = [
+        {
+            "file": frame.filename,
+            "line": frame.line,
+            "lineno": frame.lineno,
+            "name": frame.name,
+        }
+        for frame in current_stack_frame
+    ]
 
-    def handle_request(self, request: httpx.Request) -> httpx.Response:
+    elapsed = time.time() - request.started
+    if "anthropic" in request.url.host:
+        from anthropic.types.completion import Completion
+        from anthropic.types.message import Message
+
+        from log10.anthropic import Anthropic
+
+        if "v1/messages" in str(request.url):
+            llm_response = Anthropic.prepare_response(Message(**llm_response))
+        elif "v1/complete" in str(request.url):
+            llm_response = Anthropic.prepare_response(Completion(**llm_response))
+        else:
+            logger.warning("Currently logging is only available for anthropic v1/messages and v1/complete.")
+
+    log_row["status"] = "finished"
+    log_row["response"] = json.dumps(llm_response)
+    log_row["duration"] = int(elapsed * 1000)
+    log_row["stacktrace"] = json.dumps(stacktrace)
+    if get_log10_session_tags():
+        log_row["tags"] = get_log10_session_tags()
+
+    return log_row
+
+
+class _LogTransport(httpx.BaseTransport):
+    def __init__(self, transport: httpx.BaseTransport, event_hook_manager: _EventHookManager):
+        self.transport = transport
+        self.event_hook_manager = event_hook_manager
+
+    def handle_request(self, request: Request) -> Response:
         try:
             response = self.transport.handle_request(request)
         except Exception as e:
@@ -607,41 +706,40 @@ class _LogTransport(httpx.BaseTransport):
         if response.headers.get("content-type").startswith("application/json"):
             response.read()
             llm_response = response.json()
+            log_row = patch_response(self.event_hook_manager.log_row, llm_response, request)
 
-            current_stack_frame = traceback.extract_stack()
-            stacktrace = [
-                {
-                    "file": frame.filename,
-                    "line": frame.line,
-                    "lineno": frame.lineno,
-                    "name": frame.name,
-                }
-                for frame in current_stack_frame
-            ]
+            # current_stack_frame = traceback.extract_stack()
+            # stacktrace = [
+            #     {
+            #         "file": frame.filename,
+            #         "line": frame.line,
+            #         "lineno": frame.lineno,
+            #         "name": frame.name,
+            #     }
+            #     for frame in current_stack_frame
+            # ]
 
-            elapsed = time.time() - request.started
-            if "anthropic" in request.url.host:
-                from anthropic.types.completion import Completion
-                from anthropic.types.message import Message
+            # elapsed = time.time() - request.started
+            # if "anthropic" in request.url.host:
+            #     from anthropic.types.completion import Completion
+            #     from anthropic.types.message import Message
 
-                from log10.anthropic import Anthropic
+            #     from log10.anthropic import Anthropic
 
-                if "v1/messages" in str(request.url):
-                    llm_response = Anthropic.prepare_response(Message(**llm_response))
-                elif "v1/complete" in str(request.url):
-                    llm_response = Anthropic.prepare_response(Completion(**llm_response))
-                else:
-                    logger.warning("Currently logging is only available for anthropic v1/messages and v1/complete.")
-                    return
+            #     if "v1/messages" in str(request.url):
+            #         llm_response = Anthropic.prepare_response(Message(**llm_response))
+            #     elif "v1/complete" in str(request.url):
+            #         llm_response = Anthropic.prepare_response(Completion(**llm_response))
+            #     else:
+            #         logger.warning("Currently logging is only available for anthropic v1/messages and v1/complete.")
 
-            log_row = _init_log_row(request)
-            log_row["status"] = "finished"
-            log_row["response"] = json.dumps(llm_response)
-            log_row["duration"] = int(elapsed * 1000)
-            log_row["stacktrace"] = json.dumps(stacktrace)
+            # log_row["status"] = "finished"
+            # log_row["response"] = json.dumps(llm_response)
+            # log_row["duration"] = int(elapsed * 1000)
+            # log_row["stacktrace"] = json.dumps(stacktrace)
 
-            if get_log10_session_tags():
-                log_row["tags"] = get_log10_session_tags()
+            # if get_log10_session_tags():
+            #     log_row["tags"] = get_log10_session_tags()
             _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
             return response
         elif response.headers.get("content-type").startswith("text/event-stream"):
@@ -651,15 +749,17 @@ class _LogTransport(httpx.BaseTransport):
                 stream=response.stream,
                 extensions=response.extensions,
                 request=request,
+                log_row=self.event_hook_manager.log_row,
             )
 
         # In case of an error, get out of the way
         return response
 
 
-class _ALogTransport(httpx.AsyncBaseTransport):
-    def __init__(self, transport: httpx.AsyncBaseTransport):
+class _AsyncLogTransport(httpx.AsyncBaseTransport):
+    def __init__(self, transport: httpx.AsyncBaseTransport, event_hook_manager: _AsyncEventHookManager):
         self.transport = transport
+        self.event_hook_manager = event_hook_manager
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         try:
@@ -680,18 +780,20 @@ class _ALogTransport(httpx.AsyncBaseTransport):
             await response.aread()
             llm_response = response.json()
 
-            current_stack_frame = traceback.extract_stack()
-            stacktrace = [
-                {
-                    "file": frame.filename,
-                    "line": frame.line,
-                    "lineno": frame.lineno,
-                    "name": frame.name,
-                }
-                for frame in current_stack_frame
-            ]
+            log_row = patch_response(self.event_hook_manager.log_row, llm_response, request)
 
-            elapsed = time.time() - request.started
+            # current_stack_frame = traceback.extract_stack()
+            # stacktrace = [
+            #     {
+            #         "file": frame.filename,
+            #         "line": frame.line,
+            #         "lineno": frame.lineno,
+            #         "name": frame.name,
+            #     }
+            #     for frame in current_stack_frame
+            # ]
+
+            # elapsed = time.time() - request.started
             # if "anthropic" in request.url.host:
             # from anthropic.types.beta.tools import (
             #     ToolsBetaMessage,
@@ -701,17 +803,17 @@ class _ALogTransport(httpx.AsyncBaseTransport):
 
             # llm_response = Anthropic.prepare_response(ToolsBetaMessage(**llm_response))
 
-            log_row = {
-                "response": json.dumps(llm_response),
-                "status": "finished",
-                "duration": int(elapsed * 1000),
-                "stacktrace": json.dumps(stacktrace),
-                "kind": "chat",
-                "request": request.content.decode("utf-8"),
-                "session_id": session_id_var.get(),
-            }
-            if get_log10_session_tags():
-                log_row["tags"] = get_log10_session_tags()
+            # log_row = {
+            #     "response": json.dumps(llm_response),
+            #     "status": "finished",
+            #     "duration": int(elapsed * 1000),
+            #     "stacktrace": json.dumps(stacktrace),
+            #     "kind": "chat",
+            #     "request": request.content.decode("utf-8"),
+            #     "session_id": session_id_var.get(),
+            # }
+            # if get_log10_session_tags():
+            #     log_row["tags"] = get_log10_session_tags()
             await _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
             return response
         elif response.headers.get("content-type").startswith("text/event-stream"):
@@ -721,6 +823,7 @@ class _ALogTransport(httpx.AsyncBaseTransport):
                 stream=response.stream,
                 extensions=response.extensions,
                 request=request,
+                log_row=self.event_hook_manager.log_row,
             )
 
         # In case of an error, get out of the way

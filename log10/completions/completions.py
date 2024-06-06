@@ -277,7 +277,12 @@ def _get_llm_repsone(
         ret["content"] = response.choices[0].message.content
         ret["usage"] = response.usage.dict()
     elif "claude-3" in model:
-        from log10.load import Anthropic
+        import anthropic
+        from anthropic import Anthropic
+
+        from log10.load import log10
+
+        log10(anthropic)
 
         system_messages = [m["content"] for m in messages if m["role"] == "system"]
         other_messages = [m for m in messages if m["role"] != "system"]
