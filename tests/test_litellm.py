@@ -5,6 +5,7 @@ import httpx
 import litellm
 import pytest
 
+from log10._httpx_utils import finalize
 from log10.litellm import Log10LitellmLogger
 from tests.utils import _LogAssertion
 
@@ -50,6 +51,7 @@ async def test_completion_async_stream(anthropic_model):
 
     ## This test doesn't get completion_id from the session
     ## and logged a couple times during debug mode, punt this for now
+    await finalize()
     assert output, "No output from the model."
 
 
@@ -78,6 +80,8 @@ def test_image(session, openai_vision_model):
     content = resp.choices[0].message.content
     assert isinstance(content, str)
 
+    # Wait for the completion to be logged
+    time.sleep(3)
     _LogAssertion(completion_id=session.last_completion_id(), message_content=content).assert_chat_response()
 
 
@@ -118,7 +122,7 @@ def test_image_stream(session, anthropic_model):
 @pytest.mark.stream
 @pytest.mark.vision
 @pytest.mark.asyncio
-async def test_image_async_stream(session, anthropic_model):
+async def test_image_async_stream(async_session, anthropic_model):
     image_url = "https://upload.wikimedia.org/wikipedia/commons/e/e8/Log10.png"
     image_media_type = "image/png"
     image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
@@ -149,4 +153,5 @@ async def test_image_async_stream(session, anthropic_model):
             output += chunk.choices[0].delta.content
 
     time.sleep(3)
-    _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
+    await finalize()
+    _LogAssertion(completion_id=async_session.last_completion_id(), message_content=output).assert_chat_response()

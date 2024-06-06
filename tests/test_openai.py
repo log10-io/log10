@@ -6,6 +6,7 @@ import openai
 import pytest
 from openai import NOT_GIVEN, AsyncOpenAI
 
+from log10._httpx_utils import finalize
 from log10.load import log10
 from tests.utils import _LogAssertion, format_function_args
 
@@ -59,7 +60,7 @@ def test_chat_not_given(session, openai_model):
 @pytest.mark.chat
 @pytest.mark.async_client
 @pytest.mark.asyncio
-async def test_chat_async(session, openai_model):
+async def test_chat_async(async_session, openai_model):
     client = AsyncOpenAI()
     completion = await client.chat.completions.create(
         model=openai_model,
@@ -68,7 +69,8 @@ async def test_chat_async(session, openai_model):
 
     content = completion.choices[0].message.content
     assert isinstance(content, str)
-    _LogAssertion(completion_id=session.last_completion_id(), message_content=content).assert_chat_response()
+    await finalize()
+    _LogAssertion(completion_id=async_session.last_completion_id(), message_content=content).assert_chat_response()
 
 
 @pytest.mark.chat
@@ -91,7 +93,7 @@ def test_chat_stream(session, openai_model):
 @pytest.mark.async_client
 @pytest.mark.stream
 @pytest.mark.asyncio
-async def test_chat_async_stream(session, openai_model):
+async def test_chat_async_stream(async_session, openai_model):
     client = AsyncOpenAI()
 
     output = ""
@@ -103,7 +105,8 @@ async def test_chat_async_stream(session, openai_model):
     async for chunk in stream:
         output += chunk.choices[0].delta.content or ""
 
-    _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
+    await finalize()
+    _LogAssertion(completion_id=async_session.last_completion_id(), message_content=output).assert_chat_response()
 
 
 @pytest.mark.vision
@@ -276,7 +279,7 @@ def test_tools_stream(session, openai_model):
 @pytest.mark.stream
 @pytest.mark.async_client
 @pytest.mark.asyncio
-async def test_tools_stream_async(session, openai_model):
+async def test_tools_stream_async(async_session, openai_model):
     client = AsyncOpenAI()
     # Step 1: send the conversation and available functions to the model
     result = setup_tools_messages()
@@ -303,6 +306,7 @@ async def test_tools_stream_async(session, openai_model):
     function_args = format_function_args(tool_calls)
     assert len(function_args) == 3
 
+    await finalize()
     _LogAssertion(
-        completion_id=session.last_completion_id(), function_args=function_args
+        completion_id=async_session.last_completion_id(), function_args=function_args
     ).assert_function_call_response()
