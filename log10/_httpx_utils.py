@@ -9,7 +9,7 @@ import httpx
 from httpx import Request, Response
 
 from log10.llm import Log10Config
-from log10.load import get_log10_session_tags, session_id_var
+from log10.load import get_log10_session_tags, session_id_var, last_completion_response_var
 
 
 logger: logging.Logger = logging.getLogger("LOG10")
@@ -151,7 +151,7 @@ async def _try_post_request_async(url: str, payload: dict = {}) -> httpx.Respons
         logger.error(f"Failed to insert in log10: {payload} with error {err}")
 
 
-def format_anthropic_tools_request(request_content) -> str:
+def format_anthropic_request(request_content) -> str:
     for message in request_content.get("messages", []):
         new_content = []
         message_content = message.get("content")
@@ -271,7 +271,7 @@ def _init_log_row(request: Request):
             orig_module = "anthropic.resources.completions"
             orig_qualname = "Completions.create"
 
-        request_content_decode = format_anthropic_tools_request(request_content)
+        request_content_decode = format_anthropic_request(request_content)
 
     else:
         logger.warning("Currently logging is only available for async openai and anthropic.")
@@ -315,6 +315,13 @@ def check_provider_request(request: Request):
         return
 
 
+def get_completion_id(request: Request):
+    completion_id = str(uuid.uuid4())
+    request.headers["x-log10-completion-id"] = completion_id
+    last_completion_response_var.set({"completionID": completion_id})
+    return completion_id
+
+
 class _EventHookManager:
     def __init__(self):
         self.event_hooks = {
@@ -326,22 +333,17 @@ class _EventHookManager:
     def get_completion_id(self, request: httpx.Request):
         logger.debug("LOG10: generating completion id")
         check_provider_request(request)
-        self.completion_id = str(uuid.uuid4())
-        request.headers["x-log10-completion-id"] = self.completion_id
+        self.completion_id = get_completion_id(request)
+
 
     def log_request(self, request: httpx.Request):
         logger.debug("LOG10: sending sync request")
         self.log_row = _init_log_row(request)
         _try_post_request(url=f"{base_url}/api/completions/{self.completion_id}", payload=self.log_row)
 
-    # async def alog_request(self, request: httpx.Request):
-    #     logger.debug("LOG10: sending async request")
-    #     self.log_row = _init_log_row(request)
-    #     await _try_post_request_async(url=f"{base_url}/api/completions/{self.completion_id}", payload=self.log_row)
-
-
 class _AsyncEventHookManager:
     def __init__(self):
+        logger.debug("LOG10: initializing async event hook manager")
         self.event_hooks = {
             "request": [self.get_completion_id, self.log_request],
         }
@@ -351,8 +353,7 @@ class _AsyncEventHookManager:
     async def get_completion_id(self, request: httpx.Request):
         logger.debug("LOG10: generating completion id")
         check_provider_request(request)
-        self.completion_id = str(uuid.uuid4())
-        request.headers["x-log10-completion-id"] = self.completion_id
+        self.completion_id = get_completion_id(request)
 
     async def log_request(self, request: httpx.Request):
         logger.debug("LOG10: sending async request")
@@ -387,31 +388,31 @@ class _LogResponse(Response):
         response_json = self.parse_response_data(responses)
 
         # Choices can be empty list with the openai version > 1.26.0
-        if not response_json.get("choices"):
-            response_json["choices"] = [{"index": 0}]
+        # if not response_json.get("choices"):
+        #     response_json["choices"] = [{"index": 0}]
 
-        if response_json.get("choices", []):
-            # It will only set finish_reason for openai version > 1.26.0
-            if self.finish_reason:
-                response_json["choices"][0]["finish_reason"] = self.finish_reason
+        # if response_json.get("choices", []):
+        #     # It will only set finish_reason for openai version > 1.26.0
+        #     if self.finish_reason:
+        #         response_json["choices"][0]["finish_reason"] = self.finish_reason
 
-            if self.full_content:
-                response_json["choices"][0]["message"] = {
-                    "role": "assistant",
-                    "content": self.full_content,
-                }
-            elif self.tool_calls:
-                response_json["choices"][0]["message"] = {
-                    "content": None,
-                    "role": "assistant",
-                    "tool_calls": self.tool_calls,
-                }
-            elif self.function_name and self.full_argument:
-                # function is deprecated in openai api
-                response_json["choices"][0]["function_call"] = {
-                    "name": self.function_name,
-                    "arguments": self.full_argument,
-                }
+        #     if self.full_content:
+        #         response_json["choices"][0]["message"] = {
+        #             "role": "assistant",
+        #             "content": self.full_content,
+        #         }
+        #     elif self.tool_calls:
+        #         response_json["choices"][0]["message"] = {
+        #             "content": None,
+        #             "role": "assistant",
+        #             "tool_calls": self.tool_calls,
+        #         }
+        #     elif self.function_name and self.full_argument:
+        #         # function is deprecated in openai api
+        #         response_json["choices"][0]["function_call"] = {
+        #             "name": self.function_name,
+        #             "arguments": self.full_argument,
+        #         }
 
         self.log_row["response"] = json.dumps(response_json)
         self.log_row["status"] = "finished"
@@ -475,6 +476,7 @@ class _LogResponse(Response):
         output_tokens = 0
         tool_calls = []
         arguments = ""
+
         for r in responses:
             if not r:
                 break
@@ -511,6 +513,7 @@ class _LogResponse(Response):
                     self.full_content += delta_text
 
                 if delta_partial_json := delta.get("partial_json", ""):
+                    ## ???
                     if self.full_content:
                         self.full_content += delta_partial_json
                     else:

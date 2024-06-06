@@ -1052,9 +1052,9 @@ def log10(module, DEBUG_=True, USE_ASYNC_=True):
 
         module.Anthropic.__init__ = new_init
 
-        aorigin_init = module.AsyncAnthropic.__init__
+        async_origin_init = module.AsyncAnthropic.__init__
 
-        def anew_init(self, *args, **kwargs):
+        def async_new_init(self, *args, **kwargs):
             logger.debug("LOG10: patching AsyncAnthropic.__init__")
             import httpx
 
@@ -1075,9 +1075,9 @@ def log10(module, DEBUG_=True, USE_ASYNC_=True):
                 transport=_AsyncLogTransport(httpx.AsyncHTTPTransport(), event_hook_manager),
             )
             kwargs["http_client"] = async_httpx_client
-            aorigin_init(self, *args, **kwargs)
+            async_origin_init(self, *args, **kwargs)
 
-        module.AsyncAnthropic.__init__ = anew_init
+        module.AsyncAnthropic.__init__ = async_new_init
     elif module.__name__ == "lamini":
         attr = module.api.utils.completion.Completion
         method = getattr(attr, "generate")
@@ -1113,17 +1113,21 @@ def log10(module, DEBUG_=True, USE_ASYNC_=True):
                 import httpx
 
                 from log10._httpx_utils import (
-                    _LogTransport,
-                    alog_request,
-                    get_completion_id,
+                    # _LogTransport,
+                    # alog_request,
+                    # get_completion_id,
+                     _AsyncEventHookManager,
+                    _AsyncLogTransport,
                 )
 
-                event_hooks = {
-                    "request": [get_completion_id, alog_request],
-                }
+                event_hook_manager = _AsyncEventHookManager()
+
+                # event_hooks = {
+                #     "request": [get_completion_id, alog_request],
+                # }
                 async_httpx_client = httpx.AsyncClient(
-                    event_hooks=event_hooks,
-                    transport=_LogTransport(httpx.AsyncHTTPTransport()),
+                    event_hooks=event_hook_manager.event_hooks,
+                    transport=_AsyncLogTransport(httpx.AsyncHTTPTransport()),
                 )
                 kwargs["http_client"] = async_httpx_client
                 origin_init(self, *args, **kwargs)
