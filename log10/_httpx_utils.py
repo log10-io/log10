@@ -9,7 +9,7 @@ import httpx
 from httpx import Request, Response
 
 from log10.llm import Log10Config
-from log10.load import get_log10_session_tags, session_id_var, last_completion_response_var
+from log10.load import get_log10_session_tags, last_completion_response_var, session_id_var
 
 
 logger: logging.Logger = logging.getLogger("LOG10")
@@ -335,11 +335,11 @@ class _EventHookManager:
         check_provider_request(request)
         self.completion_id = get_completion_id(request)
 
-
     def log_request(self, request: httpx.Request):
         logger.debug("LOG10: sending sync request")
         self.log_row = _init_log_row(request)
         _try_post_request(url=f"{base_url}/api/completions/{self.completion_id}", payload=self.log_row)
+
 
 class _AsyncEventHookManager:
     def __init__(self):
@@ -366,11 +366,11 @@ class _LogResponse(Response):
         self.log_row = kwargs["log_row"]
         del kwargs["log_row"]
         super().__init__(*args, **kwargs)
-        self.full_content = ""
-        self.function_name = ""
-        self.full_argument = ""
-        self.tool_calls = []
-        self.finish_reason = ""
+        # self.full_content = ""
+        # self.function_name = ""
+        # self.full_argument = ""
+        # self.tool_calls = []
+        # self.finish_reason = ""
 
     def patch_streaming_log(self, duration: int, full_response: str):
         current_stack_frame = traceback.extract_stack()
@@ -468,20 +468,19 @@ class _LogResponse(Response):
         return "data: [DONE]" in text
 
     def parse_anthropic_responses(self, responses: list[str]):
-        message_id = None
-        model = None
+        message_id = ""
+        model = ""
         finish_reason = None
         full_content = ""
         input_tokens = 0
         output_tokens = 0
         tool_calls = []
+        tool_call = {}
         arguments = ""
 
         for r in responses:
             if not r:
                 break
-
-            tool_call = {}
 
             data_index = r.find("data:")
             r_json = json.loads(r[data_index + len("data:") :])
@@ -498,34 +497,31 @@ class _LogResponse(Response):
                 content_block = r_json.get("content_block", {})
                 content_block_type = content_block.get("type", "")
                 if content_block_type == "tool_use":
-                    id = content_block.get("id", "")
                     tool_call = {
-                        "id": id,
+                        "id": content_block.get("id", ""),
                         "type": "function",
                         "function": {"name": content_block.get("name", ""), "arguments": ""},
                     }
-
-                if content_block_text := content_block.get("text", ""):
-                    self.full_content += content_block_text
+                if content_block_type == "text":
+                    full_content += content_block.get("text", "")
             elif type == "content_block_delta":
                 delta = r_json.get("delta", {})
-                if delta_text := delta.get("text", ""):
-                    self.full_content += delta_text
+                if (delta_text := delta.get("text")) is not None:
+                    full_content += delta_text
 
-                if delta_partial_json := delta.get("partial_json", ""):
-                    ## ???
-                    if self.full_content:
-                        self.full_content += delta_partial_json
-                    else:
-                        arguments += delta_partial_json
+                if (delta_partial_json := delta.get("partial_json")) is not None:
+                    ## If there is a content of chain of thoughts,
+                    ## then the next one should be append to the tool_call
+                    arguments += delta_partial_json
             elif type == "message_delta":
                 finish_reason = r_json.get("delta", {}).get("stop_reason", "")
                 output_tokens = r_json.get("usage", {}).get("output_tokens", 0)
-            elif type == "content_block_end" or type == "message_end":
+            elif type == "content_block_stop" or type == "message_stop":
                 if tool_call:
                     tool_call["function"]["arguments"] = arguments
                     tool_calls.append(tool_call)
                     arguments = ""
+                    tool_call = {}
 
         response = {
             "id": message_id,
@@ -566,11 +562,11 @@ class _LogResponse(Response):
 
     def parse_openai_responses(self, responses: list[str]):
         r_json = {}
-        # r_json = None
         tool_calls = []
         full_content = ""
         function_name = ""
         full_argument = ""
+        finish_reason = ""
 
         for r in responses:
             if self.is_openai_response_end_reached(r):
@@ -586,26 +582,26 @@ class _LogResponse(Response):
                     # Delta may have content
                     # delta: { "content": " "}
                     if content := delta.get("content", ""):
-                        self.full_content += content
+                        full_content += content
 
                     # May be a function call, and have to reconstruct the arguments
                     if function_call := delta.get("function_call", {}):
                         # May be function name
-                        if function_name := function_call.get("name", ""):
-                            self.function_name = function_name
+                        if function_call_name := function_call.get("name", ""):
+                            function_name = function_call_name
                         # May be function arguments
                         if arguments := function_call.get("arguments", ""):
-                            self.full_argument += arguments
+                            full_argument += arguments
 
                     if tc := delta.get("tool_calls", []):
                         if tc[0].get("id", ""):
-                            self.tool_calls.append(tc[0])
+                            tool_calls.append(tc[0])
                         elif tc[0].get("function", {}).get("arguments", ""):
                             idx = tc[0].get("index")
-                            self.tool_calls[idx]["function"]["arguments"] += tc[0]["function"]["arguments"]
+                            tool_calls[idx]["function"]["arguments"] += tc[0]["function"]["arguments"]
 
                 if fr := r_json["choices"][0].get("finish_reason", ""):
-                    self.finish_reason = fr
+                    finish_reason = fr
 
         r_json["object"] = "chat.completion"
         # r_json is the last response before "data: [DONE]"
@@ -616,25 +612,25 @@ class _LogResponse(Response):
 
         if response_json.get("choices", []):
             # It will only set finish_reason for openai version > 1.26.0
-            if self.finish_reason:
-                response_json["choices"][0]["finish_reason"] = self.finish_reason
+            if finish_reason:
+                response_json["choices"][0]["finish_reason"] = finish_reason
 
-            if self.full_content:
+            if full_content:
                 response_json["choices"][0]["message"] = {
                     "role": "assistant",
-                    "content": self.full_content,
+                    "content": full_content,
                 }
-            elif self.tool_calls:
+            elif tool_calls:
                 response_json["choices"][0]["message"] = {
                     "content": None,
                     "role": "assistant",
-                    "tool_calls": self.tool_calls,
+                    "tool_calls": tool_calls,
                 }
-            elif self.function_name and self.full_argument:
+            elif function_name and full_argument:
                 # function is deprecated in openai api
                 response_json["choices"][0]["function_call"] = {
-                    "name": self.function_name,
-                    "arguments": self.full_argument,
+                    "name": function_name,
+                    "arguments": full_argument,
                 }
 
         return response_json

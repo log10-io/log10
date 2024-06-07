@@ -142,6 +142,8 @@ class Anthropic(LLM):
             reason = "stop"
         elif response.stop_reason == "max_tokens":
             reason = "length"
+        else:
+            reason = response.stop_reason
 
         ret_response = {
             "id": response.id,
@@ -151,6 +153,7 @@ class Anthropic(LLM):
                 {
                     "index": 0,
                     "finish_reason": reason,
+                    "message": {"role": response.role},
                 }
             ],
         }
@@ -164,12 +167,10 @@ class Anthropic(LLM):
 
             if isinstance(response.content, list):
                 tool_calls = []
-                message_choices = []
 
                 for index, content in enumerate(response.content):
                     if isinstance(content, anthropic.types.TextBlock):
-                        message = {"message": {"role": response.role, "content": content.text}}
-                        message_choices.append(message)
+                        ret_response["choices"][0]["message"]["content"] = content.text
 
                     if isinstance(content, anthropic.types.ToolUseBlock):
                         tool_call = {
@@ -185,15 +186,8 @@ class Anthropic(LLM):
                         tool_calls.append(tool_call)
 
                 if tool_calls:
-                    message = {
-                        "message": {
-                            "role": response.role,
-                            "tool_calls": tool_calls,
-                        }
-                    }
-                    message_choices.append(message)
+                    ret_response["choices"][0]["message"]["tool_calls"] = tool_calls
 
-                ret_response["choices"] = message_choices
         elif isinstance(response, anthropic.types.Completion):
             tokens_usage = Anthropic.create_tokens_usage(input_prompt, response.completion)
             ret_response["choices"][0]["text"] = response.completion
