@@ -66,7 +66,7 @@ class _LogAssertion:
             message_content == self._message_content
         ), f"Message content does not match the generated completion for completion {self._completion_id}."
 
-    def assert_function_call_response(self):
+    def assert_tool_calls_response(self):
         assert self._function_args, "No function args generated from the model."
 
         self.get_completion()
@@ -84,3 +84,15 @@ class _LogAssertion:
         assert len(response_function_args) == len(
             self._function_args
         ), f"Function calls do not match the generated completion for completion {self._completion_id}."
+
+    def assert_anthropic_tool_calls_response(self, content):
+        ## Anthropic tool calls response might have chain of thought
+        ## and we store it as content in the message
+        self.assert_tool_calls_response()
+        if content:
+            choice = self.response_choices[0]
+            logged_content = choice.get("message", {}).get("content", "")
+            assert logged_content, f"No content logged for completion {self._completion_id}."
+            assert (
+                content == logged_content
+            ), f"Content does not match the generated completion for completion {self._completion_id}."

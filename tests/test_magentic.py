@@ -50,9 +50,7 @@ def test_function_logging(session, magentic_model):
 
     output = configure_oven("cookies!")
     function_args = format_magentic_function_args([output])
-    _LogAssertion(
-        completion_id=session.last_completion_id(), function_args=function_args
-    ).assert_function_call_response()
+    _LogAssertion(completion_id=session.last_completion_id(), function_args=function_args).assert_tool_calls_response()
 
 
 @pytest.mark.async_client
@@ -94,9 +92,7 @@ async def test_async_parallel_stream_logging(session, magentic_model):
         result.append(chunk)
 
     function_args = format_magentic_function_args(result)
-    _LogAssertion(
-        completion_id=session.last_completion_id(), function_args=function_args
-    ).assert_function_call_response()
+    _LogAssertion(completion_id=session.last_completion_id(), function_args=function_args).assert_tool_calls_response()
 
 
 @pytest.mark.async_client
@@ -166,6 +162,4 @@ async def test_async_widget(session, magentic_model):
     arguments = {"title": r.title, "description": r.description}
 
     function_args = [{"name": "return_widgetinfo", "arguments": str(arguments)}]
-    _LogAssertion(
-        completion_id=session.last_completion_id(), function_args=function_args
-    ).assert_function_call_response()
+    _LogAssertion(completion_id=session.last_completion_id(), function_args=function_args).assert_tool_calls_response()
