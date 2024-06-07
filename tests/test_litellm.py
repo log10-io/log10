@@ -51,7 +51,6 @@ async def test_completion_async_stream(anthropic_model):
 
     ## This test doesn't get completion_id from the session
     ## and logged a couple times during debug mode, punt this for now
-    await finalize()
     assert output, "No output from the model."
 
 
@@ -153,5 +152,4 @@ async def test_image_async_stream(session, anthropic_model):
             output += chunk.choices[0].delta.content
 
     time.sleep(3)
-    await finalize()
     _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()

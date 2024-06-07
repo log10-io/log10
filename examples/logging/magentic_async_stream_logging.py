@@ -3,6 +3,7 @@ import asyncio
 import openai
 from magentic import AsyncStreamedStr, prompt
 
+from log10._httpx_utils import finalize
 from log10.load import log10, log10_session
 
 
@@ -19,6 +20,7 @@ async def main():
         output = await tell_story("Europe.")
         async for chunk in output:
             print(chunk, end="", flush=True)
+    await finalize()
 
 
 asyncio.run(main())

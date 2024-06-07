@@ -5,6 +5,7 @@ import openai
 from openai import AsyncOpenAI
 from rich import print
 
+from log10._httpx_utils import finalize
 from log10.load import log10
 
 
@@ -72,6 +73,7 @@ async def run_conversation():
                 else:
                     tool_calls[-1].function.arguments += tc[0].function.arguments
     print(tool_calls)
+    await finalize()
     return
 
 

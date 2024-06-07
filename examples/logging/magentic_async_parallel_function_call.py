@@ -3,6 +3,7 @@ import asyncio
 import openai
 from magentic import AsyncParallelFunctionCall, prompt
 
+from log10._httpx_utils import finalize
 from log10.load import log10
 
 
@@ -25,6 +26,7 @@ async def main():
     output = await plus_and_minus(2, 3)
     async for chunk in output:
         print(chunk)
+    await finalize()
 
 
 asyncio.run(main())

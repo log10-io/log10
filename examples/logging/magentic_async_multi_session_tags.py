@@ -3,6 +3,7 @@ import asyncio
 import openai
 from magentic import AsyncStreamedStr, OpenaiChatModel, prompt
 
+from log10._httpx_utils import finalize
 from log10.load import log10, log10_session
 
 
@@ -28,6 +29,8 @@ async def main():
         result = await do_math_with_llm_async(3, 3)
         async for chunk in result:
             print(chunk, end="", flush=True)
+
+    await finalize()
 
 
 asyncio.run(main())

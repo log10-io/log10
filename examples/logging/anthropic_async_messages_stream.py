@@ -2,6 +2,7 @@ import asyncio
 
 import anthropic
 
+from log10._httpx_utils import finalize
 from log10.load import log10
 
 
@@ -30,6 +31,7 @@ async def main() -> None:
     # inside of the context manager
     accumulated = await stream.get_final_message()
     print("accumulated message: ", accumulated.to_json())
+    await finalize()
 
 
 asyncio.run(main())
