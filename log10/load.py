@@ -393,104 +393,6 @@ class StreamingResponseWrapper:
             raise se
 
 
-# class AnthropicStreamingResponseWrapper:
-#     """
-#     Wraps a streaming response object to log the final result and duration to log10.
-#     """
-
-#     def __enter__(self):
-#         self.response = self.response.__enter__()
-#         return self
-
-#     def __exit__(self, exc_type, exc_value, traceback):
-#         self.response.__exit__(exc_type, exc_value, traceback)
-#         return
-
-#     def __init__(self, completion_url, completionID, response, partial_log_row):
-#         self.completionID = completionID
-#         self.completion_url = completion_url
-#         self.partial_log_row = partial_log_row
-#         self.response = response
-#         self.final_result = ""
-#         self.start_time = time.perf_counter()
-#         self.message_id = None
-#         self.model = None
-#         self.finish_reason = None
-#         self.input_tokens = 0
-#         self.output_tokens = 0
-#         self.tool_calls = []
-
-#     def __iter__(self):
-#         return self
-
-#     def __next__(self):
-#         chunk = next(self.response)
-#         self._process_chunk(chunk)
-#         return chunk
-
-#     def _process_chunk(self, chunk):
-#         if chunk.type == "message_start":
-#             self.model = chunk.message.model
-#             self.message_id = chunk.message.id
-#             self.input_tokens = chunk.message.usage.input_tokens
-#         if chunk.type == "content_block_start":
-#             content_block = chunk.content_block
-#             if hasattr(content_block, "text"):
-#                 self.final_result += content_block.text
-#             if hasattr(content_block, "partial_json"):
-#                 content_block_type = content_block["type"]
-#                 if content_block_type == "tool_use":
-#                     id = content_block["id"]
-#                     tool_call = {
-#                         "id": id,
-#                         "type": "function",
-#                         "function": {"name": content_block["name"], "arguments": ""},
-#                     }
-#         elif chunk.type == "message_delta":
-#             self.finish_reason = chunk.delta.stop_reason
-#             self.output_tokens = chunk.usage.output_tokens
-#         elif chunk.type == "content_block_delta":
-#             if hasattr(chunk.delta, "text"):
-#                 self.final_result += chunk.delta.text
-#             if hasattr(chunk.delta, "partial_json"):
-#                 self.final_result += chunk.delta.partial_json
-#         elif chunk.type == "message_stop" or chunk.type == "content_block_stop":
-#             if tool_call:
-#                 tool_call["function"]["arguments"] = arguments
-#                 self.tool_calls.append(tool_call)
-#                 arguments = ""
-
-#             response = {
-#                 "id": self.message_id,
-#                 "object": "chat",
-#                 "model": self.model,
-#                 "choices": [
-#                     {
-#                         "index": 0,
-#                         "finish_reason": self.finish_reason,
-#                         "message": {
-#                             "role": "assistant",
-#                             "content": self.final_result,
-#                         },
-#                     }
-#                 ],
-#                 "usage": {
-#                     "prompt_tokens": self.input_tokens,
-#                     "completion_tokens": self.output_tokens,
-#                     "total_tokens": self.input_tokens + self.output_tokens,
-#                 },
-#             }
-#             self.partial_log_row["response"] = json.dumps(response)
-#             self.partial_log_row["duration"] = int((time.perf_counter() - self.start_time) * 1000)
-#             _url = f"{self.completion_url}/{self.completionID}"
-#             res = post_request(_url, self.partial_log_row)
-#             if res.status_code != 200:
-#                 logger.error(f"Failed to insert in log10: {self.partial_log_row} with error {res.text}. Skipping")
-
-#     # def model_dump_json(self, **kwargs):
-#     #     return self.response.model_dump_json(**kwargs)
-
-
 def flatten_messages(messages):
     flat_messages = []
     for message in messages:
@@ -547,61 +449,7 @@ def _init_log_row(func, *args, **kwargs):
     # kind and request are set based on the module and qualname
     # request is based on openai schema
     if "anthropic" in func.__module__:
-        logger.warn("Should not reach here")
-        # from anthropic._utils._utils import strip_not_given
-
-        # kwargs_copy = strip_not_given(kwargs_copy)
-        # log_row["kind"] = "chat" if "message" in func.__module__ else "completion"
-        # # set system message
-        # if "system" in kwargs_copy:
-        #     kwargs_copy["messages"].insert(0, {"role": "system", "content": kwargs_copy["system"]})
-        # if "messages" in kwargs_copy:
-        #     tools = kwargs_copy.get("tools", [])
-        #     tool_calls = []
-        #     for m in kwargs_copy["messages"]:
-        #         if isinstance(m.get("content"), list):
-        #             new_content = []
-        #             for c in m.get("content", ""):
-        #                 if isinstance(c, anthropic.types.ToolUseBlock):
-        #                     for tool in tools:
-        #                         if tool.get("name") == c.name:
-        #                             tool_call = {
-        #                                 "type": "function",
-        #                                 "function": {
-        #                                     "name": c.name,
-        #                                     "description": tools[0].get("description", ""),
-        #                                     "parameters": {
-        #                                         "type": "object",
-        #                                         "properties": tool.get("input_schema", {}).get("properties", {}),
-        #                                     },
-        #                                 },
-        #                             }
-
-        #                             tool_calls.append(tool_call)
-        #                 ### TODO need to test with image scenario
-        #                 # if hasattr(c, "type") and c.get("type") == "image":
-        #                 #     image_type = c.get("source", {}).get("media_type", "")
-        #                 #     image_data = c.get("source", {}).get("data", "")
-        #                 #     new_content.append(
-        #                 #         {
-        #                 #             "type": "image_url",
-        #                 #             "image_url": {"url": f"data:{image_type};base64,{image_data}"},
-        #                 #         }
-        #                 #     )
-        #                 else:
-        #                     new_content.append(c)
-        #             m["content"] = new_content
-        # if "tools" in kwargs_copy:
-        #     for t in kwargs_copy["tools"]:
-        #         new_function = {
-        #             "name": t.get("name", None),
-        #             "description": t.get("description", None),
-        #             "parameters": {
-        #                 "properties": t.get("input_schema", {}).get("properties", None),
-        #             },
-        #         }
-        #         t["function"] = new_function
-        #         t.pop("input_schema", None)
+        logger.warning("Should not reach here")
     elif "vertexai" in func.__module__:
         if func.__name__ == "_send_message":
             # get model name save in ChatSession instance
@@ -750,20 +598,8 @@ def intercepting_decorator(func):
                 response = output
                 # Adjust the Anthropic output to match OAI completion output
                 if "anthropic" in func.__module__:
-                    logger.warn("Should not reach here")
-                    # if type(output).__name__ == "Stream" or "MessageStreamManager" in type(output).__name__:
-                    #     log_row["response"] = response
-                    #     log_row["status"] = "finished"
-                    #     return AnthropicStreamingResponseWrapper(
-                    #         completion_url=completion_url,
-                    #         completionID=completionID,
-                    #         response=response,
-                    #         partial_log_row=log_row,
-                    #     )
+                    logger.warning("Should not reach here")
 
-                    # from log10.anthropic import Anthropic
-
-                    # response = Anthropic.prepare_response(output, input_prompt=kwargs.get("prompt", ""))
                 elif "vertexai" in func.__module__:
                     response = output
                     reason = response.candidates[0].finish_reason.name
@@ -1011,19 +847,6 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         return
 
     if module.__name__ == "anthropic":
-        # attr = module.resources.completions.Completions
-        # method = getattr(attr, "create")
-        # setattr(attr, "create", intercepting_decorator(method))
-
-        # # anthropic Messages completion
-        # attr = module.resources.messages.Messages
-        # method = getattr(attr, "create")
-        # setattr(attr, "create", intercepting_decorator(method))
-
-        # attr = module.resources.messages.Messages
-        # method = getattr(attr, "stream")
-        # setattr(attr, "stream", intercepting_decorator(method))
-
         origin_init = module.Anthropic.__init__
 
         def new_init(self, *args, **kwargs):
@@ -1059,17 +882,12 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
             import httpx
 
             from log10._httpx_utils import (
-                # alog_request,
-                # get_completion_id,
                 _AsyncEventHookManager,
                 _AsyncLogTransport,
             )
 
             event_hook_manager = _AsyncEventHookManager()
 
-            # event_hooks = {
-            #     "request": [get_completion_id, alog_request],
-            # }
             async_httpx_client = httpx.AsyncClient(
                 event_hooks=event_hook_manager.event_hooks,
                 transport=_AsyncLogTransport(httpx.AsyncHTTPTransport(), event_hook_manager),
@@ -1113,21 +931,15 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
                 import httpx
 
                 from log10._httpx_utils import (
-                    # _LogTransport,
-                    # alog_request,
-                    # get_completion_id,
                     _AsyncEventHookManager,
                     _AsyncLogTransport,
                 )
 
                 event_hook_manager = _AsyncEventHookManager()
 
-                # event_hooks = {
-                #     "request": [get_completion_id, alog_request],
-                # }
                 async_httpx_client = httpx.AsyncClient(
                     event_hooks=event_hook_manager.event_hooks,
-                    transport=_AsyncLogTransport(httpx.AsyncHTTPTransport()),
+                    transport=_AsyncLogTransport(httpx.AsyncHTTPTransport(), event_hook_manager),
                 )
                 kwargs["http_client"] = async_httpx_client
                 origin_init(self, *args, **kwargs)
