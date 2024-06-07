@@ -5,7 +5,6 @@ import httpx
 import litellm
 import pytest
 
-from log10._httpx_utils import finalize
 from log10.litellm import Log10LitellmLogger
 from tests.utils import _LogAssertion
 
