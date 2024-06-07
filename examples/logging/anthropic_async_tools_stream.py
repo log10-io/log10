@@ -3,6 +3,7 @@ import asyncio
 import anthropic
 from anthropic import AsyncAnthropic
 
+from log10._httpx_utils import finalize
 from log10.load import log10
 
 
@@ -42,6 +43,7 @@ async def run_conversation():
         max_tokens=1024,
     ) as stream:
         await stream.until_done()
+    await finalize()
 
 
 asyncio.run(run_conversation())

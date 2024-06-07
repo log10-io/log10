@@ -5,6 +5,7 @@ from anthropic import AsyncAnthropic, AsyncMessageStream
 from anthropic.types import MessageStreamEvent
 from typing_extensions import override
 
+from log10._httpx_utils import finalize
 from log10.load import log10
 
 
@@ -33,6 +34,8 @@ async def main() -> None:
     ) as stream:
         accumulated = await stream.get_final_message()
         print("accumulated message: ", accumulated.to_json())
+
+    await finalize()
 
 
 asyncio.run(main())

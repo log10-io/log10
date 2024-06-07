@@ -5,6 +5,7 @@ from anthropic import AsyncAnthropic
 from anthropic.lib.streaming.beta import AsyncToolsBetaMessageStream
 from typing_extensions import override
 
+from log10._httpx_utils import finalize
 from log10.load import log10
 
 
@@ -49,6 +50,7 @@ async def main() -> None:
     ) as stream:
         await stream.until_done()
 
+    await finalize()
     print()
 
 

@@ -4,6 +4,7 @@ import anthropic
 from magentic import UserMessage, chatprompt
 from magentic.chat_model.anthropic_chat_model import AnthropicChatModel
 
+from log10._httpx_utils import finalize
 from log10.load import log10
 
 
@@ -18,6 +19,7 @@ async def main(topic: str) -> str:
     async def tell_joke(topic: str) -> str: ...
 
     print(await tell_joke(topic))
+    await finalize()
 
 
 asyncio.run(main("cats"))

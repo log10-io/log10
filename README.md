@@ -99,6 +99,30 @@ from log10.anthropic import Anthropic
 llm = Anthropic({"model": "claude-2"}, log10_config=Log10Config())
 ```
 
+#### Asynchronous LLM calls
+We support OpenAI and Anthropic Async-client (e.g. AsyncOpenAI and AsyncAnthropic client) in their Python SDK
+You could use the same code `log10(openai)` or `log10(anthropic)` and then call the async-client to start loggin asynchronous mode (including streaming).
+
+Release `0.9.0` includes significant improvements in how we handle concurrency while using LLM in asynchronous streaming mode.
+This update is designed to ensure that logging at steady state incurs no overhead (previously up to 1-2 seconds), providing a smoother and more efficient experience in latency critical settings.
+
+__Important Considerations for Short-Lived Scripts__:
+> 💡For short-lived scripts using asynchronous streaming, it's important to note that you may need to wait until all logging requests have been completed before terminating your script.
+We have provided a convenient method called `finalize()` to handle this.
+Here's how you can implement this in your code:
+
+``` python
+from log10._httpx_utils import finalize
+
+...
+
+await finalize()
+```
+Ensure `finalize()` is called once, at the very end of your event loop to guarantee that all pending logging requests are processed before the script exits.
+
+
+For more details, check [async logging examples](./examples/logging/).
+
 #### Open-source LLMs
 Log open-source LLM calls, e.g. Llama-2, Mistral, etc from providers.
 Currently we support inference endpoints on Together.AI and MosaicML (ranked on the top based on our [benchmarking](https://arjunbansal.substack.com/p/which-llama-2-inference-api-should-i-use) on Llama-2 inference providers).
