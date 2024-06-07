@@ -1,11 +1,14 @@
-from anthropic import NOT_GIVEN
+import anthropic
+from anthropic import NOT_GIVEN, Anthropic
 
-from log10.load import Anthropic
+from log10.load import log10
 
+
+log10(anthropic)
 
 client = Anthropic()
 
-completion = client.beta.tools.messages.create(
+completion = client.messages.create(
     model="claude-3-haiku-20240307",
     messages=[
         {

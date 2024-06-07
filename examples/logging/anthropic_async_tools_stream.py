@@ -1,47 +1,41 @@
 import asyncio
 
-import anthropic
 from anthropic import AsyncAnthropic
 
-from log10.load import log10
-
-
-log10(anthropic)
 
 client = AsyncAnthropic()
 
 
-async def run_conversation():
-    tools = [
-        {
-            "name": "get_weather",
-            "description": "Get the weather in a given location",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "location": {"type": "string", "description": "The city and state, e.g. San Francisco, CA"},
-                    "unit": {
-                        "type": "string",
-                        "enum": ["celsius", "fahrenheit"],
-                        "description": 'The unit of temperature, either "celsius" or "fahrenheit"',
-                    },
-                },
-                "required": ["location"],
-            },
-        }
-    ]
-    async with client.beta.tools.messages.stream(
+async def main() -> None:
+    async with client.messages.stream(
+        max_tokens=1024,
         model="claude-3-haiku-20240307",
-        tools=tools,
-        messages=[
+        tools=[
             {
-                "role": "user",
-                "content": "What's the weather like in San Francisco?",
+                "name": "get_weather",
+                "description": "Get the weather at a specific location",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "location": {"type": "string", "description": "The city and state, e.g. San Francisco, CA"},
+                        "unit": {
+                            "type": "string",
+                            "enum": ["celsius", "fahrenheit"],
+                            "description": "Unit for the output",
+                        },
+                    },
+                    "required": ["location"],
+                },
             }
         ],
-        max_tokens=1024,
+        messages=[{"role": "user", "content": "What is the weather in SF?"}],
     ) as stream:
-        await stream.until_done()
+        async for event in stream:
+            if event.type == "input_json":
+                print(f"delta: {repr(event.partial_json)}")
+                print(f"snapshot: {event.snapshot}")
+
+    print()
 
 
-asyncio.run(run_conversation())
+asyncio.run(main())
