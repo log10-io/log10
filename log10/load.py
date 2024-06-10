@@ -449,7 +449,7 @@ def _init_log_row(func, *args, **kwargs):
     # kind and request are set based on the module and qualname
     # request is based on openai schema
     if "anthropic" in func.__module__:
-        logger.debug("Anthropic cals are patched via httpx client, should not reach here.")
+        logger.debug("Anthropic calls are patched via httpx client, should not reach here.")
     elif "vertexai" in func.__module__:
         if func.__name__ == "_send_message":
             # get model name save in ChatSession instance
@@ -598,7 +598,7 @@ def intercepting_decorator(func):
                 response = output
                 # Adjust the Anthropic output to match OAI completion output
                 if "anthropic" in func.__module__:
-                    logger.debug("Anthropic cals are patched via httpx client, should not reach here.")
+                    logger.debug("Anthropic calls are patched via httpx client, should not reach here.")
 
                 elif "vertexai" in func.__module__:
                     response = output
@@ -741,7 +741,7 @@ def set_sync_log_text(USE_ASYNC=True):
 
 def log10(module, DEBUG_=False, USE_ASYNC_=True):
     """Intercept and overload module for logging purposes
-    support both openai V0 and V1, anthropic, vertexai, and mistralai
+    support both openai V0 and V1, vertexai, and mistralai
 
     Keyword arguments:
     module -- the module to be intercepted (e.g. openai)
@@ -789,33 +789,6 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         >>> ]
         >>> completion = llm.predict_messages(messages)
         >>> print(completion)
-
-    Example:
-        >>> from log10.load import log10
-        >>> import anthropic
-        >>> log10(anthropic)
-        >>> from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
-        >>> anthropic = Anthropic()
-        >>> completion = anthropic.completions.create(
-        >>>     model="claude-1",
-        >>>     max_tokens_to_sample=32,
-        >>>     prompt=f"{HUMAN_PROMPT} Hi, how are you? {AI_PROMPT}",
-        >>> )
-        >>> print(completion.completion)
-
-    Example:
-        >>> from log10.load import log10
-        >>> import anthropic
-        >>> from langchain.chat_models import ChatAnthropic
-        >>> from langchain.schema import HumanMessage, SystemMessage
-        >>> log10(anthropic)
-        >>> llm = ChatAnthropic(model="claude-1", temperature=0.7)
-        >>> messages = [
-        >>>     SystemMessage(content="You are a ping pong machine"),
-        >>>     HumanMessage(content="Ping?")
-        >>> ]
-        >>> completion = llm.predict_messages(messages)
-        >>> print(completion)
     """
     global DEBUG, USE_ASYNC, sync_log_text
     DEBUG = DEBUG_ or os.environ.get("LOG10_DEBUG", False)
@@ -847,55 +820,10 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         return
 
     if module.__name__ == "anthropic":
-        origin_init = module.Anthropic.__init__
+        from log10._httpx_utils import InitPatcher
 
-        def new_init(self, *args, **kwargs):
-            logger.debug("LOG10: patching Anthropic.__init__")
-            import httpx
-
-            from log10._httpx_utils import (
-                # get_completion_id,
-                # log_request,
-                _EventHookManager,
-                _LogTransport,
-            )
-
-            event_hook_manager = _EventHookManager()
-
-            # event_hooks = {
-            #     "request": [get_completion_id, log_request],
-            # }
-            httpx_client = httpx.Client(
-                event_hooks=event_hook_manager.event_hooks,
-                # event_hooks=event_hooks,
-                transport=_LogTransport(httpx.HTTPTransport(), event_hook_manager),
-            )
-            kwargs["http_client"] = httpx_client
-            origin_init(self, *args, **kwargs)
-
-        module.Anthropic.__init__ = new_init
-
-        async_origin_init = module.AsyncAnthropic.__init__
-
-        def async_new_init(self, *args, **kwargs):
-            logger.debug("LOG10: patching AsyncAnthropic.__init__")
-            import httpx
-
-            from log10._httpx_utils import (
-                _AsyncEventHookManager,
-                _AsyncLogTransport,
-            )
-
-            event_hook_manager = _AsyncEventHookManager()
-
-            async_httpx_client = httpx.AsyncClient(
-                event_hooks=event_hook_manager.event_hooks,
-                transport=_AsyncLogTransport(httpx.AsyncHTTPTransport(), event_hook_manager),
-            )
-            kwargs["http_client"] = async_httpx_client
-            async_origin_init(self, *args, **kwargs)
-
-        module.AsyncAnthropic.__init__ = async_new_init
+        # Patch the AsyncAnthropic and Anthropic class
+        InitPatcher(module, "AsyncAnthropic", "Anthropic")
     elif module.__name__ == "lamini":
         attr = module.api.utils.completion.Completion
         method = getattr(attr, "generate")
@@ -923,29 +851,10 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
             setattr(attr, "create", intercepting_decorator(method))
 
             # support for async completions
-            # patch module.AsyncOpenAI.__init__ to new_init
-            origin_init = module.AsyncOpenAI.__init__
+            from log10._httpx_utils import InitPatcher
 
-            def new_init(self, *args, **kwargs):
-                logger.debug("LOG10: patching AsyncOpenAI.__init__")
-                import httpx
-
-                from log10._httpx_utils import (
-                    _AsyncEventHookManager,
-                    _AsyncLogTransport,
-                )
-
-                event_hook_manager = _AsyncEventHookManager()
-
-                async_httpx_client = httpx.AsyncClient(
-                    event_hooks=event_hook_manager.event_hooks,
-                    transport=_AsyncLogTransport(httpx.AsyncHTTPTransport(), event_hook_manager),
-                )
-                kwargs["http_client"] = async_httpx_client
-                origin_init(self, *args, **kwargs)
-
-            module.AsyncOpenAI.__init__ = new_init
-
+            # Patch the AsyncOpenAI class
+            InitPatcher(module, "AsyncOpenAI")
         else:
             attr = module.api_resources.completion.Completion
             method = getattr(attr, "create")
