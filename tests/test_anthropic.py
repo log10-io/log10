@@ -19,13 +19,15 @@ def test_completions_create(session, anthropic_legacy_model):
     completion = client.completions.create(
         model=anthropic_legacy_model,
         prompt=f"\n\nHuman:Help me create some similes to describe a person's laughter that is joyful and contagious?{anthropic.AI_PROMPT}",
+        temperature=0,
         max_tokens_to_sample=1024,
-        temperature=0.0,
+        top_p=1,
+        top_k=0,
     )
 
-    text = completion.choices[0].text
+    text = completion.completion
     assert isinstance(text, str)
-    _LogAssertion(completion_id=session.last_completion_id(), message_content=text).assert_text_response()
+    _LogAssertion(completion_id=session.last_completion_id(), text=text).assert_text_response()
 
 
 @pytest.mark.chat

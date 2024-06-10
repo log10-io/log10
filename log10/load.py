@@ -449,7 +449,7 @@ def _init_log_row(func, *args, **kwargs):
     # kind and request are set based on the module and qualname
     # request is based on openai schema
     if "anthropic" in func.__module__:
-        logger.warning("Should not reach here")
+        logger.debug("Anthropic cals are patched via httpx client, should not reach here.")
     elif "vertexai" in func.__module__:
         if func.__name__ == "_send_message":
             # get model name save in ChatSession instance
@@ -598,7 +598,7 @@ def intercepting_decorator(func):
                 response = output
                 # Adjust the Anthropic output to match OAI completion output
                 if "anthropic" in func.__module__:
-                    logger.warning("Should not reach here")
+                    logger.debug("Anthropic cals are patched via httpx client, should not reach here.")
 
                 elif "vertexai" in func.__module__:
                     response = output

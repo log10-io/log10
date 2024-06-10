@@ -153,12 +153,15 @@ class Anthropic(LLM):
                 {
                     "index": 0,
                     "finish_reason": reason,
-                    "message": {"role": response.role},
                 }
             ],
         }
 
         if isinstance(response, anthropic.types.Message):
+            ret_response["choices"][0]["message"] = {
+                "role": response.role,
+            }
+
             tokens_usage = {
                 "prompt_tokens": response.usage.input_tokens,
                 "completion_tokens": response.usage.output_tokens,
