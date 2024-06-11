@@ -2,6 +2,7 @@ import asyncio
 
 import anthropic
 
+from log10._httpx_utils import finalize
 from log10.load import log10
 
 
@@ -23,6 +24,7 @@ async def main() -> None:
     )
 
     print(message)
+    await finalize()
 
 
 asyncio.run(main())

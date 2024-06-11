@@ -5,6 +5,7 @@ import httpx
 import pytest
 from anthropic import NOT_GIVEN
 
+from log10._httpx_utils import finalize
 from log10.load import log10
 from tests.utils import _LogAssertion
 
@@ -49,7 +50,7 @@ def test_messages_create(session, anthropic_model):
 
 @pytest.mark.chat
 @pytest.mark.async_client
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="module")
 async def test_messages_create_async(session, anthropic_model):
     client = anthropic.AsyncAnthropic()
 
@@ -63,6 +64,8 @@ async def test_messages_create_async(session, anthropic_model):
 
     text = message.content[0].text
     assert isinstance(text, str)
+
+    await finalize()
     _LogAssertion(completion_id=session.last_completion_id(), message_content=text).assert_chat_response()
 
 
@@ -181,7 +184,7 @@ def test_messages_stream_context_manager(session, anthropic_model):
 @pytest.mark.stream
 @pytest.mark.context_manager
 @pytest.mark.async_client
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="module")
 async def test_messages_stream_context_manager_async(session, anthropic_model):
     client = anthropic.AsyncAnthropic()
 
@@ -199,6 +202,7 @@ async def test_messages_stream_context_manager_async(session, anthropic_model):
         async for text in stream.text_stream:
             output += text
 
+    await finalize()
     _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
 
@@ -252,7 +256,7 @@ def test_tools_messages_stream_context_manager(session, anthropic_model):
 @pytest.mark.stream
 @pytest.mark.context_manager
 @pytest.mark.async_client
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="module")
 async def test_tools_messages_stream_context_manager_async(session, anthropic_model):
     client = anthropic.AsyncAnthropic()
     full_content = ""
@@ -291,6 +295,8 @@ async def test_tools_messages_stream_context_manager_async(session, anthropic_mo
                     if isinstance(content, anthropic.types.ToolUseBlock):
                         arguments = str(content.input)
                         function_name = content.name
+
+    await finalize()
 
     function_args = [{"name": function_name, "arguments": arguments}]
     _LogAssertion(

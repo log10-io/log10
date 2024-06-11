@@ -1,7 +1,13 @@
 import asyncio
 
+import anthropic
 from anthropic import AsyncAnthropic
 
+from log10._httpx_utils import finalize
+from log10.load import log10
+
+
+log10(anthropic)
 
 client = AsyncAnthropic()
 
@@ -35,7 +41,7 @@ async def main() -> None:
                 print(f"delta: {repr(event.partial_json)}")
                 print(f"snapshot: {event.snapshot}")
 
-    print()
+    await finalize()
 
 
 asyncio.run(main())

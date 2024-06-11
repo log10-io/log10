@@ -3,6 +3,7 @@ import asyncio
 import openai
 from openai import AsyncOpenAI
 
+from log10._httpx_utils import finalize
 from log10.load import log10
 
 
@@ -17,6 +18,7 @@ async def main():
         messages=[{"role": "user", "content": "Say this is a test"}],
     )
     print(completion.choices[0].message.content)
+    await finalize()
 
 
 asyncio.run(main())

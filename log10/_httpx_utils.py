@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import time
@@ -358,7 +359,9 @@ class _AsyncEventHookManager:
     async def log_request(self, request: httpx.Request):
         logger.debug("LOG10: sending async request")
         self.log_row = _init_log_row(request)
-        await _try_post_request_async(url=f"{base_url}/api/completions/{self.completion_id}", payload=self.log_row)
+        asyncio.create_task(
+            _try_post_request_async(url=f"{base_url}/api/completions/{self.completion_id}", payload=self.log_row)
+        )
 
 
 class _LogResponse(Response):
@@ -414,8 +417,10 @@ class _LogResponse(Response):
                 completion_id = self.request.headers.get("x-log10-completion-id", "")
                 if finished and completion_id:
                     self.patch_streaming_log(duration, full_response)
-                    await _try_post_request_async(
-                        url=f"{base_url}/api/completions/{completion_id}", payload=self.log_row
+                    asyncio.create_task(
+                        _try_post_request_async(
+                            url=f"{base_url}/api/completions/{completion_id}", payload=self.log_row
+                        )
                     )
             yield chunk
 
@@ -672,7 +677,9 @@ class _AsyncLogTransport(httpx.AsyncBaseTransport):
             await response.aread()
             llm_response = response.json()
             log_row = patch_response(self.event_hook_manager.log_row, llm_response, request)
-            await _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+            asyncio.create_task(
+                _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+            )
             return response
         elif response.headers.get("content-type").startswith("text/event-stream"):
             return _LogResponse(
@@ -728,3 +735,9 @@ class InitPatcher:
         if self.sync_class_name:
             sync_class = getattr(self.module, self.sync_class_name)
             sync_class.__init__ = new_init
+
+
+async def finalize():
+    pending = asyncio.all_tasks()
+    pending.remove(asyncio.current_task())
+    await asyncio.gather(*pending)
