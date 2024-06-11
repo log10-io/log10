@@ -253,6 +253,78 @@ def test_tools_messages_stream_context_manager(session, anthropic_model):
 
 
 @pytest.mark.tools
+def test_tools_create(session, anthropic_model):
+    from anthropic.types import MessageParam, ToolParam
+
+    client = anthropic.Anthropic()
+
+    user_message: MessageParam = {
+        "role": "user",
+        "content": "What is the weather in SF?",
+    }
+    tools: list[ToolParam] = [
+        {
+            "name": "get_weather",
+            "description": "Get the weather for a specific location",
+            "input_schema": {
+                "type": "object",
+                "properties": {"location": {"type": "string"}},
+            },
+        }
+    ]
+
+    message = client.messages.create(
+        model="claude-3-opus-20240229",
+        max_tokens=1024,
+        messages=[user_message],
+        tools=tools,
+    )
+
+    full_content = ""
+    function_name = ""
+    arguments = ""
+    for c in message.content:
+        if isinstance(c, anthropic.types.TextBlock):
+            full_content = c.text
+        if isinstance(c, anthropic.types.ToolUseBlock):
+            arguments = str(c.input)
+            function_name = c.name
+
+    function_args = [{"name": function_name, "arguments": arguments}]
+
+    _LogAssertion(
+        completion_id=session.last_completion_id(), function_args=function_args
+    ).assert_anthropic_tool_calls_response(full_content)
+
+    tool = next(c for c in message.content if c.type == "tool_use")
+    response = client.messages.create(
+        model=anthropic_model,
+        max_tokens=1024,
+        messages=[
+            user_message,
+            {"role": message.role, "content": message.content},
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": tool.id,
+                        "content": [{"type": "text", "text": "The weather is 73f"}],
+                    }
+                ],
+            },
+        ],
+        tools=tools,
+    )
+
+    for c in response.content:
+        if isinstance(c, anthropic.types.TextBlock):
+            full_content = c.text
+
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=full_content).assert_chat_response()
+
+
+@pytest.mark.tools
 @pytest.mark.stream
 @pytest.mark.context_manager
 @pytest.mark.async_client
