@@ -2,7 +2,17 @@ from typing import Literal
 
 import openai
 import pytest
-from magentic import AsyncParallelFunctionCall, AsyncStreamedStr, FunctionCall, OpenaiChatModel, StreamedStr, prompt
+from magentic import (
+    AsyncParallelFunctionCall,
+    AsyncStreamedStr,
+    FunctionCall,
+    OpenaiChatModel,
+    StreamedStr,
+    SystemMessage,
+    chatprompt,
+    prompt,
+)
+from magentic.vision import UserImageMessage
 from pydantic import BaseModel
 
 from log10._httpx_utils import finalize
@@ -171,3 +181,18 @@ async def test_async_widget(session, magentic_model):
 
     await finalize()
     _LogAssertion(completion_id=session.last_completion_id(), function_args=function_args).assert_tool_calls_response()
+
+
+@pytest.mark.vision
+def test_large_image_upload(magentic_vision_model):
+    with open("./tests/large_image.png", "rb") as f:
+        image_bytes = f.read()
+
+    @chatprompt(
+        SystemMessage("What's in the following screenshot?"),
+        UserImageMessage(image_bytes),
+        model=OpenaiChatModel(model=magentic_vision_model),
+    )
+    def _llm() -> str: ...
+
+    _llm()

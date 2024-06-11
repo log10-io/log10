@@ -22,6 +22,8 @@ def pytest_addoption(parser):
 
     parser.addoption("--magentic_model", action="store", help="Model name for Magentic tests")
 
+    parser.addoption("--magentic_vision_model", action="store", help="Model name for Magentic vision tests")
+
 
 @pytest.fixture
 def openai_model(request):
@@ -61,6 +63,11 @@ def google_model(request):
 @pytest.fixture
 def magentic_model(request):
     return request.config.getoption("--magentic_model")
+
+
+@pytest.fixture
+def magentic_vision_model(request):
+    return request.config.getoption("--magentic_vision_model")
 
 
 @pytest.fixture
