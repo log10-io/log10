@@ -705,7 +705,11 @@ def intercepting_decorator(func):
                     while result_queue.empty():
                         pass
                     result = result_queue.get()
-                    completionID = result["completionID"]
+
+                    if result is None:
+                        return output
+
+                    completionID = result.get("completionID")
                     last_completion_response_var.set(result)
 
             with timed_block("result call duration (sync)"):
