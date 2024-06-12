@@ -1,3 +1,4 @@
+import os
 from typing import Literal
 
 import openai
@@ -19,7 +20,6 @@ from log10._httpx_utils import finalize
 from log10.load import log10, log10_session
 from tests.utils import _LogAssertion, format_magentic_function_args
 
-import os
 
 log10(openai)
 
