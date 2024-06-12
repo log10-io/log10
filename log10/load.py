@@ -988,4 +988,23 @@ else:
         pass
 
     class AsyncAnthropic(_Log10Anthropic, AsyncAnthropic):
+        """
+        Example:
+            >>> import asyncio
+            >>> from log10._httpx_utils import finalize
+            >>> from log10.load import AsyncAnthropic
+            >>> client = AsyncAnthropic(tags=["test", "async_anthropic"])
+            >>> async def main() -> None:
+            >>>     message = await client.messages.create(
+            ...         model="claude-3-haiku-20240307",
+            ...         max_tokens=100,
+            ...         temperature=0.9,
+            ...         system="Respond only in Yoda-speak.",
+            ...         messages=[{"role": "user", "content": "How are you today?"}],
+            ...     )
+            >>>     print(message.content[0].text)
+            >>>     await finalize()
+            >>> asyncio.run(main())
+        """
+
         pass

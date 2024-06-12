@@ -1,25 +1,22 @@
 import base64
 
-import anthropic
 import httpx
 import pytest
-from anthropic import NOT_GIVEN
+from anthropic import AI_PROMPT, NOT_GIVEN
+from anthropic.types import MessageParam, TextBlock, ToolParam, ToolUseBlock
 
 from log10._httpx_utils import finalize
-from log10.load import log10
+from log10.load import Anthropic, AsyncAnthropic
 from tests.utils import _LogAssertion
-
-
-log10(anthropic)
 
 
 @pytest.mark.completion
 def test_completions_create(session, anthropic_legacy_model):
-    client = anthropic.Anthropic()
+    client = Anthropic()
 
     completion = client.completions.create(
         model=anthropic_legacy_model,
-        prompt=f"\n\nHuman:Help me create some similes to describe a person's laughter that is joyful and contagious?{anthropic.AI_PROMPT}",
+        prompt=f"\n\nHuman:Write the names of all Star Wars movies and spinoffs along with the time periods in which they were set?{AI_PROMPT}",
         temperature=0,
         max_tokens_to_sample=1024,
         top_p=1,
@@ -33,7 +30,7 @@ def test_completions_create(session, anthropic_legacy_model):
 
 @pytest.mark.chat
 def test_messages_create(session, anthropic_model):
-    client = anthropic.Anthropic()
+    client = Anthropic()
 
     message = client.messages.create(
         model=anthropic_model,
@@ -52,7 +49,7 @@ def test_messages_create(session, anthropic_model):
 @pytest.mark.async_client
 @pytest.mark.asyncio(scope="module")
 async def test_messages_create_async(session, anthropic_model):
-    client = anthropic.AsyncAnthropic()
+    client = AsyncAnthropic()
 
     message = await client.messages.create(
         model=anthropic_model,
@@ -72,7 +69,8 @@ async def test_messages_create_async(session, anthropic_model):
 @pytest.mark.chat
 @pytest.mark.stream
 def test_messages_create_stream(session, anthropic_model):
-    client = anthropic.Anthropic()
+    # log10(anthropic)
+    client = Anthropic()
 
     stream = client.messages.create(
         model=anthropic_model,
@@ -100,7 +98,7 @@ def test_messages_create_stream(session, anthropic_model):
 
 @pytest.mark.vision
 def test_messages_image(session, anthropic_model):
-    client = anthropic.Anthropic()
+    client = Anthropic()
 
     image1_url = "https://upload.wikimedia.org/wikipedia/commons/a/a7/Camponotus_flavomarginatus_ant.jpg"
     image1_media_type = "image/jpeg"
@@ -133,7 +131,7 @@ def test_messages_image(session, anthropic_model):
 
 @pytest.mark.chat
 def test_chat_not_given(session, anthropic_model):
-    client = anthropic.Anthropic()
+    client = Anthropic()
 
     message = client.messages.create(
         model=anthropic_model,
@@ -158,7 +156,8 @@ def test_chat_not_given(session, anthropic_model):
 @pytest.mark.stream
 @pytest.mark.context_manager
 def test_messages_stream_context_manager(session, anthropic_model):
-    client = anthropic.Anthropic()
+    # log10(anthropic)
+    client = Anthropic()
 
     output = ""
     with client.messages.stream(
@@ -186,7 +185,7 @@ def test_messages_stream_context_manager(session, anthropic_model):
 @pytest.mark.async_client
 @pytest.mark.asyncio(scope="module")
 async def test_messages_stream_context_manager_async(session, anthropic_model):
-    client = anthropic.AsyncAnthropic()
+    client = AsyncAnthropic()
 
     output = ""
     async with client.messages.stream(
@@ -210,7 +209,7 @@ async def test_messages_stream_context_manager_async(session, anthropic_model):
 @pytest.mark.stream
 @pytest.mark.context_manager
 def test_tools_messages_stream_context_manager(session, anthropic_model):
-    client = anthropic.Anthropic()
+    client = Anthropic()
     full_content = ""
     with client.messages.stream(
         model=anthropic_model,
@@ -240,9 +239,9 @@ def test_tools_messages_stream_context_manager(session, anthropic_model):
                 message = message.message
                 contents = message.content
                 for content in contents:
-                    if isinstance(content, anthropic.types.TextBlock):
+                    if isinstance(content, TextBlock):
                         full_content = content.text
-                    if isinstance(content, anthropic.types.ToolUseBlock):
+                    if isinstance(content, ToolUseBlock):
                         arguments = str(content.input)
                         function_name = content.name
 
@@ -254,9 +253,7 @@ def test_tools_messages_stream_context_manager(session, anthropic_model):
 
 @pytest.mark.tools
 def test_tools_create(session, anthropic_model):
-    from anthropic.types import MessageParam, ToolParam
-
-    client = anthropic.Anthropic()
+    client = Anthropic()
 
     user_message: MessageParam = {
         "role": "user",
@@ -284,9 +281,9 @@ def test_tools_create(session, anthropic_model):
     function_name = ""
     arguments = ""
     for c in message.content:
-        if isinstance(c, anthropic.types.TextBlock):
+        if isinstance(c, TextBlock):
             full_content = c.text
-        if isinstance(c, anthropic.types.ToolUseBlock):
+        if isinstance(c, ToolUseBlock):
             arguments = str(c.input)
             function_name = c.name
 
@@ -318,7 +315,7 @@ def test_tools_create(session, anthropic_model):
     )
 
     for c in response.content:
-        if isinstance(c, anthropic.types.TextBlock):
+        if isinstance(c, TextBlock):
             full_content = c.text
 
     _LogAssertion(completion_id=session.last_completion_id(), message_content=full_content).assert_chat_response()
@@ -330,7 +327,7 @@ def test_tools_create(session, anthropic_model):
 @pytest.mark.async_client
 @pytest.mark.asyncio(scope="module")
 async def test_tools_messages_stream_context_manager_async(session, anthropic_model):
-    client = anthropic.AsyncAnthropic()
+    client = AsyncAnthropic()
     full_content = ""
     arguments = ""
     function_name = ""
@@ -362,9 +359,9 @@ async def test_tools_messages_stream_context_manager_async(session, anthropic_mo
                 message = message.message
                 contents = message.content
                 for content in contents:
-                    if isinstance(content, anthropic.types.TextBlock):
+                    if isinstance(content, TextBlock):
                         full_content = content.text
-                    if isinstance(content, anthropic.types.ToolUseBlock):
+                    if isinstance(content, ToolUseBlock):
                         arguments = str(content.input)
                         function_name = content.name
 
