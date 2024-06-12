@@ -1,10 +1,7 @@
-import anthropic
-from anthropic import NOT_GIVEN, Anthropic
+from anthropic import NOT_GIVEN
 
-from log10.load import log10
+from log10.load import Anthropic
 
-
-log10(anthropic)
 
 client = Anthropic()
 

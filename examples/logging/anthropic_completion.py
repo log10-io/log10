@@ -2,11 +2,10 @@ import os
 
 import anthropic
 
-from log10.load import log10
+from log10.load import Anthropic
 
 
-log10(anthropic, DEBUG_=False)
-client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"], tags=["test", "load_anthropic"])
 
 response = client.completions.create(
     model="claude-instant-1.2",

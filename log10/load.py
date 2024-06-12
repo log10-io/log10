@@ -957,9 +957,20 @@ try:
 except ImportError:
     logger.warning("Anthropic not found. Skipping defining log10.load.Anthropic client.")
 else:
-    from anthropic import Anthropic
+    from anthropic import Anthropic, AsyncAnthropic
 
-    class Anthropic(Anthropic):
+    class _Log10Anthropic:
+        def __init__(self, *args, **kwargs):
+            if "tags" in kwargs:
+                tags_var.set(kwargs.pop("tags"))
+
+            if not getattr(anthropic, "_log10_patched", False):
+                log10(anthropic)
+                anthropic._log10_patched = True
+
+            super().__init__(*args, **kwargs)
+
+    class Anthropic(_Log10Anthropic, Anthropic):
         """
         Example:
             >>> from log10.load import Anthropic
@@ -974,12 +985,7 @@ else:
             >>> print(message.content[0].text)
         """
 
-        def __init__(self, *args, **kwargs):
-            if "tags" in kwargs:
-                tags_var.set(kwargs.pop("tags"))
+        pass
 
-            if not getattr(anthropic, "_log10_patched", False):
-                log10(anthropic)
-                anthropic._log10_patched = True
-
-            super().__init__(*args, **kwargs)
+    class AsyncAnthropic(_Log10Anthropic, AsyncAnthropic):
+        pass
