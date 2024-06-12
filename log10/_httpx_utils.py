@@ -251,7 +251,7 @@ def _init_log_row(request: Request):
         request_content_decode = format_anthropic_request(request_content)
 
     else:
-        logger.warning("Currently logging is only available for async openai and anthropic.")
+        logger.debug("Currently logging is only available for async openai and anthropic.")
         return
     log_row = {
         "status": "started",
@@ -267,20 +267,18 @@ def _init_log_row(request: Request):
     return log_row
 
 
-def check_provider_request(request: Request):
+def get_completion_id(request: Request):
     host = request.headers.get("host")
     if "anthropic" in host:
         paths = ["/v1/messages", "/v1/complete"]
         if not any(path in str(request.url) for path in paths):
-            logger.warning("Currently logging is only available for anthropic v1/messages and v1/complete.")
+            logger.debug("Currently logging is only available for anthropic v1/messages and v1/complete.")
             return
 
     if "openai" in host and "v1/chat/completions" not in str(request.url):
-        logger.warning("Currently logging is only available for openai v1/chat/completions.")
+        logger.debug("Currently logging is only available for openai v1/chat/completions.")
         return
 
-
-def get_completion_id(request: Request):
     completion_id = str(uuid.uuid4())
     request.headers["x-log10-completion-id"] = completion_id
     last_completion_response_var.set({"completionID": completion_id})
@@ -309,9 +307,15 @@ def patch_response(log_row: dict, llm_response: dict, request: Request):
         if "v1/messages" in str(request.url):
             llm_response = Anthropic.prepare_response(Message(**llm_response))
         elif "v1/complete" in str(request.url):
-            llm_response = Anthropic.prepare_response(Completion(**llm_response))
+            prompt = ""
+            if request.content:
+                content = request.content.decode("utf-8")
+                content_json = json.loads(content)
+                prompt = content_json.get("prompt", "")
+
+            llm_response = Anthropic.prepare_response(Completion(**llm_response), input_prompt=prompt)
         else:
-            logger.warning("Currently logging is only available for anthropic v1/messages and v1/complete.")
+            logger.debug("Currently logging is only available for anthropic v1/messages and v1/complete.")
 
     log_row["status"] = "finished"
     log_row["response"] = json.dumps(llm_response)
@@ -323,8 +327,16 @@ def patch_response(log_row: dict, llm_response: dict, request: Request):
     return log_row
 
 
-class _EventHookManager:
+class _RequestHooks:
+    """
+    The class to manage the event hooks for sync requests and initialize the log row.
+    The event hooks are:
+    - get_completion_id: to generate the completion id
+    - log_request: to send the sync request with initial log row to the log10 platform
+    """
+
     def __init__(self):
+        logger.debug("LOG10: initializing request hooks")
         self.event_hooks = {
             "request": [self.get_completion_id, self.log_request],
         }
@@ -333,7 +345,6 @@ class _EventHookManager:
 
     def get_completion_id(self, request: httpx.Request):
         logger.debug("LOG10: generating completion id")
-        check_provider_request(request)
         self.completion_id = get_completion_id(request)
 
     def log_request(self, request: httpx.Request):
@@ -342,9 +353,16 @@ class _EventHookManager:
         _try_post_request(url=f"{base_url}/api/completions/{self.completion_id}", payload=self.log_row)
 
 
-class _AsyncEventHookManager:
+class _AsyncRequestHooks:
+    """
+    The class to manage the event hooks for async requests and initialize the log row.
+    The event hooks are:
+    - get_completion_id: to generate the completion id
+    - log_request: to send the sync request with initial log row to the log10 platform
+    """
+
     def __init__(self):
-        logger.debug("LOG10: initializing async event hook manager")
+        logger.debug("LOG10: initializing async request hooks")
         self.event_hooks = {
             "request": [self.get_completion_id, self.log_request],
         }
@@ -353,7 +371,6 @@ class _AsyncEventHookManager:
 
     async def get_completion_id(self, request: httpx.Request):
         logger.debug("LOG10: generating completion id")
-        check_provider_request(request)
         self.completion_id = get_completion_id(request)
 
     async def log_request(self, request: httpx.Request):
@@ -431,7 +448,7 @@ class _LogResponse(Response):
         elif "openai" in host:
             return self.is_openai_response_end_reached(text)
         else:
-            logger.warning("Currently logging is only available for async openai and anthropic.")
+            logger.debug("Currently logging is only available for async openai and anthropic.")
             return False
 
     def is_anthropic_response_end_reached(self, text: str):
@@ -609,14 +626,14 @@ class _LogResponse(Response):
         elif "anthropic" in host:
             return self.parse_anthropic_responses(responses)
         else:
-            logger.warning("Currently logging is only available for async openai and anthropic.")
+            logger.debug("Currently logging is only available for async openai and anthropic.")
             return None
 
 
 class _LogTransport(httpx.BaseTransport):
-    def __init__(self, transport: httpx.BaseTransport, event_hook_manager: _EventHookManager):
+    def __init__(self, transport: httpx.BaseTransport, request_hooks: _RequestHooks):
         self.transport = transport
-        self.event_hook_manager = event_hook_manager
+        self.request_hooks = request_hooks
 
     def handle_request(self, request: Request) -> Response:
         try:
@@ -636,7 +653,7 @@ class _LogTransport(httpx.BaseTransport):
         if response.headers.get("content-type").startswith("application/json"):
             response.read()
             llm_response = response.json()
-            log_row = patch_response(self.event_hook_manager.log_row, llm_response, request)
+            log_row = patch_response(self.request_hooks.log_row, llm_response, request)
             _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
             return response
         elif response.headers.get("content-type").startswith("text/event-stream"):
@@ -646,7 +663,7 @@ class _LogTransport(httpx.BaseTransport):
                 stream=response.stream,
                 extensions=response.extensions,
                 request=request,
-                log_row=self.event_hook_manager.log_row,
+                log_row=self.request_hooks.log_row,
             )
 
         # In case of an error, get out of the way
@@ -654,9 +671,9 @@ class _LogTransport(httpx.BaseTransport):
 
 
 class _AsyncLogTransport(httpx.AsyncBaseTransport):
-    def __init__(self, transport: httpx.AsyncBaseTransport, event_hook_manager: _AsyncEventHookManager):
+    def __init__(self, transport: httpx.AsyncBaseTransport, async_request_hooks: _AsyncRequestHooks):
         self.transport = transport
-        self.event_hook_manager = event_hook_manager
+        self.async_request_hooks = async_request_hooks
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         try:
@@ -676,7 +693,7 @@ class _AsyncLogTransport(httpx.AsyncBaseTransport):
         if response.headers.get("content-type").startswith("application/json"):
             await response.aread()
             llm_response = response.json()
-            log_row = patch_response(self.event_hook_manager.log_row, llm_response, request)
+            log_row = patch_response(self.async_request_hooks.log_row, llm_response, request)
             asyncio.create_task(
                 _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
             )
@@ -688,7 +705,7 @@ class _AsyncLogTransport(httpx.AsyncBaseTransport):
                 stream=response.stream,
                 extensions=response.extensions,
                 request=request,
-                log_row=self.event_hook_manager.log_row,
+                log_row=self.async_request_hooks.log_row,
             )
 
         # In case of an error, get out of the way
@@ -696,22 +713,33 @@ class _AsyncLogTransport(httpx.AsyncBaseTransport):
 
 
 class InitPatcher:
-    def __init__(self, module, async_class_name, sync_class_name=None):
+    def __init__(self, module, class_names: list[str]):
+        logger.debug("LOG10: initializing patcher")
         self.module = module
-        self.sync_class_name = sync_class_name
-        self.async_class_name = async_class_name
-        self.origin_init = getattr(module, sync_class_name).__init__ if sync_class_name else None
-        self.async_origin_init = getattr(module, async_class_name).__init__
-        self.patch_init()
+        if len(class_names) > 2:
+            raise ValueError("Only two class names (sync and async) are allowed")
 
-    def patch_init(self):
+        self.async_class_name = None
+        self.sync_class_name = None
+
+        for class_name in class_names:
+            if class_name.startswith("Async"):
+                self.async_class_name = class_name
+                self.async_origin_init = getattr(module, self.async_class_name).__init__
+            else:
+                self.sync_class_name = class_name
+                self.origin_init = getattr(module, self.sync_class_name).__init__
+
+        self._patch_init()
+
+    def _patch_init(self):
         def new_init(instance, *args, **kwargs):
             logger.debug(f"LOG10: patching {self.sync_class_name}.__init__")
 
-            event_hook_manager = _EventHookManager()
+            request_hooks = _RequestHooks()
             httpx_client = httpx.Client(
-                event_hooks=event_hook_manager.event_hooks,
-                transport=_LogTransport(httpx.HTTPTransport(), event_hook_manager),
+                event_hooks=request_hooks.event_hooks,
+                transport=_LogTransport(httpx.HTTPTransport(), request_hooks),
             )
             kwargs["http_client"] = httpx_client
             self.origin_init(instance, *args, **kwargs)
@@ -719,17 +747,18 @@ class InitPatcher:
         def async_new_init(instance, *args, **kwargs):
             logger.debug(f"LOG10: patching {self.async_class_name}.__init__")
 
-            event_hook_manager = _AsyncEventHookManager()
+            async_request_hooks = _AsyncRequestHooks()
             async_httpx_client = httpx.AsyncClient(
-                event_hooks=event_hook_manager.event_hooks,
-                transport=_AsyncLogTransport(httpx.AsyncHTTPTransport(), event_hook_manager),
+                event_hooks=async_request_hooks.event_hooks,
+                transport=_AsyncLogTransport(httpx.AsyncHTTPTransport(), async_request_hooks),
             )
             kwargs["http_client"] = async_httpx_client
             self.async_origin_init(instance, *args, **kwargs)
 
         # Patch the asynchronous class __init__
-        async_class = getattr(self.module, self.async_class_name)
-        async_class.__init__ = async_new_init
+        if self.async_class_name:
+            async_class = getattr(self.module, self.async_class_name)
+            async_class.__init__ = async_new_init
 
         # Patch the synchronous class __init__ if provided
         if self.sync_class_name:

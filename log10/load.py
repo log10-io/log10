@@ -745,7 +745,7 @@ def set_sync_log_text(USE_ASYNC=True):
 
 def log10(module, DEBUG_=False, USE_ASYNC_=True):
     """Intercept and overload module for logging purposes
-    support both openai V0 and V1, vertexai, and mistralai
+    support both openai V0 and V1, anthropic, vertexai, and mistralai
 
     Keyword arguments:
     module -- the module to be intercepted (e.g. openai)
@@ -793,6 +793,33 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         >>> ]
         >>> completion = llm.predict_messages(messages)
         >>> print(completion)
+
+    Example:
+        >>> from log10.load import log10
+        >>> import anthropic
+        >>> log10(anthropic)
+        >>> from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
+        >>> anthropic = Anthropic()
+        >>> completion = anthropic.completions.create(
+        >>>     model="claude-1",
+        >>>     max_tokens_to_sample=32,
+        >>>     prompt=f"{HUMAN_PROMPT} Hi, how are you? {AI_PROMPT}",
+        >>> )
+        >>> print(completion.completion)
+
+    Example:
+        >>> from log10.load import log10
+        >>> import anthropic
+        >>> from langchain.chat_models import ChatAnthropic
+        >>> from langchain.schema import HumanMessage, SystemMessage
+        >>> log10(anthropic)
+        >>> llm = ChatAnthropic(model="claude-1", temperature=0.7)
+        >>> messages = [
+        >>>     SystemMessage(content="You are a ping pong machine"),
+        >>>     HumanMessage(content="Ping?")
+        >>> ]
+        >>> completion = llm.predict_messages(messages)
+        >>> print(completion)
     """
     global DEBUG, USE_ASYNC, sync_log_text
     DEBUG = DEBUG_ or os.environ.get("LOG10_DEBUG", False)
@@ -827,7 +854,7 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         from log10._httpx_utils import InitPatcher
 
         # Patch the AsyncAnthropic and Anthropic class
-        InitPatcher(module, "AsyncAnthropic", "Anthropic")
+        InitPatcher(module, ["AsyncAnthropic", "Anthropic"])
     elif module.__name__ == "lamini":
         attr = module.api.utils.completion.Completion
         method = getattr(attr, "generate")
@@ -858,7 +885,7 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
             from log10._httpx_utils import InitPatcher
 
             # Patch the AsyncOpenAI class
-            InitPatcher(module, "AsyncOpenAI")
+            InitPatcher(module, ["AsyncOpenAI"])
         else:
             attr = module.api_resources.completion.Completion
             method = getattr(attr, "create")
@@ -923,3 +950,36 @@ if is_openai_v1():
             if not getattr(openai, "_log10_patched", False):
                 log10(openai)
                 openai._log10_patched = True
+
+
+try:
+    import anthropic
+except ImportError:
+    logger.warning("Anthropic not found. Skipping defining log10.load.Anthropic client.")
+else:
+    from anthropic import Anthropic
+
+    class Anthropic(Anthropic):
+        """
+        Example:
+            >>> from log10.load import Anthropic
+            >>> client = Anthropic(tags=["test", "load_anthropic"])
+            >>> message = client.messages.create(
+            ...     model="claude-3-haiku-20240307",
+            ...     max_tokens=100,
+            ...     temperature=0.9,
+            ...     system="Respond only in Yoda-speak.",
+            ...     messages=[{"role": "user", "content": "How are you today?"}],
+            ... )
+            >>> print(message.content[0].text)
+        """
+
+        def __init__(self, *args, **kwargs):
+            if "tags" in kwargs:
+                tags_var.set(kwargs.pop("tags"))
+
+            if not getattr(anthropic, "_log10_patched", False):
+                log10(anthropic)
+                anthropic._log10_patched = True
+
+            super().__init__(*args, **kwargs)
