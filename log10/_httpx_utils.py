@@ -383,8 +383,7 @@ class _AsyncRequestHooks:
 
 class _LogResponse(Response):
     def __init__(self, *args, **kwargs):
-        self.log_row = kwargs["log_row"]
-        del kwargs["log_row"]
+        self.log_row = kwargs.pop("log_row")
         super().__init__(*args, **kwargs)
 
     def patch_streaming_log(self, duration: int, full_response: str):
