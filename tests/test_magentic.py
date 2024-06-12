@@ -19,6 +19,7 @@ from log10._httpx_utils import finalize
 from log10.load import log10, log10_session
 from tests.utils import _LogAssertion, format_magentic_function_args
 
+import os
 
 log10(openai)
 
@@ -192,6 +193,15 @@ async def test_async_widget(session, magentic_model):
 @pytest.mark.widget
 @pytest.mark.asyncio(scope="module")
 async def test_large_image_upload(session, magentic_model):
+    # If large_image.png doesn't exist, download it from https://log10py-public.s3.us-east-2.amazonaws.com/large_image.png
+    if not os.path.exists("./tests/large_image.png"):
+        import requests
+
+        url = "https://log10py-public.s3.us-east-2.amazonaws.com/large_image.png"
+        response = requests.get(url)
+        with open("./tests/large_image.png", "wb") as f:
+            f.write(response.content)
+
     with open("./tests/large_image.png", "rb") as f:
         image_bytes = f.read()
 
