@@ -167,11 +167,11 @@ def format_anthropic_tools_request(request_content) -> str:
 async def get_completion_id(request: Request):
     host = request.headers.get("host")
     if "anthropic" in host and "/v1/messages" not in str(request.url):
-        logger.warning("Currently logging is only available for anthropic v1/messages.")
+        logger.debug("Currently logging is only available for anthropic v1/messages.")
         return
 
     if "openai" in host and "v1/chat/completions" not in str(request.url):
-        logger.warning("Currently logging is only available for openai v1/chat/completions.")
+        logger.debug("Currently logging is only available for openai v1/chat/completions.")
         return
 
     request.headers["x-log10-completion-id"] = str(uuid.uuid4())
@@ -209,7 +209,7 @@ async def log_request(request: Request):
             orig_module = "anthropic.resources.messages"
             orig_qualname = "Messages.stream"
     else:
-        logger.warning("Currently logging is only available for async openai and anthropic.")
+        logger.debug("Currently logging is only available for async openai and anthropic.")
         return
     log_row = {
         "status": "started",
@@ -318,7 +318,7 @@ class _LogResponse(Response):
         elif "openai" in host:
             return self.is_openai_response_end_reached(text)
         else:
-            logger.warning("Currently logging is only available for async openai and anthropic.")
+            logger.debug("Currently logging is only available for async openai and anthropic.")
             return False
 
     def is_anthropic_response_end_reached(self, text: str):
@@ -447,7 +447,7 @@ class _LogResponse(Response):
         elif "anthropic" in host:
             return self.parse_anthropic_responses(responses)
         else:
-            logger.warning("Currently logging is only available for async openai and anthropic.")
+            logger.debug("Currently logging is only available for async openai and anthropic.")
             return None
 
 
