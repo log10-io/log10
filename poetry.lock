@@ -1126,12 +1126,12 @@ testing = ["pytest"]
 
 [[package]]
 name = "google-generativeai"
-version = "0.5.4"
+version = "0.6.0"
 description = "Google Generative AI High level API client library and tools."
 optional = true
 python-versions = ">=3.9"
 files = [
-    {file = "google_generativeai-0.5.4-py3-none-any.whl", hash = "sha256:036d63ee35e7c8aedceda4f81c390a5102808af09ff3a6e57e27ed0be0708f3c"},
+    {file = "google_generativeai-0.6.0-py3-none-any.whl", hash = "sha256:ba1d3b826b872bffe330aaac0dc6de2f0e4610df861c8ce7ec6433771611b676"},
 ]
 
 [package.dependencies]
@@ -2220,13 +2220,13 @@ files = [
 
 [[package]]
 name = "openai"
-version = "1.30.4"
+version = "1.33.0"
 description = "The official Python library for the openai API"
 optional = false
 python-versions = ">=3.7.1"
 files = [
-    {file = "openai-1.30.4-py3-none-any.whl", hash = "sha256:fb2635efd270efaf9fac2e07558d7948373b940637d3ae3ab624c1a983d4f03f"},
-    {file = "openai-1.30.4.tar.gz", hash = "sha256:f3488d9a1c4e0d332b019377d27d7cb4b3d6103fd5d0a416c7ceac780d1d9b88"},
+    {file = "openai-1.33.0-py3-none-any.whl", hash = "sha256:621163b56570897ab8389d187f686a53d4771fd6ce95d481c0a9611fe8bc4229"},
+    {file = "openai-1.33.0.tar.gz", hash = "sha256:1169211a7b326ecbc821cafb427c29bfd0871f9a3e0947dd9e51acb3b0f1df78"},
 ]
 
 [package.dependencies]
@@ -3926,4 +3926,4 @@ together = ["together"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<4.0"
-content-hash = "6246821d7d245e3166a3759da50fbe20ce66ea6a22c0dbd09dd8f6c74d35af9a"
+content-hash = "2190ee6487f544438498170965a7719667b908a07ec2e43aaa21e7b9a34e53ad"
