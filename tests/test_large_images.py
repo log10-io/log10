@@ -1,5 +1,6 @@
-from log10.load import filter_large_images
 import copy
+
+from log10.load import filter_large_images
 
 
 def test_empty_messages():
