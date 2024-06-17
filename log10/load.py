@@ -482,10 +482,10 @@ def filter_large_images(messages):
             new_content = []
             for fragment in message.get("content", ""):
                 if fragment.get("type") == "image_url":
-                    # If image is more than 1MB, replace with a text message
+                    # If image is more than 4MB, replace with a text message
                     url = fragment.get("image_url", {}).get("url", "")
                     if url.startswith("data:image"):
-                        if len(url) > 1e6:
+                        if len(url) > 4e6:
                             new_content.append(
                                 {
                                     "type": "text",

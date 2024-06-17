@@ -46,7 +46,7 @@ def test_small_image_fragment():
 
 
 def test_large_image_fragment():
-    large_string = "a" * int(2e6)
+    large_string = "a" * int(4e6)
     before_messages = [
         {"content": [{"type": "text", "text": "This is a message."}], "role": "system"},
         {
