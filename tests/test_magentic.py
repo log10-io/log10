@@ -189,10 +189,8 @@ async def test_async_widget(session, magentic_model):
     ).assert_function_call_response()
 
 
-@pytest.mark.async_client
-@pytest.mark.widget
-@pytest.mark.asyncio(scope="module")
-async def test_large_image_upload(session, magentic_model):
+@pytest.mark.vision
+def test_large_image_upload(session):
     # If large_image.png doesn't exist, download it from https://log10py-public.s3.us-east-2.amazonaws.com/large_image.png
     if not os.path.exists("./tests/large_image.png"):
         import requests
@@ -208,4 +206,5 @@ async def test_large_image_upload(session, magentic_model):
     @chatprompt(SystemMessage("What's in the following screenshot?"), UserImageMessage(image_bytes))
     def _llm() -> str: ...
 
-    _llm()
+    output = _llm()
+    assert isinstance(output, str)
