@@ -208,3 +208,4 @@ def test_large_image_upload(session):
 
     output = _llm()
     assert isinstance(output, str)
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
