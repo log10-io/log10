@@ -473,6 +473,36 @@ class AnthropicStreamingResponseWrapper:
                 logger.error(f"Failed to insert in log10: {self.partial_log_row} with error {res.text}. Skipping")
 
 
+# Filter large images from messages, and replace with a text message saying "Image too large to display"
+def filter_large_images(messages):
+    for message in messages:
+        # Content may be an array of fragments, of text and images.
+        # If not, it's a single fragment.
+        if isinstance(message.get("content"), list):
+            new_content = []
+            for fragment in message.get("content", ""):
+                if fragment.get("type") == "image_url":
+                    # If image is more than 4MB, replace with a text message
+                    url = fragment.get("image_url", {}).get("url", "")
+                    if url.startswith("data:image"):
+                        if len(url) > 4e6:
+                            new_content.append(
+                                {
+                                    "type": "text",
+                                    "text": "Image too large to capture",
+                                }
+                            )
+                        else:
+                            new_content.append(fragment)
+                    else:
+                        new_content.append(fragment)
+                else:
+                    new_content.append(fragment)
+            message["content"] = new_content
+
+    return messages
+
+
 def flatten_messages(messages):
     flat_messages = []
     for message in messages:
@@ -524,7 +554,7 @@ def _init_log_row(func, *args, **kwargs):
     # We may have to flatten messages from their ChatCompletionMessage with nested ChatCompletionMessageToolCall to json serializable format
     # Rewrite in-place
     if "messages" in kwargs_copy:
-        kwargs_copy["messages"] = flatten_messages(kwargs_copy["messages"])
+        kwargs_copy["messages"] = filter_large_images(flatten_messages(kwargs_copy["messages"]))
 
     # kind and request are set based on the module and qualname
     # request is based on openai schema
