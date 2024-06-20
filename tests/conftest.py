@@ -64,6 +64,18 @@ def llm_provider(request):
 
 
 @pytest.fixture
+def magentic_models(request):
+    llm_provider = request.config.getoption("--llm_provider")
+    model_config_name = f"--{llm_provider}_model"
+    vision_model_config_name = llm_provider == "openai" and f"--{llm_provider}_vision_model" or model_config_name
+
+    return {
+        "chat_model": request.config.getoption(model_config_name),
+        "vision_model": request.config.getoption(vision_model_config_name),
+    }
+
+
+@pytest.fixture
 def session():
     with log10_session() as session:
         assert session.last_completion_id() is None, "No completion ID should be found."

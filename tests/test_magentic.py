@@ -22,36 +22,28 @@ from log10.load import log10, log10_session
 from tests.utils import _LogAssertion, format_magentic_function_args
 
 
-def get_model_obj(llm_provider, model, params):
-    if llm_provider == "openai":
-        log10(openai)
-        params["model"] = model
-        return OpenaiChatModel(**params)
-    elif llm_provider == "anthropic":
-        log10(anthropic)
-        params["model"] = model
-        return AnthropicChatModel(**params)
-    else:
+def _get_model_obj(llm_provider, model, params):
+    provider_map = {"openai": (OpenaiChatModel, log10(openai)), "anthropic": (AnthropicChatModel, log10(anthropic))}
+
+    if llm_provider not in provider_map:
         raise ValueError("Invalid model provider.")
+
+    model_class, _ = provider_map[llm_provider]
+    params["model"] = model
+    return model_class(**params)
 
 
 @pytest.fixture
-def _fixt(openai_model, openai_vision_model, anthropic_model, llm_provider, request):
-    if not hasattr(request, "param"):
-        params = {}
-    else:
-        params = request.param.copy()
+def _fixt(llm_provider, magentic_models, request):
+    params = request.param.copy() if hasattr(request, "param") else {}
+    is_vision = "vision" in request.keywords
+    if llm_provider == "anthropic" and is_vision:
+        pytest.skip("Skipping due to magentic not supported for anthropic vision models.")
 
-    if llm_provider == "openai":
-        _marks = request.keywords
-        if _marks.get("vision", pytest.Mark):
-            model = openai_vision_model
-        else:
-            model = openai_model
-    else:
-        model = anthropic_model
+    model_type = "vision_model" if is_vision else "chat_model"
+    model = magentic_models.get(model_type, "")
 
-    return get_model_obj(llm_provider, model, params)
+    return _get_model_obj(llm_provider, model, params)
 
 
 @pytest.mark.chat
