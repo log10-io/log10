@@ -444,7 +444,7 @@ def _init_log_row(func, *args, **kwargs):
     # We may have to flatten messages from their ChatCompletionMessage with nested ChatCompletionMessageToolCall to json serializable format
     # Rewrite in-place
     if "messages" in kwargs_copy:
-        kwargs_copy["messages"] = flatten_messages(kwargs_copy["messages"])
+        kwargs_copy["messages"] = filter_large_images(flatten_messages(kwargs_copy["messages"]))
 
     # kind and request are set based on the module and qualname
     # request is based on openai schema

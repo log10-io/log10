@@ -1,3 +1,4 @@
+import os
 from typing import Literal
 
 import anthropic
@@ -207,7 +208,16 @@ async def test_async_widget(session, _fixt):
 
 
 @pytest.mark.vision
-def test_large_image_upload(_fixt):
+def test_large_image_upload(session, _fixt):
+    # If large_image.png doesn't exist, download it from https://log10py-public.s3.us-east-2.amazonaws.com/large_image.png
+    if not os.path.exists("./tests/large_image.png"):
+        import requests
+
+        url = "https://log10py-public.s3.us-east-2.amazonaws.com/large_image.png"
+        response = requests.get(url)
+        with open("./tests/large_image.png", "wb") as f:
+            f.write(response.content)
+
     with open("./tests/large_image.png", "rb") as f:
         image_bytes = f.read()
 
@@ -218,4 +228,6 @@ def test_large_image_upload(_fixt):
     )
     def _llm() -> str: ...
 
-    _llm()
+    output = _llm()
+    assert isinstance(output, str)
+    _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
