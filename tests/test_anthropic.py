@@ -69,7 +69,6 @@ async def test_messages_create_async(session, anthropic_model):
 @pytest.mark.chat
 @pytest.mark.stream
 def test_messages_create_stream(session, anthropic_model):
-    # log10(anthropic)
     client = Anthropic()
 
     stream = client.messages.create(
@@ -156,7 +155,6 @@ def test_chat_not_given(session, anthropic_model):
 @pytest.mark.stream
 @pytest.mark.context_manager
 def test_messages_stream_context_manager(session, anthropic_model):
-    # log10(anthropic)
     client = Anthropic()
 
     output = ""

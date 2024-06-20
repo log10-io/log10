@@ -393,6 +393,36 @@ class StreamingResponseWrapper:
             raise se
 
 
+# Filter large images from messages, and replace with a text message saying "Image too large to display"
+def filter_large_images(messages):
+    for message in messages:
+        # Content may be an array of fragments, of text and images.
+        # If not, it's a single fragment.
+        if isinstance(message.get("content"), list):
+            new_content = []
+            for fragment in message.get("content", ""):
+                if fragment.get("type") == "image_url":
+                    # If image is more than 4MB, replace with a text message
+                    url = fragment.get("image_url", {}).get("url", "")
+                    if url.startswith("data:image"):
+                        if len(url) > 4e6:
+                            new_content.append(
+                                {
+                                    "type": "text",
+                                    "text": "Image too large to capture",
+                                }
+                            )
+                        else:
+                            new_content.append(fragment)
+                    else:
+                        new_content.append(fragment)
+                else:
+                    new_content.append(fragment)
+            message["content"] = new_content
+
+    return messages
+
+
 def flatten_messages(messages):
     flat_messages = []
     for message in messages:

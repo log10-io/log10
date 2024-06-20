@@ -232,7 +232,6 @@ def _init_log_row(request: Request):
             orig_qualname = "Completion.create"
     elif "anthropic" in host:
         kind = "chat"
-        ### TODO how to know whether it's create or stream?
         url_path = request.url
         content_type = request.headers.get("content-type")
         request_content = json.loads(request_content_decode)
