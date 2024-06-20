@@ -1,5 +1,6 @@
 from typing import Literal
 
+import anthropic
 import openai
 import pytest
 from magentic import (
@@ -12,6 +13,7 @@ from magentic import (
     chatprompt,
     prompt,
 )
+from magentic.chat_model.anthropic_chat_model import AnthropicChatModel
 from magentic.vision import UserImageMessage
 from pydantic import BaseModel
 
@@ -20,23 +22,53 @@ from log10.load import log10, log10_session
 from tests.utils import _LogAssertion, format_magentic_function_args
 
 
-log10(openai)
+def get_model_obj(llm_provider, model, params):
+    if llm_provider == "openai":
+        log10(openai)
+        params["model"] = model
+        return OpenaiChatModel(**params)
+    elif llm_provider == "anthropic":
+        log10(anthropic)
+        params["model"] = model
+        return AnthropicChatModel(**params)
+    else:
+        raise ValueError("Invalid model provider.")
+
+
+@pytest.fixture
+def _fixt(openai_model, openai_vision_model, anthropic_model, llm_provider, request):
+    if not hasattr(request, "param"):
+        params = {}
+    else:
+        params = request.param.copy()
+
+    if llm_provider == "openai":
+        _marks = request.keywords
+        if _marks.get("vision", pytest.Mark):
+            model = openai_vision_model
+        else:
+            model = openai_model
+    else:
+        model = anthropic_model
+
+    return get_model_obj(llm_provider, model, params)
 
 
 @pytest.mark.chat
-def test_prompt(session, magentic_model):
-    @prompt("Tell me a short joke", model=OpenaiChatModel(model=magentic_model))
+def test_prompt(session, _fixt):
+    @prompt("Tell me a joke about food", model=_fixt)
     def llm() -> str: ...
 
     output = llm()
     assert isinstance(output, str)
+
     _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
 
 @pytest.mark.chat
 @pytest.mark.stream
-def test_prompt_stream(session, magentic_model):
-    @prompt("Tell me a short joke", model=OpenaiChatModel(model=magentic_model))
+def test_prompt_stream(session, _fixt):
+    @prompt("Tell me a short joke", model=_fixt)
     def llm() -> StreamedStr: ...
 
     response = llm()
@@ -48,14 +80,12 @@ def test_prompt_stream(session, magentic_model):
 
 
 @pytest.mark.tools
-def test_function_logging(session, magentic_model):
+def test_function_logging(session, _fixt):
     def activate_oven(temperature: int, mode: Literal["broil", "bake", "roast"]) -> str:
         """Turn the oven on with the provided settings."""
         return f"Preheating to {temperature} F with mode {mode}"
 
-    @prompt(
-        "Prepare the oven so I can make {food}", functions=[activate_oven], model=OpenaiChatModel(model=magentic_model)
-    )
+    @prompt("Prepare the oven so I can make {food}", functions=[activate_oven], model=_fixt)
     def configure_oven(food: str) -> FunctionCall[str]:  # ruff: ignore
         ...
 
@@ -67,8 +97,8 @@ def test_function_logging(session, magentic_model):
 @pytest.mark.async_client
 @pytest.mark.stream
 @pytest.mark.asyncio(scope="module")
-async def test_async_stream_logging(session, magentic_model):
-    @prompt("Tell me a 50-word story about {topic}", model=OpenaiChatModel(model=magentic_model))
+async def test_async_stream_logging(session, _fixt):
+    @prompt("Tell me a a quote about {topic}", model=_fixt)
     async def tell_story(topic: str) -> AsyncStreamedStr:  # ruff: ignore
         ...
 
@@ -84,7 +114,7 @@ async def test_async_stream_logging(session, magentic_model):
 @pytest.mark.async_client
 @pytest.mark.tools
 @pytest.mark.asyncio(scope="module")
-async def test_async_parallel_stream_logging(session, magentic_model):
+async def test_async_parallel_stream_logging(session, _fixt):
     def plus(a: int, b: int) -> int:
         return a + b
 
@@ -94,7 +124,7 @@ async def test_async_parallel_stream_logging(session, magentic_model):
     @prompt(
         "Sum {a} and {b}. Also subtract {a} from {b}.",
         functions=[plus, minus],
-        model=OpenaiChatModel(model=magentic_model),
+        model=_fixt,
     )
     async def plus_and_minus(a: int, b: int) -> AsyncParallelFunctionCall[int]: ...
 
@@ -111,8 +141,8 @@ async def test_async_parallel_stream_logging(session, magentic_model):
 @pytest.mark.async_client
 @pytest.mark.stream
 @pytest.mark.asyncio(scope="module")
-async def test_async_multi_session_tags(magentic_model):
-    @prompt("What is {a} * {b}?", model=OpenaiChatModel(model=magentic_model))
+async def test_async_multi_session_tags(_fixt):
+    @prompt("What is {a} * {b}?", model=_fixt)
     async def do_math_with_llm_async(a: int, b: int) -> AsyncStreamedStr:  # ruff: ignore
         ...
 
@@ -151,7 +181,8 @@ async def test_async_multi_session_tags(magentic_model):
 @pytest.mark.async_client
 @pytest.mark.widget
 @pytest.mark.asyncio(scope="module")
-async def test_async_widget(session, magentic_model):
+@pytest.mark.parametrize("_fixt", [{"temperature": 0.1, "max_tokens": 1000}], indirect=["_fixt"])
+async def test_async_widget(session, _fixt):
     class WidgetInfo(BaseModel):
         title: str
         description: str
@@ -163,7 +194,7 @@ async def test_async_widget(session, magentic_model):
         Data: {widget_data}
         Query: {query}
         """,  # noqa: E501
-        model=OpenaiChatModel(magentic_model, temperature=0.1, max_tokens=1000),
+        model=_fixt,
     )
     async def _generate_title_and_description(query: str, widget_data: str) -> WidgetInfo: ...
 
@@ -184,14 +215,14 @@ async def test_async_widget(session, magentic_model):
 
 
 @pytest.mark.vision
-def test_large_image_upload(magentic_vision_model):
+def test_large_image_upload(_fixt):
     with open("./tests/large_image.png", "rb") as f:
         image_bytes = f.read()
 
     @chatprompt(
         SystemMessage("What's in the following screenshot?"),
         UserImageMessage(image_bytes),
-        model=OpenaiChatModel(model=magentic_vision_model),
+        model=_fixt,
     )
     def _llm() -> str: ...
 
