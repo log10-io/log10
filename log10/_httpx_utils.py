@@ -713,6 +713,11 @@ class _AsyncLogTransport(httpx.AsyncBaseTransport):
 class InitPatcher:
     def __init__(self, module, class_names: list[str]):
         logger.debug("LOG10: initializing patcher")
+
+        allowed_modules = ["openai", "anthropic"]
+        if not any(allowed_module in module.__name__ for allowed_module in allowed_modules):
+            raise ValueError("Only openai and anthropic modules are allowed.")
+
         self.module = module
         if len(class_names) > 2:
             raise ValueError("Only two class names (sync and async) are allowed")

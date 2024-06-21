@@ -985,7 +985,7 @@ if is_openai_v1():
 try:
     import anthropic
 except ImportError:
-    logger.warning("Anthropic not found. Skipping defining log10.load.Anthropic client.")
+    logger.debug("Anthropic not found. Skipping defining log10.load.Anthropic client.")
 else:
     from anthropic import Anthropic, AsyncAnthropic
 

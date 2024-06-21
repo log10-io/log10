@@ -10,7 +10,7 @@ from log10.load import Anthropic, AsyncAnthropic
 from tests.utils import _LogAssertion
 
 
-@pytest.mark.completion
+@pytest.mark.completions
 def test_completions_create(session, anthropic_legacy_model):
     client = Anthropic()
 
