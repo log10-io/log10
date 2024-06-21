@@ -269,7 +269,7 @@ def test_tools_create(session, anthropic_model):
     ]
 
     message = client.messages.create(
-        model="claude-3-opus-20240229",
+        model=anthropic_model,
         max_tokens=1024,
         messages=[user_message],
         tools=tools,
