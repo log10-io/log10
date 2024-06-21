@@ -17,7 +17,7 @@ async def main() -> None:
         messages=[
             {
                 "role": "user",
-                "content": "Say hello there!",
+                "content": "Help me create some similes to describe a person's laughter that is joyful and contagious?",
             }
         ],
         model="claude-3-haiku-20240307",

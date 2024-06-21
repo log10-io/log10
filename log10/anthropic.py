@@ -4,9 +4,6 @@ from typing import List
 
 import anthropic
 from anthropic import AI_PROMPT, HUMAN_PROMPT
-from anthropic.types.beta.tools import (
-    ToolsBetaMessage,
-)
 
 from log10.llm import LLM, ChatCompletion, Kind, Message, TextCompletion
 from log10.utils import merge_hparams
@@ -136,7 +133,7 @@ class Anthropic(LLM):
 
     @staticmethod
     def prepare_response(
-        response: anthropic.types.Completion | anthropic.types.Message | ToolsBetaMessage, input_prompt: str = ""
+        response: anthropic.types.Completion | anthropic.types.Message, input_prompt: str = ""
     ) -> dict:
         if not hasattr(response, "stop_reason"):
             return None
@@ -145,6 +142,8 @@ class Anthropic(LLM):
             reason = "stop"
         elif response.stop_reason == "max_tokens":
             reason = "length"
+        else:
+            reason = response.stop_reason
 
         ret_response = {
             "id": response.id,
@@ -159,22 +158,42 @@ class Anthropic(LLM):
         }
 
         if isinstance(response, anthropic.types.Message):
+            ret_response["choices"][0]["message"] = {
+                "role": response.role,
+            }
+
             tokens_usage = {
                 "prompt_tokens": response.usage.input_tokens,
                 "completion_tokens": response.usage.output_tokens,
                 "total_tokens": response.usage.input_tokens + response.usage.output_tokens,
             }
-            ret_response["choices"][0]["message"] = {"role": response.role, "content": response.content[0].text}
+
+            if isinstance(response.content, list):
+                tool_calls = []
+
+                for index, content in enumerate(response.content):
+                    if isinstance(content, anthropic.types.TextBlock):
+                        ret_response["choices"][0]["message"]["content"] = content.text
+
+                    if isinstance(content, anthropic.types.ToolUseBlock):
+                        tool_call = {
+                            "index": index,
+                            "id": content.id,
+                            "type": "function",
+                            "function": {
+                                "name": content.name,
+                                "arguments": str(content.input),
+                            },
+                        }
+
+                        tool_calls.append(tool_call)
+
+                if tool_calls:
+                    ret_response["choices"][0]["message"]["tool_calls"] = tool_calls
+
         elif isinstance(response, anthropic.types.Completion):
             tokens_usage = Anthropic.create_tokens_usage(input_prompt, response.completion)
             ret_response["choices"][0]["text"] = response.completion
-        elif isinstance(response, ToolsBetaMessage):
-            tokens_usage = {
-                "prompt_tokens": response.usage.input_tokens,
-                "completion_tokens": response.usage.output_tokens,
-                "total_tokens": response.usage.input_tokens + response.usage.output_tokens,
-            }
-            ret_response["choices"][0]["message"] = {"role": response.role, "content": response.content[0].text}
         ret_response["usage"] = tokens_usage
 
         return ret_response

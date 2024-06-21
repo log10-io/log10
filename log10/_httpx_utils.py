@@ -152,39 +152,71 @@ async def _try_post_request_async(url: str, payload: dict = {}) -> httpx.Respons
         logger.error(f"Failed to insert in log10: {payload} with error {err}")
 
 
-def format_anthropic_tools_request(request_content) -> str:
+def format_anthropic_request(request_content) -> str:
+    for message in request_content.get("messages", []):
+        new_content = []
+        message_content = message.get("content")
+
+        if isinstance(message_content, list):
+            for c in message_content:
+                c_type = c.get("type", "")
+                if c_type == "image":
+                    image_type = c.get("source", {}).get("media_type", "")
+                    image_data = c.get("source", {}).get("data", "")
+                    new_content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:{image_type};base64,{image_data}"},
+                        }
+                    )
+                elif c_type == "tool_use":
+                    tool_call = {
+                        "id": c.get("id", ""),
+                        "type": "function",
+                        "function": {
+                            "name": c.get("name", ""),
+                            "arguments": str(c.get("input", {})),
+                        },
+                    }
+                    message["tool_calls"] = [tool_call]
+                    del message["content"]
+                elif c_type == "tool_result":
+                    content_block_content = c.get("content", "")
+                    if isinstance(content_block_content, list):
+                        for content in content_block_content:
+                            if content.get("type", "") == "text":
+                                message["content"] = content.get("text", "")
+                else:
+                    new_content.append(c)
+
+        if new_content:
+            message["content"] = new_content
+
     new_tools = []
-    for tool in request_content["tools"]:
+    for tool in request_content.get("tools", []):
+        if input_schema := tool.get("input_schema", {}):
+            parameters = input_schema
+        else:
+            parameters = {}
         new_tool = {
             "type": "function",
-            "function": {"name": tool["name"], "description": tool["description"], "parameters": tool["input_schema"]},
+            "function": {
+                "name": tool.get("name", ""),
+                "description": tool.get("description", ""),
+                "parameters": parameters,
+            },
         }
         new_tools.append(new_tool)
-    request_content["tools"] = new_tools
+
+    if new_tools:
+        request_content["tools"] = new_tools
+
     return json.dumps(request_content)
 
 
-async def get_completion_id(request: Request):
-    host = request.headers.get("host")
-    if "anthropic" in host and "/v1/messages" not in str(request.url):
-        logger.debug("Currently logging is only available for anthropic v1/messages.")
-        return
-
-    if "openai" in host and "v1/chat/completions" not in str(request.url):
-        logger.debug("Currently logging is only available for openai v1/chat/completions.")
-        return
-
-    request.headers["x-log10-completion-id"] = str(uuid.uuid4())
-
-
-async def log_request(request: Request):
+def _init_log_row(request: Request):
     start_time = time.time()
     request.started = start_time
-    completion_id = request.headers.get("x-log10-completion-id", "")
-    if not completion_id:
-        return
-
-    last_completion_response_var.set({"completionID": completion_id})
     orig_module = ""
     orig_qualname = ""
     request_content_decode = request.content.decode("utf-8")
@@ -200,14 +232,23 @@ async def log_request(request: Request):
             orig_qualname = "Completion.create"
     elif "anthropic" in host:
         kind = "chat"
+        url_path = request.url
+        content_type = request.headers.get("content-type")
         request_content = json.loads(request_content_decode)
-        if "tools" in request_content:
-            orig_module = "anthropic.resources.beta.tools"
-            orig_qualname = "Messages.stream"
-            request_content_decode = format_anthropic_tools_request(request_content)
+        if "/v1/messages" in str(url_path):
+            if content_type == "application/json":
+                orig_module = "anthropic.resources.messages"
+                orig_qualname = "Messages.create"
+            else:
+                orig_module = "anthropic.resources.messages"
+                orig_qualname = "Messages.stream"
         else:
-            orig_module = "anthropic.resources.messages"
-            orig_qualname = "Messages.stream"
+            kind = "completion"
+            orig_module = "anthropic.resources.completions"
+            orig_qualname = "Completions.create"
+
+        request_content_decode = format_anthropic_request(request_content)
+
     else:
         logger.debug("Currently logging is only available for async openai and anthropic.")
         return
@@ -221,17 +262,163 @@ async def log_request(request: Request):
     }
     if get_log10_session_tags():
         log_row["tags"] = get_log10_session_tags()
-    asyncio.create_task(_try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row))
+
+    return log_row
+
+
+def get_completion_id(request: Request):
+    host = request.headers.get("host")
+    if "anthropic" in host:
+        paths = ["/v1/messages", "/v1/complete"]
+        if not any(path in str(request.url) for path in paths):
+            logger.debug("Currently logging is only available for anthropic v1/messages and v1/complete.")
+            return
+
+    if "openai" in host and "v1/chat/completions" not in str(request.url):
+        logger.debug("Currently logging is only available for openai v1/chat/completions.")
+        return
+
+    completion_id = str(uuid.uuid4())
+    request.headers["x-log10-completion-id"] = completion_id
+    last_completion_response_var.set({"completionID": completion_id})
+    return completion_id
+
+
+def patch_response(log_row: dict, llm_response: dict, request: Request):
+    current_stack_frame = traceback.extract_stack()
+    stacktrace = [
+        {
+            "file": frame.filename,
+            "line": frame.line,
+            "lineno": frame.lineno,
+            "name": frame.name,
+        }
+        for frame in current_stack_frame
+    ]
+
+    elapsed = time.time() - request.started
+    if "anthropic" in request.url.host:
+        from anthropic.types.completion import Completion
+        from anthropic.types.message import Message
+
+        from log10.anthropic import Anthropic
+
+        if "v1/messages" in str(request.url):
+            llm_response = Anthropic.prepare_response(Message(**llm_response))
+        elif "v1/complete" in str(request.url):
+            prompt = ""
+            if request.content:
+                content = request.content.decode("utf-8")
+                content_json = json.loads(content)
+                prompt = content_json.get("prompt", "")
+
+            llm_response = Anthropic.prepare_response(Completion(**llm_response), input_prompt=prompt)
+        else:
+            logger.debug("Currently logging is only available for anthropic v1/messages and v1/complete.")
+
+    log_row["status"] = "finished"
+    log_row["response"] = json.dumps(llm_response)
+    log_row["duration"] = int(elapsed * 1000)
+    log_row["stacktrace"] = json.dumps(stacktrace)
+    if get_log10_session_tags():
+        log_row["tags"] = get_log10_session_tags()
+
+    return log_row
+
+
+class _RequestHooks:
+    """
+    The class to manage the event hooks for sync requests and initialize the log row.
+    The event hooks are:
+    - get_completion_id: to generate the completion id
+    - log_request: to send the sync request with initial log row to the log10 platform
+    """
+
+    def __init__(self):
+        logger.debug("LOG10: initializing request hooks")
+        self.event_hooks = {
+            "request": [self.get_completion_id, self.log_request],
+        }
+        self.completion_id = ""
+        self.log_row = {}
+
+    def get_completion_id(self, request: httpx.Request):
+        logger.debug("LOG10: generating completion id")
+        self.completion_id = get_completion_id(request)
+
+    def log_request(self, request: httpx.Request):
+        logger.debug("LOG10: sending sync request")
+        self.log_row = _init_log_row(request)
+        _try_post_request(url=f"{base_url}/api/completions/{self.completion_id}", payload=self.log_row)
+
+
+class _AsyncRequestHooks:
+    """
+    The class to manage the event hooks for async requests and initialize the log row.
+    The event hooks are:
+    - get_completion_id: to generate the completion id
+    - log_request: to send the sync request with initial log row to the log10 platform
+    """
+
+    def __init__(self):
+        logger.debug("LOG10: initializing async request hooks")
+        self.event_hooks = {
+            "request": [self.get_completion_id, self.log_request],
+        }
+        self.completion_id = ""
+        self.log_row = {}
+
+    async def get_completion_id(self, request: httpx.Request):
+        logger.debug("LOG10: generating completion id")
+        self.completion_id = get_completion_id(request)
+
+    async def log_request(self, request: httpx.Request):
+        logger.debug("LOG10: sending async request")
+        self.log_row = _init_log_row(request)
+        asyncio.create_task(
+            _try_post_request_async(url=f"{base_url}/api/completions/{self.completion_id}", payload=self.log_row)
+        )
 
 
 class _LogResponse(Response):
     def __init__(self, *args, **kwargs):
+        self.log_row = kwargs.pop("log_row")
         super().__init__(*args, **kwargs)
-        self.full_content = ""
-        self.function_name = ""
-        self.full_argument = ""
-        self.tool_calls = []
-        self.finish_reason = ""
+
+    def patch_streaming_log(self, duration: int, full_response: str):
+        current_stack_frame = traceback.extract_stack()
+        stacktrace = [
+            {
+                "file": frame.filename,
+                "line": frame.line,
+                "lineno": frame.lineno,
+                "name": frame.name,
+            }
+            for frame in current_stack_frame
+        ]
+
+        responses = full_response.split("\n\n")
+        response_json = self.parse_response_data(responses)
+
+        self.log_row["response"] = json.dumps(response_json)
+        self.log_row["status"] = "finished"
+        self.log_row["duration"] = duration
+        self.log_row["stacktrace"] = json.dumps(stacktrace)
+
+    def iter_bytes(self, *args, **kwargs):
+        full_response = ""
+        finished = False
+        for chunk in super().iter_bytes(*args, **kwargs):
+            full_response += chunk.decode(errors="ignore")
+            if self.is_response_end_reached(full_response):
+                finished = True
+                duration = int(time.time() - self.request.started) * 1000
+
+                completion_id = self.request.headers.get("x-log10-completion-id", "")
+                if finished and completion_id:
+                    self.patch_streaming_log(duration, full_response)
+                    _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=self.log_row)
+            yield chunk
 
     async def aiter_bytes(self, *args, **kwargs):
         full_response = ""
@@ -244,71 +431,12 @@ class _LogResponse(Response):
 
                 completion_id = self.request.headers.get("x-log10-completion-id", "")
                 if finished and completion_id:
-                    current_stack_frame = traceback.extract_stack()
-                    stacktrace = [
-                        {
-                            "file": frame.filename,
-                            "line": frame.line,
-                            "lineno": frame.lineno,
-                            "name": frame.name,
-                        }
-                        for frame in current_stack_frame
-                    ]
-
-                    responses = full_response.split("\n\n")
-                    r_json = self.parse_response_data(responses)
-
-                    response_json = r_json.copy()
-                    # r_json is the last response before "data: [DONE]"
-
-                    # Choices can be empty list with the openai version > 1.26.0
-                    if not response_json.get("choices"):
-                        response_json["choices"] = [{"index": 0}]
-
-                    if response_json.get("choices", []):
-                        # It will only set finish_reason for openai version > 1.26.0
-                        if self.finish_reason:
-                            response_json["choices"][0]["finish_reason"] = self.finish_reason
-
-                        if self.full_content:
-                            response_json["choices"][0]["message"] = {
-                                "role": "assistant",
-                                "content": self.full_content,
-                            }
-                        elif self.tool_calls:
-                            response_json["choices"][0]["message"] = {
-                                "content": None,
-                                "role": "assistant",
-                                "tool_calls": self.tool_calls,
-                            }
-                        elif self.function_name and self.full_argument:
-                            # function is deprecated in openai api
-                            response_json["choices"][0]["function_call"] = {
-                                "name": self.function_name,
-                                "arguments": self.full_argument,
-                            }
-
-                    request_content_decode = self.request.content.decode("utf-8")
-                    if "anthropic" in self.request.headers.get("host"):
-                        request_content = json.loads(request_content_decode)
-                        if "tools" in request_content:
-                            request_content_decode = format_anthropic_tools_request(request_content)
-
-                    log_row = {
-                        "response": json.dumps(response_json),
-                        "status": "finished",
-                        "duration": duration,
-                        "stacktrace": json.dumps(stacktrace),
-                        "kind": "chat",
-                        "request": request_content_decode,
-                        "session_id": session_id_var.get(),
-                    }
-                    if get_log10_session_tags():
-                        log_row["tags"] = get_log10_session_tags()
+                    self.patch_streaming_log(duration, full_response)
                     asyncio.create_task(
-                        _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+                        _try_post_request_async(
+                            url=f"{base_url}/api/completions/{completion_id}", payload=self.log_row
+                        )
                     )
-
             yield chunk
 
     def is_response_end_reached(self, text: str):
@@ -328,13 +456,16 @@ class _LogResponse(Response):
         return "data: [DONE]" in text
 
     def parse_anthropic_responses(self, responses: list[str]):
-        message_id = None
-        model = None
+        message_id = ""
+        model = ""
         finish_reason = None
+        full_content = ""
         input_tokens = 0
         output_tokens = 0
+        tool_calls = []
         tool_call = {}
         arguments = ""
+
         for r in responses:
             if not r:
                 break
@@ -346,43 +477,41 @@ class _LogResponse(Response):
             ### {"event":"message_start","data":{"message":{"role":"user","content":"Hello, how are you today?"}}}
             type = r_json["type"]
             if type == "message_start":
-                message_id = r_json["message"]["id"]
-                model = r_json["message"]["model"]
-                input_tokens = r_json["message"]["usage"]["input_tokens"]
+                message = r_json.get("message", {})
+                message_id = message.get("id", "")
+                model = message.get("model", "")
+                input_tokens = message.get("usage", {}).get("input_tokens", 0)
             elif type == "content_block_start":
-                content_block = r_json["content_block"]
-                type = content_block["type"]
-                if type == "tool_use":
-                    id = content_block["id"]
+                content_block = r_json.get("content_block", {})
+                content_block_type = content_block.get("type", "")
+                if content_block_type == "tool_use":
                     tool_call = {
-                        "id": id,
+                        "id": content_block.get("id", ""),
                         "type": "function",
-                        "function": {"name": content_block["name"], "arguments": ""},
+                        "function": {"name": content_block.get("name", ""), "arguments": ""},
                     }
-
-                if content_block_text := content_block.get("text", ""):
-                    self.full_content += content_block_text
+                if content_block_type == "text":
+                    full_content += content_block.get("text", "")
             elif type == "content_block_delta":
-                delta = r_json["delta"]
-                if delta_text := delta.get("text", ""):
-                    self.full_content += delta_text
+                delta = r_json.get("delta", {})
+                if (delta_text := delta.get("text")) is not None:
+                    full_content += delta_text
 
-                if delta_partial_json := delta.get("partial_json", ""):
-                    if self.full_content:
-                        self.full_content += delta_partial_json
-                    else:
-                        arguments += delta_partial_json
+                if (delta_partial_json := delta.get("partial_json")) is not None:
+                    ## If there is a content of chain of thoughts,
+                    ## then the next one should be append to the tool_call
+                    arguments += delta_partial_json
             elif type == "message_delta":
-                finish_reason = r_json["delta"]["stop_reason"]
-                output_tokens = r_json["usage"]["output_tokens"]
-            elif type == "content_block_end" or type == "message_end":
+                finish_reason = r_json.get("delta", {}).get("stop_reason", "")
+                output_tokens = r_json.get("usage", {}).get("output_tokens", 0)
+            elif type == "content_block_stop" or type == "message_stop":
                 if tool_call:
                     tool_call["function"]["arguments"] = arguments
-                    self.tool_calls.append(tool_call)
-                    tool_call = {}
+                    tool_calls.append(tool_call)
                     arguments = ""
+                    tool_call = {}
 
-        return {
+        response = {
             "id": message_id,
             "object": "chat",
             "model": model,
@@ -399,8 +528,28 @@ class _LogResponse(Response):
             },
         }
 
+        response_json = response.copy()
+        message = {
+            "role": "assistant",
+        }
+
+        if full_content:
+            message["content"] = full_content
+
+        if tool_calls:
+            message["tool_calls"] = tool_calls
+
+        response_json["choices"][0]["message"] = message
+        return response_json
+
     def parse_openai_responses(self, responses: list[str]):
         r_json = {}
+        tool_calls = []
+        full_content = ""
+        function_name = ""
+        full_argument = ""
+        finish_reason = ""
+
         for r in responses:
             if self.is_openai_response_end_reached(r):
                 break
@@ -415,30 +564,58 @@ class _LogResponse(Response):
                     # Delta may have content
                     # delta: { "content": " "}
                     if content := delta.get("content", ""):
-                        self.full_content += content
+                        full_content += content
 
                     # May be a function call, and have to reconstruct the arguments
                     if function_call := delta.get("function_call", {}):
                         # May be function name
-                        if function_name := function_call.get("name", ""):
-                            self.function_name = function_name
+                        if function_call_name := function_call.get("name", ""):
+                            function_name = function_call_name
                         # May be function arguments
                         if arguments := function_call.get("arguments", ""):
-                            self.full_argument += arguments
+                            full_argument += arguments
 
                     if tc := delta.get("tool_calls", []):
                         if tc[0].get("id", ""):
-                            self.tool_calls.append(tc[0])
+                            tool_calls.append(tc[0])
                         elif tc[0].get("function", {}).get("arguments", ""):
                             idx = tc[0].get("index")
-                            self.tool_calls[idx]["function"]["arguments"] += tc[0]["function"]["arguments"]
+                            tool_calls[idx]["function"]["arguments"] += tc[0]["function"]["arguments"]
 
                 if fr := r_json["choices"][0].get("finish_reason", ""):
-                    self.finish_reason = fr
+                    finish_reason = fr
 
         r_json["object"] = "chat.completion"
+        # r_json is the last response before "data: [DONE]"
+        response_json = r_json.copy()
 
-        return r_json
+        if not response_json.get("choices"):
+            response_json["choices"] = [{"index": 0}]
+
+        if response_json.get("choices", []):
+            # It will only set finish_reason for openai version > 1.26.0
+            if finish_reason:
+                response_json["choices"][0]["finish_reason"] = finish_reason
+
+            if full_content:
+                response_json["choices"][0]["message"] = {
+                    "role": "assistant",
+                    "content": full_content,
+                }
+            elif tool_calls:
+                response_json["choices"][0]["message"] = {
+                    "content": None,
+                    "role": "assistant",
+                    "tool_calls": tool_calls,
+                }
+            elif function_name and full_argument:
+                # function is deprecated in openai api
+                response_json["choices"][0]["function_call"] = {
+                    "name": function_name,
+                    "arguments": full_argument,
+                }
+
+        return response_json
 
     def parse_response_data(self, responses: list[str]):
         host = self.request.headers.get("host")
@@ -451,9 +628,50 @@ class _LogResponse(Response):
             return None
 
 
-class _LogTransport(httpx.AsyncBaseTransport):
-    def __init__(self, transport: httpx.AsyncBaseTransport):
+class _LogTransport(httpx.BaseTransport):
+    def __init__(self, transport: httpx.BaseTransport, request_hooks: _RequestHooks):
         self.transport = transport
+        self.request_hooks = request_hooks
+
+    def handle_request(self, request: Request) -> Response:
+        try:
+            response = self.transport.handle_request(request)
+        except Exception as e:
+            logger.warning(f"Failed to send request: {e}")
+            return
+
+        if response.status_code >= 400:
+            logger.warning(f"HTTP error occurred: {response.status_code}")
+            return
+
+        completion_id = request.headers.get("x-log10-completion-id", "")
+        if not completion_id:
+            return response
+
+        if response.headers.get("content-type").startswith("application/json"):
+            response.read()
+            llm_response = response.json()
+            log_row = patch_response(self.request_hooks.log_row, llm_response, request)
+            _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
+            return response
+        elif response.headers.get("content-type").startswith("text/event-stream"):
+            return _LogResponse(
+                status_code=response.status_code,
+                headers=response.headers,
+                stream=response.stream,
+                extensions=response.extensions,
+                request=request,
+                log_row=self.request_hooks.log_row,
+            )
+
+        # In case of an error, get out of the way
+        return response
+
+
+class _AsyncLogTransport(httpx.AsyncBaseTransport):
+    def __init__(self, transport: httpx.AsyncBaseTransport, async_request_hooks: _AsyncRequestHooks):
+        self.transport = transport
+        self.async_request_hooks = async_request_hooks
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         try:
@@ -473,39 +691,7 @@ class _LogTransport(httpx.AsyncBaseTransport):
         if response.headers.get("content-type").startswith("application/json"):
             await response.aread()
             llm_response = response.json()
-
-            current_stack_frame = traceback.extract_stack()
-            stacktrace = [
-                {
-                    "file": frame.filename,
-                    "line": frame.line,
-                    "lineno": frame.lineno,
-                    "name": frame.name,
-                }
-                for frame in current_stack_frame
-            ]
-
-            elapsed = time.time() - request.started
-            if "anthropic" in request.url.host:
-                from anthropic.types.beta.tools import (
-                    ToolsBetaMessage,
-                )
-
-                from log10.anthropic import Anthropic
-
-                llm_response = Anthropic.prepare_response(ToolsBetaMessage(**llm_response))
-
-            log_row = {
-                "response": json.dumps(llm_response),
-                "status": "finished",
-                "duration": int(elapsed * 1000),
-                "stacktrace": json.dumps(stacktrace),
-                "kind": "chat",
-                "request": request.content.decode("utf-8"),
-                "session_id": session_id_var.get(),
-            }
-            if get_log10_session_tags():
-                log_row["tags"] = get_log10_session_tags()
+            log_row = patch_response(self.async_request_hooks.log_row, llm_response, request)
             asyncio.create_task(
                 _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=log_row)
             )
@@ -517,10 +703,70 @@ class _LogTransport(httpx.AsyncBaseTransport):
                 stream=response.stream,
                 extensions=response.extensions,
                 request=request,
+                log_row=self.async_request_hooks.log_row,
             )
 
         # In case of an error, get out of the way
         return response
+
+
+class InitPatcher:
+    def __init__(self, module, class_names: list[str]):
+        logger.debug("LOG10: initializing patcher")
+
+        allowed_modules = ["openai", "anthropic"]
+        if not any(allowed_module in module.__name__ for allowed_module in allowed_modules):
+            raise ValueError("Only openai and anthropic modules are allowed.")
+
+        self.module = module
+        if len(class_names) > 2:
+            raise ValueError("Only two class names (sync and async) are allowed")
+
+        self.async_class_name = None
+        self.sync_class_name = None
+
+        for class_name in class_names:
+            if class_name.startswith("Async"):
+                self.async_class_name = class_name
+                self.async_origin_init = getattr(module, self.async_class_name).__init__
+            else:
+                self.sync_class_name = class_name
+                self.origin_init = getattr(module, self.sync_class_name).__init__
+
+        self._patch_init()
+
+    def _patch_init(self):
+        def new_init(instance, *args, **kwargs):
+            logger.debug(f"LOG10: patching {self.sync_class_name}.__init__")
+
+            request_hooks = _RequestHooks()
+            httpx_client = httpx.Client(
+                event_hooks=request_hooks.event_hooks,
+                transport=_LogTransport(httpx.HTTPTransport(), request_hooks),
+            )
+            kwargs["http_client"] = httpx_client
+            self.origin_init(instance, *args, **kwargs)
+
+        def async_new_init(instance, *args, **kwargs):
+            logger.debug(f"LOG10: patching {self.async_class_name}.__init__")
+
+            async_request_hooks = _AsyncRequestHooks()
+            async_httpx_client = httpx.AsyncClient(
+                event_hooks=async_request_hooks.event_hooks,
+                transport=_AsyncLogTransport(httpx.AsyncHTTPTransport(), async_request_hooks),
+            )
+            kwargs["http_client"] = async_httpx_client
+            self.async_origin_init(instance, *args, **kwargs)
+
+        # Patch the asynchronous class __init__
+        if self.async_class_name:
+            async_class = getattr(self.module, self.async_class_name)
+            async_class.__init__ = async_new_init
+
+        # Patch the synchronous class __init__ if provided
+        if self.sync_class_name:
+            sync_class = getattr(self.module, self.sync_class_name)
+            sync_class.__init__ = new_init
 
 
 async def finalize():

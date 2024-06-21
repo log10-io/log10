@@ -20,7 +20,7 @@ def pytest_addoption(parser):
 
     parser.addoption("--google_model", action="store", help="Model name for Google tests")
 
-    parser.addoption("--magentic_model", action="store", help="Model name for Magentic tests")
+    parser.addoption("--llm_provider", action="store", help="Model provider name for Magentic tests")
 
 
 @pytest.fixture
@@ -59,8 +59,20 @@ def google_model(request):
 
 
 @pytest.fixture
-def magentic_model(request):
-    return request.config.getoption("--magentic_model")
+def llm_provider(request):
+    return request.config.getoption("--llm_provider")
+
+
+@pytest.fixture
+def magentic_models(request):
+    llm_provider = request.config.getoption("--llm_provider")
+    model_config_name = f"--{llm_provider}_model"
+    vision_model_config_name = llm_provider == "openai" and f"--{llm_provider}_vision_model" or model_config_name
+
+    return {
+        "chat_model": request.config.getoption(model_config_name),
+        "vision_model": request.config.getoption(vision_model_config_name),
+    }
 
 
 @pytest.fixture

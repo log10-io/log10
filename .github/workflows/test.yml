@@ -106,14 +106,15 @@ jobs:
             poetry run pytest --lamini_model=$lamini_model_input -vv tests/test_lamini.py
           fi
 
-          if [[ -n "$magentic_model_input" ]]; then
+          if [[ -n "$llm_provider_input" ]]; then
             empty_inputs=false
-            poetry run pytest --magentic_model=$magentic_model_input -vv tests/test_magentic.py
+            poetry run pytest --llm_provider=$llm_provider_input -vv tests/test_magentic.py
           fi
 
           if $empty_inputs; then
             echo "All variables are empty"
             poetry run pytest -vv tests/
+            poetry run pytest --llm_provider=anthropic -vv tests/test_magentic.py
           fi
 
       - name: Run scheduled tests

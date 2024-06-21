@@ -205,7 +205,7 @@ def test_tools(session, openai_model):
     tool_calls = response_message.tool_calls
 
     function_args = format_function_args(tool_calls)
-    _LogAssertion(completion_id=first_completion_id, function_args=function_args).assert_function_call_response()
+    _LogAssertion(completion_id=first_completion_id, function_args=function_args).assert_tool_calls_response()
     # Step 2: check if the model wanted to call a function
     if tool_calls:
         # Step 3: call the function
@@ -270,9 +270,7 @@ def test_tools_stream(session, openai_model):
     function_args = format_function_args(tool_calls)
     assert len(function_args) == 3
 
-    _LogAssertion(
-        completion_id=session.last_completion_id(), function_args=function_args
-    ).assert_function_call_response()
+    _LogAssertion(completion_id=session.last_completion_id(), function_args=function_args).assert_tool_calls_response()
 
 
 @pytest.mark.tools
@@ -307,6 +305,4 @@ async def test_tools_stream_async(session, openai_model):
     assert len(function_args) == 3
 
     await finalize()
-    _LogAssertion(
-        completion_id=session.last_completion_id(), function_args=function_args
-    ).assert_function_call_response()
+    _LogAssertion(completion_id=session.last_completion_id(), function_args=function_args).assert_tool_calls_response()

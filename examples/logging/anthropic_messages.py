@@ -8,7 +8,7 @@ log10(anthropic)
 client = anthropic.Anthropic()
 
 message = client.messages.create(
-    model="claude-3-opus-20240229",
+    model="claude-3-5-sonnet-20240620",
     max_tokens=1000,
     temperature=0.0,
     system="Respond only in Yoda-speak.",

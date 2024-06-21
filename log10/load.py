@@ -393,86 +393,6 @@ class StreamingResponseWrapper:
             raise se
 
 
-class AnthropicStreamingResponseWrapper:
-    """
-    Wraps a streaming response object to log the final result and duration to log10.
-    """
-
-    def __enter__(self):
-        self.response = self.response.__enter__()
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.response.__exit__(exc_type, exc_value, traceback)
-        return
-
-    def __init__(self, completion_url, completionID, response, partial_log_row):
-        self.completionID = completionID
-        self.completion_url = completion_url
-        self.partial_log_row = partial_log_row
-        self.response = response
-        self.final_result = ""
-        self.start_time = time.perf_counter()
-        self.message_id = None
-        self.model = None
-        self.finish_reason = None
-        self.input_tokens = 0
-        self.output_tokens = 0
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        chunk = next(self.response)
-        self._process_chunk(chunk)
-        return chunk
-
-    def _process_chunk(self, chunk):
-        if chunk.type == "message_start":
-            self.model = chunk.message.model
-            self.message_id = chunk.message.id
-            self.input_tokens = chunk.message.usage.input_tokens
-        if chunk.type == "content_block_start":
-            if hasattr(chunk.content_block, "text"):
-                self.final_result += chunk.content_block.text
-        elif chunk.type == "message_delta":
-            self.finish_reason = chunk.delta.stop_reason
-            self.output_tokens = chunk.usage.output_tokens
-        elif chunk.type == "content_block_delta":
-            if hasattr(chunk.delta, "text"):
-                self.final_result += chunk.delta.text
-            if hasattr(chunk.delta, "partial_json"):
-                self.final_result += chunk.delta.partial_json
-        elif chunk.type == "message_stop" or chunk.type == "content_block_stop":
-            response = {
-                "id": self.message_id,
-                "object": "chat",
-                "model": self.model,
-                "choices": [
-                    {
-                        "index": 0,
-                        "finish_reason": self.finish_reason,
-                        "message": {
-                            "role": "assistant",
-                            "content": self.final_result,
-                        },
-                    }
-                ],
-                "usage": {
-                    "prompt_tokens": self.input_tokens,
-                    "completion_tokens": self.output_tokens,
-                    "total_tokens": self.input_tokens + self.output_tokens,
-                },
-            }
-            self.partial_log_row["response"] = json.dumps(response)
-            self.partial_log_row["duration"] = int((time.perf_counter() - self.start_time) * 1000)
-
-            _url = f"{self.completion_url}/{self.completionID}"
-            res = post_request(_url, self.partial_log_row)
-            if res.status_code != 200:
-                logger.error(f"Failed to insert in log10: {self.partial_log_row} with error {res.text}. Skipping")
-
-
 # Filter large images from messages, and replace with a text message saying "Image too large to display"
 def filter_large_images(messages):
     for message in messages:
@@ -559,41 +479,7 @@ def _init_log_row(func, *args, **kwargs):
     # kind and request are set based on the module and qualname
     # request is based on openai schema
     if "anthropic" in func.__module__:
-        from anthropic._utils._utils import strip_not_given
-
-        kwargs_copy = strip_not_given(kwargs_copy)
-        log_row["kind"] = "chat" if "message" in func.__module__ else "completion"
-        # set system message
-        if "system" in kwargs_copy:
-            kwargs_copy["messages"].insert(0, {"role": "system", "content": kwargs_copy["system"]})
-        if "messages" in kwargs_copy:
-            for m in kwargs_copy["messages"]:
-                if isinstance(m.get("content"), list):
-                    new_content = []
-                    for c in m.get("content", ""):
-                        if c.get("type") == "image":
-                            image_type = c.get("source", {}).get("media_type", "")
-                            image_data = c.get("source", {}).get("data", "")
-                            new_content.append(
-                                {
-                                    "type": "image_url",
-                                    "image_url": {"url": f"data:{image_type};base64,{image_data}"},
-                                }
-                            )
-                        else:
-                            new_content.append(c)
-                    m["content"] = new_content
-        if "tools" in kwargs_copy:
-            for t in kwargs_copy["tools"]:
-                new_function = {
-                    "name": t.get("name", None),
-                    "description": t.get("description", None),
-                    "parameters": {
-                        "properties": t.get("input_schema", {}).get("properties", None),
-                    },
-                }
-                t["function"] = new_function
-                t.pop("input_schema", None)
+        logger.debug("Anthropic calls are patched via httpx client, should not reach here.")
     elif "vertexai" in func.__module__:
         if func.__name__ == "_send_message":
             # get model name save in ChatSession instance
@@ -746,19 +632,8 @@ def intercepting_decorator(func):
                 response = output
                 # Adjust the Anthropic output to match OAI completion output
                 if "anthropic" in func.__module__:
-                    if type(output).__name__ == "Stream" or "MessageStreamManager" in type(output).__name__:
-                        log_row["response"] = response
-                        log_row["status"] = "finished"
-                        return AnthropicStreamingResponseWrapper(
-                            completion_url=completion_url,
-                            completionID=completionID,
-                            response=response,
-                            partial_log_row=log_row,
-                        )
+                    logger.debug("Anthropic calls are patched via httpx client, should not reach here.")
 
-                    from log10.anthropic import Anthropic
-
-                    response = Anthropic.prepare_response(output, input_prompt=kwargs.get("prompt", ""))
                 elif "vertexai" in func.__module__:
                     response = output
                     reason = response.candidates[0].finish_reason.name
@@ -1006,50 +881,10 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
         return
 
     if module.__name__ == "anthropic":
-        attr = module.resources.completions.Completions
-        method = getattr(attr, "create")
-        setattr(attr, "create", intercepting_decorator(method))
+        from log10._httpx_utils import InitPatcher
 
-        # anthropic Messages completion
-        attr = module.resources.messages.Messages
-        method = getattr(attr, "create")
-        setattr(attr, "create", intercepting_decorator(method))
-
-        attr = module.resources.messages.Messages
-        method = getattr(attr, "stream")
-        setattr(attr, "stream", intercepting_decorator(method))
-
-        attr = module.resources.beta.tools.Messages
-        method = getattr(attr, "create")
-        setattr(attr, "create", intercepting_decorator(method))
-
-        attr = module.resources.beta.tools.Messages
-        method = getattr(attr, "stream")
-        setattr(attr, "stream", intercepting_decorator(method))
-
-        origin_init = module.AsyncAnthropic.__init__
-
-        def new_init(self, *args, **kwargs):
-            logger.debug("LOG10: patching AsyncAnthropic.__init__")
-            import httpx
-
-            from log10._httpx_utils import (
-                _LogTransport,
-                get_completion_id,
-                log_request,
-            )
-
-            event_hooks = {
-                "request": [get_completion_id, log_request],
-            }
-            async_httpx_client = httpx.AsyncClient(
-                event_hooks=event_hooks,
-                transport=_LogTransport(httpx.AsyncHTTPTransport()),
-            )
-            kwargs["http_client"] = async_httpx_client
-            origin_init(self, *args, **kwargs)
-
-        module.AsyncAnthropic.__init__ = new_init
+        # Patch the AsyncAnthropic and Anthropic class
+        InitPatcher(module, ["AsyncAnthropic", "Anthropic"])
     elif module.__name__ == "lamini":
         attr = module.api.utils.completion.Completion
         method = getattr(attr, "generate")
@@ -1077,31 +912,10 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
             setattr(attr, "create", intercepting_decorator(method))
 
             # support for async completions
-            # patch module.AsyncOpenAI.__init__ to new_init
-            origin_init = module.AsyncOpenAI.__init__
+            from log10._httpx_utils import InitPatcher
 
-            def new_init(self, *args, **kwargs):
-                logger.debug("LOG10: patching AsyncOpenAI.__init__")
-                import httpx
-
-                from log10._httpx_utils import (
-                    _LogTransport,
-                    get_completion_id,
-                    log_request,
-                )
-
-                event_hooks = {
-                    "request": [get_completion_id, log_request],
-                }
-                async_httpx_client = httpx.AsyncClient(
-                    event_hooks=event_hooks,
-                    transport=_LogTransport(httpx.AsyncHTTPTransport()),
-                )
-                kwargs["http_client"] = async_httpx_client
-                origin_init(self, *args, **kwargs)
-
-            module.AsyncOpenAI.__init__ = new_init
-
+            # Patch the AsyncOpenAI class
+            InitPatcher(module, ["AsyncOpenAI"])
         else:
             attr = module.api_resources.completion.Completion
             method = getattr(attr, "create")
@@ -1171,11 +985,22 @@ if is_openai_v1():
 try:
     import anthropic
 except ImportError:
-    logger.warning("Anthropic not found. Skipping defining log10.load.Anthropic client.")
+    logger.debug("Anthropic not found. Skipping defining log10.load.Anthropic client.")
 else:
-    from anthropic import Anthropic
+    from anthropic import Anthropic, AsyncAnthropic
 
-    class Anthropic(Anthropic):
+    class _Log10Anthropic:
+        def __init__(self, *args, **kwargs):
+            if "tags" in kwargs:
+                tags_var.set(kwargs.pop("tags"))
+
+            if not getattr(anthropic, "_log10_patched", False):
+                log10(anthropic)
+                anthropic._log10_patched = True
+
+            super().__init__(*args, **kwargs)
+
+    class Anthropic(_Log10Anthropic, Anthropic):
         """
         Example:
             >>> from log10.load import Anthropic
@@ -1190,11 +1015,26 @@ else:
             >>> print(message.content[0].text)
         """
 
-        def __init__(self, *args, **kwargs):
-            if "tags" in kwargs:
-                tags_var.set(kwargs.pop("tags"))
-            super().__init__(*args, **kwargs)
+        pass
 
-            if not getattr(anthropic, "_log10_patched", False):
-                log10(anthropic)
-                anthropic._log10_patched = True
+    class AsyncAnthropic(_Log10Anthropic, AsyncAnthropic):
+        """
+        Example:
+            >>> import asyncio
+            >>> from log10._httpx_utils import finalize
+            >>> from log10.load import AsyncAnthropic
+            >>> client = AsyncAnthropic(tags=["test", "async_anthropic"])
+            >>> async def main() -> None:
+            >>>     message = await client.messages.create(
+            ...         model="claude-3-haiku-20240307",
+            ...         max_tokens=100,
+            ...         temperature=0.9,
+            ...         system="Respond only in Yoda-speak.",
+            ...         messages=[{"role": "user", "content": "How are you today?"}],
+            ...     )
+            >>>     print(message.content[0].text)
+            >>>     await finalize()
+            >>> asyncio.run(main())
+        """
+
+        pass
