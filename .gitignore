@@ -11,3 +11,6 @@ users.db
 .env
 
 .vscode/
+
+# Test image files
+tests/*.png
