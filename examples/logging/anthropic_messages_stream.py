@@ -10,7 +10,7 @@ log10(anthropic)
 client = Anthropic()
 
 stream = client.messages.create(
-    model="claude-3-opus-20240229",
+    model="claude-3-5-sonnet-20240620",
     messages=[
         {
             "role": "user",
