@@ -1,4 +1,10 @@
-import click
+try:
+    import click
+except ImportError:
+    print(
+        "To use cli you must install optional modules. Please install them with `pip install 'log10-io[cliModules]'`."
+    )
+    exit(1)
 
 from log10.completions.completions import benchmark_models, download_completions, get_completion, list_completions
 from log10.feedback.autofeedback import auto_feedback_icl, get_autofeedback_cli

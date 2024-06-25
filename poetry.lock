@@ -3915,6 +3915,7 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 
 [extras]
 autofeedback-icl = ["magentic"]
+climodules = ["pandas"]
 gemini = ["google-cloud-aiplatform"]
 google-generativeai = ["google-generativeai"]
 lamini = ["lamini"]
@@ -3927,4 +3928,4 @@ together = ["together"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<4.0"
-content-hash = "2190ee6487f544438498170965a7719667b908a07ec2e43aaa21e7b9a34e53ad"
+content-hash = "3dbf5b47d2f01eb9e72e07401019bc1d78f1dd11a1a65a33932661a91579f701"
