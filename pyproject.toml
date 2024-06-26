@@ -66,7 +66,7 @@ together = ["together"]
 mosaicml = ["mosaicml-cli"]
 google-generativeai = ["google-generativeai"]
 lamini = ["lamini"]
-cliModules = ["click", "rich", "tabulate", "pandas"]
+cli = ["click", "rich", "tabulate", "pandas"]
 
 [tool.ruff]
 # Never enforce `E501` (line length violations).

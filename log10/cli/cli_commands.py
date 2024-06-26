@@ -2,7 +2,7 @@ try:
     import click
 except ImportError:
     print(
-        "To use log10 cli you must install optional modules. Please install them with `pip install 'log10-io[cliModules]'`."
+        "To use log10 cli you must install optional modules. Please install them with `pip install 'log10-io[cli]'`."
     )
     exit(1)
 
