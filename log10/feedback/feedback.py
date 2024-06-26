@@ -7,7 +7,7 @@ from rich.console import Console
 from rich.table import Table
 from tqdm import tqdm
 
-from log10._httpx_utils import _try_get
+from log10._httpx_utils import _try_get, _try_post_graphql_request
 from log10.llm import Log10Config
 
 
@@ -75,6 +75,52 @@ class Feedback:
                 logger.error(e.response.json()["error"])
             raise
 
+    def list_graphql(self, page: int = 1, limit: int = 50, task_id: str = "", filter: str = "") -> httpx.Response:
+        query = """
+        query OrganizationFeedback($id: String!, $filter: String, $taskId: String, $page: Int, $limit: Int) {
+            organization(id: $id) {
+                id
+                feedbackV2(filter: $filter, taskId: $taskId, page: $page, limit: $limit) {
+                pageInfo{
+                    totalCount
+                    totalCount
+                    currentPage
+                }
+                nodes {
+                    id
+                    jsonValues
+                    task {
+                    id
+                    name
+                    }
+                    completions {
+                    id
+                    }
+                }
+                }
+            }
+        }
+        """
+
+        variables = {
+            "id": self._log10_config.org_id,
+            "taskId": task_id,
+            "filter": filter,
+            "page": page,
+            "limit": limit,
+        }
+
+        response = _try_post_graphql_request(query, variables)
+
+        if response is None:
+            logger.error("Failed to get feedback")
+            return None
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            response.raise_for_status()
+
     def get(self, id: str) -> httpx.Response:
         base_url = self._log10_config.url
         api_url = "/api/v1/feedback"
@@ -106,10 +152,48 @@ def create_feedback(task_id, values, completion_tags_selector, comment):
     click.echo(feedback.json())
 
 
+def _format_graphql_node(node):
+    return {
+        "id": node["id"],
+        "json_values": node["jsonValues"],
+        "task_id": node["task"]["id"],
+        "task_name": node["task"]["name"],
+        "matched_completion_ids": [c["id"] for c in node["completions"]],
+    }
+
+
+def _get_feedback_list_graphql(page, limit, task_id, filter):
+    feedback_data = []
+    current_page = page if page else 1
+    if limit:
+        limit = int(limit)
+
+    try:
+        while True:
+            fetch_limit = limit if limit else 50
+            res = Feedback().list_graphql(page=current_page, limit=fetch_limit, task_id=task_id, filter=filter)
+            new_data = res["data"]["organization"]["feedbackV2"]["nodes"]
+            feedback_data.extend(new_data)
+
+            current_fetched = len(new_data)
+            current_page += 1
+
+            if current_fetched < fetch_limit:
+                break
+    except Exception as e:
+        click.echo(f"Error fetching feedback {e}")
+        if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
+            click.echo(e.response.json()["error"])
+        return []
+
+    return list(map(_format_graphql_node, feedback_data))
+
+
 def _get_feedback_list(offset, limit, task_id):
     total_fetched = 0
     feedback_data = []
     total_feedback = 0
+
     if limit:
         limit = int(limit)
 
@@ -151,12 +235,20 @@ def _get_feedback_list(offset, limit, task_id):
     type=str,
     help="The specific Task ID to filter feedback. If not provided, feedback for all tasks will be fetched.",
 )
-def list_feedback(offset, limit, task_id):
+@click.option(
+    "--filter",
+    default="",
+    type=str,
+    help="The filter applied to the feedback. If not provided, feedback will not be filtered.",
+)
+def list_feedback(offset, limit, task_id, filter):
     """
     List feedback based on the provided criteria. This command allows fetching feedback for a specific task or across all tasks,
     with control over the starting point and the number of items to retrieve.
     """
-    feedback_data = _get_feedback_list(offset, limit, task_id)
+    feedback_data = (
+        _get_feedback_list_graphql(1, limit, task_id, filter) if filter else _get_feedback_list(offset, limit, task_id)
+    )
     data_for_table = []
     for feedback in feedback_data:
         data_for_table.append(
