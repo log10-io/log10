@@ -123,3 +123,6 @@ jobs:
           echo "This is a schedule event"
           poetry run pytest -vv tests/
           poetry run pytest --openai_model=gpt-4o -m chat -vv tests/test_openai.py
+
+      - name: Test cli commands
+        run: poetry run pytest -vv tests/test_cli.py
