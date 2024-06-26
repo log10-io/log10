@@ -4,9 +4,9 @@ from click.testing import CliRunner
 from log10.cli.cli_commands import cli
 
 
-completion_id = "fb891d4e-f99c-4d8d-a95c-24d2ed7a0807"
-feedback_id = "0e43b537-5f0c-4f47-ba83-4938514477c3"
-feedback_task_id = "1c84079e-a7bb-47e1-86c7-e32b51045e8e"
+completion_id = "fe3c10f0-df31-4a42-b224-233adfe1eb7f"
+feedback_id = "58b8d9b7-1d6a-4b7d-952e-bc97a649dc94"
+feedback_task_id = "890bda39-2232-4cde-ba95-7c501afc4b95"
 
 
 @pytest.fixture

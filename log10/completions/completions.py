@@ -98,6 +98,11 @@ def _render_completions_table(completions_data, total_completions):
                 first_choice = response_choices[0]
                 if "message" in first_choice:
                     response = first_choice["message"].get("content", "")
+                    if not response:
+                        tool_calls = first_choice["message"].get("tool_calls", [])
+                        if tool_calls:
+                            last_tool_call = tool_calls[-1]
+                            response = last_tool_call.get("function", {}).get("arguments", "")
                 elif "function_call" in first_choice:
                     response = json.dumps(first_choice.get("function_call", {}))
         else:
@@ -129,9 +134,8 @@ def _render_completions_table(completions_data, total_completions):
         if isinstance(item["prompt"], list):
             item["prompt"] = " ".join(item["prompt"])
         short_prompt = item["prompt"][:max_len] + "..." if len(item["prompt"]) > max_len else item["prompt"]
-        short_completion = (
-            item["completion"][:max_len] + "..." if len(item["completion"]) > max_len else item["completion"]
-        )
+        completion = item.get("completion", "")
+        short_completion = completion[:max_len] + "..." if len(completion) > max_len else completion
         table.add_row(item["id"], item["status"], item["created_at"], short_prompt, short_completion, tags)
 
     console = Console()
