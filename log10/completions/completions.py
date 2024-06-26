@@ -97,12 +97,13 @@ def _render_completions_table(completions_data, total_completions):
                 # Handle 'message' and 'function_call' within the first choice safely
                 first_choice = response_choices[0]
                 if "message" in first_choice:
-                    response = first_choice["message"].get("content", "")
-                    if not response:
-                        tool_calls = first_choice["message"].get("tool_calls", [])
-                        if tool_calls:
-                            last_tool_call = tool_calls[-1]
-                            response = last_tool_call.get("function", {}).get("arguments", "")
+                    message = first_choice["message"]
+                    response = (
+                        message.get("content")
+                        or message.get("tool_calls", [])[-1].get("function", {}).get("arguments", "")
+                        if message.get("tool_calls")
+                        else ""
+                    )
                 elif "function_call" in first_choice:
                     response = json.dumps(first_choice.get("function_call", {}))
         else:

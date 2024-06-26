@@ -1,5 +1,8 @@
 try:
     import click
+    import pandas  # noqa: F401
+    import rich  # noqa: F401
+    import tabulate  # noqa: F401
 except ImportError:
     print(
         "To use log10 cli you must install optional modules. Please install them with `pip install 'log10-io[cli]'`."
