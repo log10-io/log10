@@ -6,10 +6,10 @@ except ImportError:
     )
     exit(1)
 
-from log10.completions.completions import benchmark_models, download_completions, get_completion, list_completions
-from log10.feedback.cli.autofeedback import auto_feedback_icl, get_autofeedback_cli
-from log10.feedback.cli.feedback import create_feedback, download_feedback, get_feedback, list_feedback
-from log10.feedback.cli.feedback_task import create_feedback_task, get_feedback_task, list_feedback_task
+from log10.cli.autofeedback import auto_feedback_icl, get_autofeedback_cli
+from log10.cli.completions import benchmark_models, download_completions, get_completion, list_completions
+from log10.cli.feedback import create_feedback, download_feedback, get_feedback, list_feedback
+from log10.cli.feedback_task import create_feedback_task, get_feedback_task, list_feedback_task
 
 
 @click.group()
