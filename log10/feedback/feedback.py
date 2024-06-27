@@ -59,7 +59,10 @@ class Feedback:
         res = self._post_request(self.feedback_create_url, json_payload)
         return res
 
-    def list(self, offset: int = 0, limit: int = 50, task_id: str = "") -> httpx.Response:
+    def list(self, offset: int = 0, limit: int = 50, task_id: str = "", filter: str = "") -> httpx.Response:
+        if filter:
+            return self.list_v2(page=round(offset / limit) + 1, limit=limit, task_id=task_id, filter=filter)
+
         base_url = self._log10_config.url
         api_url = "/api/v1/feedback"
         url = f"{base_url}{api_url}?organization_id={self._log10_config.org_id}&offset={offset}&limit={limit}&task_id={task_id}"
@@ -75,7 +78,7 @@ class Feedback:
                 logger.error(e.response.json()["error"])
             raise
 
-    def list_graphql(self, page: int = 1, limit: int = 50, task_id: str = "", filter: str = "") -> httpx.Response:
+    def list_v2(self, page: int = 1, limit: int = 50, task_id: str = "", filter: str = "") -> httpx.Response:
         query = """
         query OrganizationFeedback($id: String!, $filter: String, $taskId: String, $page: Int, $limit: Int) {
             organization(id: $id) {
@@ -104,8 +107,8 @@ class Feedback:
 
         variables = {
             "id": self._log10_config.org_id,
-            "taskId": task_id,
-            "filter": filter,
+            "taskId": task_id or None,
+            "filter": filter or None,
             "page": page,
             "limit": limit,
         }
@@ -171,7 +174,7 @@ def _get_feedback_list_graphql(page, limit, task_id, filter):
     try:
         while True:
             fetch_limit = limit if limit else 50
-            res = Feedback().list_graphql(page=current_page, limit=fetch_limit, task_id=task_id, filter=filter)
+            res = Feedback().list_v2(page=current_page, limit=fetch_limit, task_id=task_id, filter=filter)
             new_data = res["data"]["organization"]["feedbackV2"]["nodes"]
             feedback_data.extend(new_data)
 
