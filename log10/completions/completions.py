@@ -3,12 +3,8 @@ import time
 
 import click
 import httpx
-import pandas as pd
-import rich
-from rich.console import Console
-from rich.table import Table
 
-from log10._httpx_utils import _get_time_diff, _try_get
+from log10._httpx_utils import _try_get
 from log10.llm import Log10Config
 
 
@@ -52,11 +48,11 @@ def _get_tag_ids(tags):
 def _get_completions_url(limit, offset, tags, from_date, to_date, base_url, org_id, printout=True):
     tag_ids_str = _get_tag_ids(tags) if tags else ""
     if tag_ids_str and printout:
-        rich.print(f"Filter with tags: {tags}")
+        print(f"Filter with tags: {tags}")
 
     date_range = _get_valid_date_range(from_date, to_date)
     if date_range and printout:
-        rich.print(f"Filter with created date: {date_range['from'][:10]} to {date_range['to'][:10]}")
+        print(f"Filter with created date: {date_range['from'][:10]} to {date_range['to'][:10]}")
 
     url = f"{base_url}/api/completions?organization_id={org_id}&offset={offset}&limit={limit}&tagFilter={tag_ids_str}&createdFilter={json.dumps(date_range)}&sort=created_at&desc=true&ids="
     return url
@@ -77,71 +73,6 @@ def _get_valid_date_range(from_date, to_date):
 
     date_range = {"from": parsed_from_date, "to": parsed_to_date}
     return date_range
-
-
-def _render_completions_table(completions_data, total_completions):
-    data_for_table = []
-    for completion in completions_data:
-        prompt, response = "", ""
-        if completion.get("kind") == "completion":
-            prompt = completion.get("request", {}).get("prompt", "")
-            response_choices = completion.get("response", {}).get("choices", [])
-            if response_choices:
-                response = response_choices[0].get("text", "")
-        elif completion.get("kind") == "chat":
-            request_messages = completion.get("request", {}).get("messages", [])
-            prompt = request_messages[0].get("content", "") if request_messages else ""
-
-            response_choices = completion.get("response", {}).get("choices", [])
-            if response_choices:
-                # Handle 'message' and 'function_call' within the first choice safely
-                first_choice = response_choices[0]
-                if "message" in first_choice:
-                    message = first_choice["message"]
-                    response = (
-                        message.get("content")
-                        or message.get("tool_calls", [])[-1].get("function", {}).get("arguments", "")
-                        if message.get("tool_calls")
-                        else ""
-                    )
-                elif "function_call" in first_choice:
-                    response = json.dumps(first_choice.get("function_call", {}))
-        else:
-            rich.print(f"Unknown completion kind: {completion['kind']} for id: {completion['id']}")
-
-        data_for_table.append(
-            {
-                "id": completion["id"],
-                "status": "success" if completion["status"] == "finished" else completion["status"],
-                "created_at": _get_time_diff(completion["created_at"]),
-                "prompt": prompt,
-                "completion": response,
-                "tags": [t["name"] for t in completion["tagResolved"]],
-            }
-        )
-    # render data_for_table with rich table
-    table = Table(show_header=True, header_style="bold magenta")
-
-    table.add_column("ID", style="dim")
-    table.add_column("Status")
-    table.add_column("Created At")
-    table.add_column("Prompt", overflow="fold")
-    table.add_column("Completion", overflow="fold")
-    table.add_column("Tags", justify="right")
-
-    max_len = 40
-    for item in data_for_table:
-        tags = ", ".join(item["tags"]) if item["tags"] else ""
-        if isinstance(item["prompt"], list):
-            item["prompt"] = " ".join(item["prompt"])
-        short_prompt = item["prompt"][:max_len] + "..." if len(item["prompt"]) > max_len else item["prompt"]
-        completion = item.get("completion", "")
-        short_completion = completion[:max_len] + "..." if len(completion) > max_len else completion
-        table.add_row(item["id"], item["status"], item["created_at"], short_prompt, short_completion, tags)
-
-    console = Console()
-    console.print(table)
-    console.print(f"{total_completions=}")
 
 
 def _write_completions(res, output_file, compact_mode):
@@ -217,75 +148,11 @@ def _get_llm_repsone(
     return ret
 
 
-def _render_comparison_table(model_response_raw_data):
-    rich.print(f"completion_id: {model_response_raw_data['completion_id']}")
-    rich.print("original_request:")
-    rich.print_json(json.dumps(model_response_raw_data["original_request"], indent=4))
-
-    table = rich.table.Table(show_header=True, header_style="bold magenta", box=rich.box.ROUNDED, show_lines=True)
-    table.add_column("Model")
-    table.add_column("Content")
-    table.add_column("Total Token Usage (Input/Output)")
-    table.add_column("Duration (ms)")
-
-    for model, data in model_response_raw_data.items():
-        # only display model data
-        if model not in ["completion_id", "original_request"]:
-            usage = data["usage"]
-            formatted_usage = f"{usage['total_tokens']} ({usage['prompt_tokens']}/{usage['completion_tokens']})"
-            table.add_row(model, data["content"], formatted_usage, str(data["duration"]))
-    rich.print(table)
-
-
-def _create_dataframe_from_comparison_data(model_response_raw_data):
-    completion_id = model_response_raw_data["completion_id"]
-    original_request = model_response_raw_data["original_request"]
-    rows = []
-    for model, model_data in model_response_raw_data.items():
-        # only display model data
-        if model not in ["completion_id", "original_request"]:
-            content = model_data["content"]
-            usage = model_data["usage"]
-            prompt_tokens = usage["prompt_tokens"]
-            completion_tokens = usage["completion_tokens"]
-            total_tokens = usage["total_tokens"]
-            duration = model_data["duration"]
-            prompt_messages = json.dumps(original_request["messages"])
-            rows.append(
-                [
-                    completion_id,
-                    prompt_messages,
-                    model,
-                    content,
-                    prompt_tokens,
-                    completion_tokens,
-                    total_tokens,
-                    duration,
-                ]
-            )
-
-    df = pd.DataFrame(
-        rows,
-        columns=[
-            "Completion ID",
-            "Prompt Messages",
-            "Model",
-            "Content",
-            "Prompt Tokens",
-            "Completion Tokens",
-            "Total Tokens",
-            "Duration (ms)",
-        ],
-    )
-
-    return df
-
-
 def _compare(models: list[str], messages: dict, temperature: float = 0.2, max_tokens: float = 256, top_p: float = 1.0):
     ret = {}
     if models:
         for model in models:
-            rich.print(f"Running {model}")
+            print(f"Running {model}")
             response = _get_llm_repsone(
                 model,
                 messages,
