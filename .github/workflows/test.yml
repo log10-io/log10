@@ -63,7 +63,10 @@ jobs:
       - name: Install dependencies
         run: poetry install --all-extras
 
-      - name: Run dispatch tests
+      - name: Run cli tests
+        run: poetry run pytest -vv tests/test_cli.py
+
+      - name: Run dispatch llm tests
         if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' }}
         run: |
           echo "This is a dispatch event"
@@ -113,13 +116,13 @@ jobs:
 
           if $empty_inputs; then
             echo "All variables are empty"
-            poetry run pytest -vv tests/
+            poetry run pytest -vv tests/ --ignore=tests/test_cli.py
             poetry run pytest --llm_provider=anthropic -vv tests/test_magentic.py
           fi
 
-      - name: Run scheduled tests
+      - name: Run scheduled llm tests
         if: ${{ github.event_name == 'schedule' }}
         run: |
           echo "This is a schedule event"
-          poetry run pytest -vv tests/
+          poetry run pytest -vv tests/ --ignore=tests/test_cli.py
           poetry run pytest --openai_model=gpt-4o -m chat -vv tests/test_openai.py
