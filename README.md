@@ -101,7 +101,7 @@ llm = Anthropic({"model": "claude-2"}, log10_config=Log10Config())
 
 #### Asynchronous LLM calls
 We support OpenAI and Anthropic Async-client (e.g. AsyncOpenAI and AsyncAnthropic client) in their Python SDK
-You could use the same code `log10(openai)` or `log10(anthropic)` and then call the async-client to start loggin asynchronous mode (including streaming).
+You could use the same code `log10(openai)` or `log10(anthropic)` and then call the async-client to start logging asynchronous mode (including streaming).
 
 Release `0.9.0` includes significant improvements in how we handle concurrency while using LLM in asynchronous streaming mode.
 This update is designed to ensure that logging at steady state incurs no overhead (previously up to 1-2 seconds), providing a smoother and more efficient experience in latency critical settings.
