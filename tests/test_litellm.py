@@ -112,7 +112,7 @@ def test_image_stream(session, anthropic_model):
         if chunk.choices[0].delta.content:
             output += chunk.choices[0].delta.content
 
-    time.sleep(3)
+    time.sleep(5)
     _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
 
@@ -150,5 +150,5 @@ async def test_image_async_stream(session, anthropic_model):
         if chunk.choices[0].delta.content:
             output += chunk.choices[0].delta.content
 
-    time.sleep(3)
+    time.sleep(5)
     _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
