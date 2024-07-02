@@ -153,6 +153,10 @@ async def _try_post_request_async(url: str, payload: dict = {}) -> httpx.Respons
 
 
 def format_anthropic_request(request_content) -> str:
+    system_message = request_content.get("system", "")
+    if system_message:
+        request_content["messages"].insert(0, {"role": "system", "content": system_message})
+
     for message in request_content.get("messages", []):
         new_content = []
         message_content = message.get("content")
