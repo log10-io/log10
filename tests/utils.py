@@ -25,6 +25,7 @@ class _LogAssertion:
         self._message_content = kwargs.get("message_content", "")
         self._text = kwargs.get("text", "")
         self._function_args = kwargs.get("function_args", [])
+        self._system_message = kwargs.get("system_message", "")
 
         assert self._completion_id, "No completion id provided."
         assert is_valid_uuid(self._completion_id), "Completion ID should be found and valid uuid."
@@ -51,6 +52,23 @@ class _LogAssertion:
         assert (
             self._text == text
         ), f"Text does not match the generated completion for completion {self._completion_id}."
+
+    def assert_system_message_request(self):
+        if not self._system_message:
+            return
+
+        self.get_completion()
+        assert self.data.get("request", {}), f"No request logged for completion {self._completion_id}."
+        request = self.data["request"]
+        assert request.get("messages", ""), f"No request message logged for completion {self._completion_id}."
+        system_message = request["messages"][0]
+        assert system_message.get(
+            "content", ""
+        ), f"No system message content logged for completion {self._completion_id}."
+        content = system_message["content"]
+        assert (
+            self._system_message == content
+        ), f"System message content does not match the generated completion for completion {self._completion_id}."
 
     def assert_chat_response(self):
         assert self._message_content, "No output generated from the model."
