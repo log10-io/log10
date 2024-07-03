@@ -84,7 +84,7 @@ def _try_post_request(url: str, payload: dict = {}) -> httpx.Response:
         else:
             logger.error(f"Failed with error: {http_err}")
     except Exception as err:
-        logger.error(f"Failed to insert in log10: {payload} with error {err}")
+        logger.error(f"Failed to insert in log10: {payload} with error {err}.", exc_info=True)
 
 
 def _try_post_graphql_request(query: str, variables: dict = {}) -> httpx.Response:
@@ -149,7 +149,7 @@ async def _try_post_request_async(url: str, payload: dict = {}) -> httpx.Respons
         else:
             logger.error(f"Failed with error: {http_err}")
     except Exception as err:
-        logger.error(f"Failed to insert in log10: {payload} with error {err}")
+        logger.error(f"Failed to insert in log10: {payload} with error {err}.", exc_info=True)
 
 
 def format_anthropic_request(request_content) -> str:
