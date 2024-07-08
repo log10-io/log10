@@ -10,7 +10,11 @@ import httpx
 from httpx import Request, Response
 
 from log10.llm import Log10Config
-from log10.load import get_log10_session_tags, last_completion_response_var, session_id_var
+from log10.load import (
+    get_log10_session_tags,
+    last_completion_response_var,
+    session_id_var,
+)
 
 
 logger: logging.Logger = logging.getLogger("LOG10")
@@ -378,8 +382,16 @@ class _AsyncRequestHooks:
     async def log_request(self, request: httpx.Request):
         logger.debug("LOG10: sending async request")
         self.log_row = _init_log_row(request)
+
+        if not self.completion_id:
+            logger.warning("Completion id is not generated. Skipping")
+            return
+
         asyncio.create_task(
-            _try_post_request_async(url=f"{base_url}/api/completions/{self.completion_id}", payload=self.log_row)
+            _try_post_request_async(
+                url=f"{base_url}/api/completions/{self.completion_id}",
+                payload=self.log_row,
+            )
         )
 
 
@@ -420,7 +432,10 @@ class _LogResponse(Response):
                 completion_id = self.request.headers.get("x-log10-completion-id", "")
                 if finished and completion_id:
                     self.patch_streaming_log(duration, full_response)
-                    _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=self.log_row)
+                    _try_post_request(
+                        url=f"{base_url}/api/completions/{completion_id}",
+                        payload=self.log_row,
+                    )
             yield chunk
 
     async def aiter_bytes(self, *args, **kwargs):
@@ -437,7 +452,8 @@ class _LogResponse(Response):
                     self.patch_streaming_log(duration, full_response)
                     asyncio.create_task(
                         _try_post_request_async(
-                            url=f"{base_url}/api/completions/{completion_id}", payload=self.log_row
+                            url=f"{base_url}/api/completions/{completion_id}",
+                            payload=self.log_row,
                         )
                     )
             yield chunk
@@ -491,7 +507,10 @@ class _LogResponse(Response):
                     tool_call = {
                         "id": content_block.get("id", ""),
                         "type": "function",
-                        "function": {"name": content_block.get("name", ""), "arguments": ""},
+                        "function": {
+                            "name": content_block.get("name", ""),
+                            "arguments": "",
+                        },
                     }
                 if content_block_type == "text":
                     full_content += content_block.get("text", "")
@@ -672,7 +691,11 @@ class _LogTransport(httpx.BaseTransport):
 
 
 class _AsyncLogTransport(httpx.AsyncBaseTransport):
-    def __init__(self, transport: httpx.AsyncBaseTransport, async_request_hooks: _AsyncRequestHooks):
+    def __init__(
+        self,
+        transport: httpx.AsyncBaseTransport,
+        async_request_hooks: _AsyncRequestHooks,
+    ):
         self.transport = transport
         self.async_request_hooks = async_request_hooks
 
