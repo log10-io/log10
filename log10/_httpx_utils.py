@@ -4,6 +4,7 @@ import logging
 import time
 import traceback
 import uuid
+import httpcore
 from datetime import datetime, timezone
 
 import httpx
@@ -153,7 +154,10 @@ async def _try_post_request_async(url: str, payload: dict = {}) -> httpx.Respons
         else:
             logger.error(f"Failed with error: {http_err}")
     except Exception as err:
-        logger.error(f"Failed to insert in log10: {payload} with error {err}.", exc_info=True)
+        logger.error(
+            f"Failed to insert in log10 to {url}: {payload} with error {err}.",
+            exc_info=True,
+        )
 
 
 def format_anthropic_request(request_content) -> str:
