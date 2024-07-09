@@ -149,6 +149,8 @@ async def _try_post_request_async(url: str, payload: dict = {}) -> httpx.Respons
         res = await httpx_async_client.post(url, headers=headers, json=payload)
         res.raise_for_status()
         return res
+    except httpx.ReadTimeout as read_timeout_err:
+        logger.error(f"Failed to post request to {url} with {payload} due to a read timeout error: {read_timeout_err}")
     except httpx.HTTPStatusError as http_err:
         if "401" in str(http_err):
             logger.error(
