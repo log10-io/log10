@@ -34,7 +34,7 @@ def test_download_completions(runner):
 
 
 def test_benchmark_models(runner):
-    tag = "test_tag_c"
+    tag = "test_tag_a"
     model = "gpt-3.5-turbo"
     result = runner.invoke(cli, ["completions", "benchmark_models", "--models", model, "--limit", "1", "--tags", tag])
     assert result.exit_code == 0
