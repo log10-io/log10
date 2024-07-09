@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 import time
 import traceback
 import uuid
@@ -17,10 +18,18 @@ logger: logging.Logger = logging.getLogger("LOG10")
 
 GRAPHQL_URL = "https://graphql.log10.io/graphql"
 
+LOG10_HTTPX_READ_TIMEOUT = os.environ.get("LOG10_HTTPX_READ_TIMEOUT")
 _log10_config = Log10Config()
 base_url = _log10_config.url
+# Default timeouts for httpx client: connect, read, write, and pool are all 5 seconds.
+# We're overriding the read timeout specifically to 3 seconds when LOG10_HTTPX_READ_TIMEOUT is not set.
+if LOG10_HTTPX_READ_TIMEOUT:
+    read_timeout = float(LOG10_HTTPX_READ_TIMEOUT)
+else:
+    read_timeout = 3.0
+timeout = httpx.Timeout(5.0, read=read_timeout)
 httpx_client = httpx.Client()
-httpx_async_client = httpx.AsyncClient()
+httpx_async_client = httpx.AsyncClient(timeout=timeout)
 
 
 def _get_time_diff(created_at):
