@@ -340,19 +340,20 @@ class _RequestHooks:
     def __init__(self):
         logger.debug("LOG10: initializing request hooks")
         self.event_hooks = {
-            "request": [self.get_completion_id, self.log_request],
+            "request": [self.log_request],
         }
-        self.completion_id = ""
         self.log_row = {}
 
-    def get_completion_id(self, request: httpx.Request):
-        logger.debug("LOG10: generating completion id")
-        self.completion_id = get_completion_id(request)
-
     def log_request(self, request: httpx.Request):
+        logger.debug("LOG10: generating completion id")
+        completion_id = get_completion_id(request)
+        if not completion_id:
+            logger.debug("LOG10: completion id is not generated. Skipping")
+            return
+
         logger.debug("LOG10: sending sync request")
         self.log_row = _init_log_row(request)
-        _try_post_request(url=f"{base_url}/api/completions/{self.completion_id}", payload=self.log_row)
+        _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=self.log_row)
 
 
 class _AsyncRequestHooks:
@@ -366,20 +367,21 @@ class _AsyncRequestHooks:
     def __init__(self):
         logger.debug("LOG10: initializing async request hooks")
         self.event_hooks = {
-            "request": [self.get_completion_id, self.log_request],
+            "request": [self.log_request],
         }
-        self.completion_id = ""
         self.log_row = {}
 
-    async def get_completion_id(self, request: httpx.Request):
-        logger.debug("LOG10: generating completion id")
-        self.completion_id = get_completion_id(request)
-
     async def log_request(self, request: httpx.Request):
+        logger.debug("LOG10: generating completion id")
+        completion_id = get_completion_id(request)
+        if not completion_id:
+            logger.debug("LOG10: completion id is not generated. Skipping")
+            return
+
         logger.debug("LOG10: sending async request")
         self.log_row = _init_log_row(request)
         asyncio.create_task(
-            _try_post_request_async(url=f"{base_url}/api/completions/{self.completion_id}", payload=self.log_row)
+            _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=self.log_row)
         )
 
 
