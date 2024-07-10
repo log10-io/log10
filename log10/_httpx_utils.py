@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 import time
 import traceback
 import uuid
@@ -17,10 +18,15 @@ logger: logging.Logger = logging.getLogger("LOG10")
 
 GRAPHQL_URL = "https://graphql.log10.io/graphql"
 
+LOG10_HTTPX_READ_TIMEOUT = os.environ.get("LOG10_HTTPX_READ_TIMEOUT")
 _log10_config = Log10Config()
 base_url = _log10_config.url
+# Default timeouts for httpx client: connect, read, write, and pool are all 5 seconds.
+# We're overriding the read timeout to 10s when LOG10_HTTPX_READ_TIMEOUT is not set.
+read_timeout = float(LOG10_HTTPX_READ_TIMEOUT) if LOG10_HTTPX_READ_TIMEOUT else 10.0
+timeout = httpx.Timeout(5.0, read=read_timeout)
 httpx_client = httpx.Client()
-httpx_async_client = httpx.AsyncClient()
+httpx_async_client = httpx.AsyncClient(timeout=timeout)
 
 
 def _get_time_diff(created_at):
@@ -140,6 +146,8 @@ async def _try_post_request_async(url: str, payload: dict = {}) -> httpx.Respons
         res = await httpx_async_client.post(url, headers=headers, json=payload)
         res.raise_for_status()
         return res
+    except httpx.ReadTimeout as read_timeout_err:
+        logger.error(f"Failed to post request to {url} with {payload} due to a read timeout error: {read_timeout_err}")
     except httpx.HTTPStatusError as http_err:
         if "401" in str(http_err):
             logger.error(
