@@ -15,7 +15,7 @@ export LOG10_DATA_STORE=log10 # Optional, can be set to bigquery. See the bigque
 
 ## Library wrapping
 
-The simplest way to start logging openai can be done like this: 
+The simplest way to start logging openai can be done like this:
 
 ```python
 import openai
@@ -23,6 +23,7 @@ from log10.load import log10
 
 log10(openai)
 ```
+
 This works for both openai v0 and v1.
 
 For openai v1 only, the logging can be done like this:
@@ -68,50 +69,61 @@ with log10_session():
 with log10_session():
     # Will log in session 2
 ```
+
 ### Log10 LLM Abstraction
+
 Import Log10 LLM abstraction modules to call closed and open-source LLMs, such as OpenAI, Anthropic, and Llama-2 Inference endpoints on MosaicML and Together.
 
 Create a log10 configuration object to log on Log10 platform.
 Setting `log10_config` is optional.
+
 ```python
 from log10.llm import Log10Config
 ```
 
 #### OpenAI
+
 ```python
 from log10.openai import OpenAI
 llm = OpenAI({"model": "gpt-3.5-turbo"}, log10_config=Log10Config())
 ```
+
 Full script [here](examples/logging/llm_abstraction.py#6-#14).
 
 #### Anthropic
+
 ```python
 from log10.anthropic import Anthropic
 llm = Anthropic({"model": "claude-2"}, log10_config=Log10Config())
 ```
+
 Full script [here](examples/logging/llm_abstraction.py#16-#19).
 
 #### MosaicML
+
 ```python
 from log10.mosaicml import MosaicML
 llm = MosaicML({"model": "llama2-70b-chat/v1"}, log10_config=Log10Config())
 ```
+
 Full script [here](/examples/logging/mosaicml_completion.py).
 
 Find all the supported models on MosaicML [website](https://docs.mosaicml.com/en/latest/inference.html#text-completion-models).
 
 #### Together
+
 ```python
 from log10.together import Together
 llm = Together({"model": "togethercomputer/llama-2-70b-chat"}, log10_config=Log10Config())
 ```
+
 Full script [here](/examples/logging/together_completion.py).
 
 Find all the supported models on Together [website](https://docs.together.ai/docs/inference-models).
 
 ### Tags
 
-One useful way to organize your LLM logs is using tags. Tags are strings which can be used to filter and select logs in [log10.io](https://log10.io). See [here](https://log10.io/docs/logs) for more information about tags.
+One useful way to organize your LLM logs is using tags. Tags are strings which can be used to filter and select logs in [log10.io](https://log10.io). See [here](https://docs.log10.io/observability/advanced/logging#tags) for more information about tags.
 
 You can add tags using the session scope:
 
@@ -124,7 +136,7 @@ from langchain import OpenAI
 log10(openai)
 
 with log10_session(tags=["foo", "bar"]):
-    response = openai.Completion.create(
+    response = openai.completions.create(
         model="gpt-3.5-turbo-instruct",
         prompt="Where is the Eiffel Tower?",
         temperature=0,
@@ -135,12 +147,6 @@ with log10_session(tags=["foo", "bar"]):
     )
     print(response)
 
-```
-
-An addition way to add tag with openai v1 API:
-```python
-from log10.load import OpenAI
-client = OpenAI(tags=["foo"])
 ```
 
 ## LangChain logger
