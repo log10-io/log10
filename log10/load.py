@@ -856,6 +856,9 @@ def log10(module, DEBUG_=False, USE_ASYNC_=True):
     logger.setLevel(logging.DEBUG if DEBUG else logging.WARNING)
     USE_ASYNC = USE_ASYNC_
     sync_log_text = set_sync_log_text(USE_ASYNC=USE_ASYNC)
+    if DEBUG:
+        httpx_logger = logging.getLogger("httpx")
+        httpx_logger.setLevel(logging.DEBUG)
 
     # def intercept_nested_functions(obj):
     #     for name, attr in vars(obj).items():
