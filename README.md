@@ -11,6 +11,8 @@
 
 ## 🤔 What is this?
 
+<img width="800" alt="Log10 stack" src="https://github.com/user-attachments/assets/8a790f82-6d75-4aa0-905b-7d3693815414">
+
 A one-line Python integration to manage your LLM data.
 
 ```python
@@ -33,7 +35,7 @@ Access your LLM data at [log10.io](https://log10.io)
 
 ### 📝📊 Logging
 
-Use Log10 to log both closed and open-source LLM calls. It helps you:
+Use Log10 to log both closed and open-source LLM calls, e.g. OpenAI, Anthropic, Google Gemini, Llama, Mistral, etc. It helps you:
 - Compare and identify the best models and prompts (try [playground](https://log10.io/docs/observability/playgrounds) and [llmeval](https://log10.io/docs/evaluation/installation))
 - Store feedback for fine-tuning
 - Collect performance metrics such as latency and usage
@@ -124,9 +126,11 @@ Ensure `finalize()` is called once, at the very end of your event loop to guaran
 For more details, check [async logging examples](./examples/logging/).
 
 #### Open-source LLMs
-Log open-source LLM calls, e.g. Llama-2, Mistral, etc from providers.
+Log open-source LLM calls, e.g. Llama, Mistral, etc from providers.
 Currently we support inference endpoints on Together.AI and MosaicML (ranked on the top based on our [benchmarking](https://arjunbansal.substack.com/p/which-llama-2-inference-api-should-i-use) on Llama-2 inference providers).
 Adding other providers is on the roadmap.
+
+If the providers support OpenAI API (e.g. [Groq](https://console.groq.com/docs/openai), [vLLM](https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html), [Together](https://docs.together.ai/docs/openai-api-compatibility)), you can easily starting logging using `log10(openai)`.
 
 **MosaicML** with LLM abstraction. Full script [here](/examples/logging/mosaicml_completion.py).
 ```python
