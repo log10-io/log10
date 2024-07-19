@@ -86,8 +86,8 @@ def test_image(session, openai_vision_model):
 @pytest.mark.stream
 @pytest.mark.vision
 def test_image_stream(session, anthropic_model):
-    image_url = "https://upload.wikimedia.org/wikipedia/commons/e/e8/Log10.png"
-    image_media_type = "image/png"
+    image_url = "https://upload.wikimedia.org/wikipedia/commons/a/a7/Camponotus_flavomarginatus_ant.jpg"
+    image_media_type = "image/jpeg"
     image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
 
     resp = litellm.completion(
@@ -100,7 +100,7 @@ def test_image_stream(session, anthropic_model):
                         "type": "image_url",
                         "image_url": {"url": f"data:{image_media_type};base64,{image_data}"},
                     },
-                    {"type": "text", "text": "What's the red curve in the figure, is it log2 or log10? Be concise."},
+                    {"type": "text", "text": "What are in the image?"},
                 ],
             }
         ],
@@ -112,7 +112,7 @@ def test_image_stream(session, anthropic_model):
         if chunk.choices[0].delta.content:
             output += chunk.choices[0].delta.content
 
-    time.sleep(3)
+    time.sleep(5)
     _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
 
@@ -150,5 +150,5 @@ async def test_image_async_stream(session, anthropic_model):
         if chunk.choices[0].delta.content:
             output += chunk.choices[0].delta.content
 
-    time.sleep(3)
+    time.sleep(5)
     _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()

@@ -31,18 +31,22 @@ def test_completions_create(session, anthropic_legacy_model):
 @pytest.mark.chat
 def test_messages_create(session, anthropic_model):
     client = Anthropic()
-
+    system_message = "Respond only in Yoda-speak."
     message = client.messages.create(
         model=anthropic_model,
         max_tokens=1000,
         temperature=0.0,
-        system="Respond only in Yoda-speak.",
+        system=system_message,
         messages=[{"role": "user", "content": "How are you today?"}],
     )
 
     text = message.content[0].text
     assert isinstance(text, str)
-    _LogAssertion(completion_id=session.last_completion_id(), message_content=text).assert_chat_response()
+    log_assertion = _LogAssertion(
+        completion_id=session.last_completion_id(), message_content=text, system_message=system_message
+    )
+    log_assertion.assert_chat_response()
+    log_assertion.assert_system_message_request()
 
 
 @pytest.mark.chat
