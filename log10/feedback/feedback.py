@@ -61,6 +61,7 @@ class Feedback:
         base_url = self._log10_config.url
         api_url = "/api/v1/feedback"
         url = f"{base_url}{api_url}?organization_id={self._log10_config.org_id}&offset={offset}&limit={limit}&task_id={task_id}"
+        logger.debug(f"Fetching feedback from url: {url}")
 
         # GET feedback
         try:
@@ -73,28 +74,29 @@ class Feedback:
                 logger.error(e.response.json()["error"])
             raise
 
-    def list_v2(self, page: int = 1, limit: int = 50, task_id: str = "", filter: str = "") -> httpx.Response:
+    def list_v2(
+        self, page: int = 1, limit: int = 50, task_id: str | None = None, filter: str | None = None
+    ) -> httpx.Response:
         query = """
         query OrganizationFeedback($id: String!, $filter: String, $taskId: String, $page: Int, $limit: Int) {
             organization(id: $id) {
                 id
                 feedbackV2(filter: $filter, taskId: $taskId, page: $page, limit: $limit) {
-                pageInfo{
-                    totalCount
-                    totalCount
-                    currentPage
-                }
-                nodes {
-                    id
-                    jsonValues
-                    task {
-                    id
-                    name
+                    pageInfo{
+                        totalCount
+                        currentPage
                     }
-                    completions {
-                    id
+                    nodes {
+                        id
+                        jsonValues
+                        task {
+                            id
+                            name
+                        }
+                        completions {
+                            id
+                        }
                     }
-                }
                 }
             }
         }
@@ -102,11 +104,12 @@ class Feedback:
 
         variables = {
             "id": self._log10_config.org_id,
-            "taskId": task_id or None,
-            "filter": filter or None,
+            "taskId": task_id,
+            "filter": filter,
             "page": page,
             "limit": limit,
         }
+        logger.debug(f"Fetching feedback with variables: {variables}")
 
         response = _try_post_graphql_request(query, variables)
 
@@ -172,23 +175,26 @@ def _format_graphql_node(node):
     }
 
 
-def _get_feedback_list_graphql(page, limit, task_id, filter):
+def _get_feedback_list_graphql(page, task_id, filter, limit=50):
     feedback_data = []
     current_page = page if page else 1
-    if limit:
-        limit = int(limit)
+    limit = int(limit)
 
     try:
         while True:
-            fetch_limit = limit if limit else 50
-            res = Feedback().list_v2(page=current_page, limit=fetch_limit, task_id=task_id, filter=filter)
-            new_data = res["data"]["organization"]["feedbackV2"]["nodes"]
+            res = Feedback().list_v2(page=current_page, limit=limit, task_id=task_id, filter=filter)
+            new_data = res.get("data", {}).get("organization", {}).get("feedbackV2", {}).get("nodes")
+
+            if new_data is None:
+                logger.warning("Warning: Expected data structure not found in API response.")
+                break
+
             feedback_data.extend(new_data)
 
             current_fetched = len(new_data)
             current_page += 1
 
-            if current_fetched < fetch_limit:
+            if current_fetched <= limit:
                 break
     except Exception as e:
         logger.error(f"Error fetching feedback {e}")
@@ -196,4 +202,4 @@ def _get_feedback_list_graphql(page, limit, task_id, filter):
             logger.error(e.response.json()["error"])
         return []
 
-    return list(map(_format_graphql_node, feedback_data))
+    return [_format_graphql_node(item) for item in feedback_data]

@@ -53,7 +53,9 @@ def list_feedback(offset, limit, task_id, filter):
     with control over the starting point and the number of items to retrieve.
     """
     feedback_data = (
-        _get_feedback_list_graphql(1, limit, task_id, filter) if filter else _get_feedback_list(offset, limit, task_id)
+        _get_feedback_list_graphql(1, task_id, filter, limit=limit)
+        if filter
+        else _get_feedback_list(offset, limit, task_id)
     )
     data_for_table = []
     for feedback in feedback_data:
