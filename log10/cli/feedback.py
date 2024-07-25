@@ -45,7 +45,7 @@ def create_feedback(task_id, values, completion_tags_selector, comment):
     "--filter",
     default="",
     type=str,
-    help="The filter applied to the feedback. If not provided, feedback will not be filtered.",
+    help="The filter applied to the feedback. If not provided, feedback will not be filtered. e.g. `log10 feedback list --filter 'Coverage <= 5'`.",
 )
 def list_feedback(offset, limit, task_id, filter):
     """
@@ -53,7 +53,7 @@ def list_feedback(offset, limit, task_id, filter):
     with control over the starting point and the number of items to retrieve.
     """
     feedback_data = (
-        _get_feedback_list_graphql(1, task_id, filter, limit=limit)
+        _get_feedback_list_graphql(task_id, filter, page=1, limit=limit)
         if filter
         else _get_feedback_list(offset, limit, task_id)
     )

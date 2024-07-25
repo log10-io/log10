@@ -4,6 +4,7 @@ import httpx
 
 from log10._httpx_utils import _try_get, _try_post_graphql_request
 from log10.llm import Log10Config
+from log10.utils import safe_get
 
 
 logging.basicConfig(
@@ -175,15 +176,15 @@ def _format_graphql_node(node):
     }
 
 
-def _get_feedback_list_graphql(page, task_id, filter, limit=50):
+def _get_feedback_list_graphql(task_id, filter, page=1, limit=50):
     feedback_data = []
-    current_page = page if page else 1
+    current_page = page
     limit = int(limit)
 
     try:
         while True:
             res = Feedback().list_v2(page=current_page, limit=limit, task_id=task_id, filter=filter)
-            new_data = res.get("data", {}).get("organization", {}).get("feedbackV2", {}).get("nodes")
+            new_data = safe_get(res, ["data", "organization", "feedbackV2", "nodes"])
 
             if new_data is None:
                 logger.warning("Warning: Expected data structure not found in API response.")
