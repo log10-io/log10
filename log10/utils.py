@@ -2,6 +2,7 @@ import json
 import re
 import string
 from copy import deepcopy
+from typing import Any
 
 
 def merge_hparams(override, base):
@@ -45,3 +46,24 @@ def parse_field(value):
     except json.JSONDecodeError:
         # If it's not valid JSON, return the original string value as a list with singleton element
         return [value]
+
+
+def safe_get(data: dict[str, Any], keys: list[str]) -> Any | None:
+    """
+    Safely navigate a nested dictionary structure.
+
+    Args:
+        data (dict[str, Any]): The dictionary to navigate.
+        keys (list[str]): A list of keys representing the path to the desired value.
+
+    Returns:
+        Any: The value at the specified path, or None if the path doesn't exist.
+    """
+    for key in keys:
+        if isinstance(data, dict) and key in data:
+            data = data[key]
+        else:
+            data = None
+            break
+
+    return data

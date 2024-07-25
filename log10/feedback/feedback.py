@@ -2,8 +2,9 @@ import logging
 
 import httpx
 
-from log10._httpx_utils import _try_get
+from log10._httpx_utils import _try_get, _try_post_graphql_request
 from log10.llm import Log10Config
+from log10.utils import safe_get
 
 
 logging.basicConfig(
@@ -54,10 +55,14 @@ class Feedback:
         res = self._post_request(self.feedback_create_url, json_payload)
         return res
 
-    def list(self, offset: int = 0, limit: int = 50, task_id: str = "") -> httpx.Response:
+    def list(self, offset: int = 0, limit: int = 50, task_id: str = "", filter: str = "") -> httpx.Response:
+        if filter:
+            return self.list_v2(page=round(offset / limit) + 1, limit=limit, task_id=task_id, filter=filter)
+
         base_url = self._log10_config.url
         api_url = "/api/v1/feedback"
         url = f"{base_url}{api_url}?organization_id={self._log10_config.org_id}&offset={offset}&limit={limit}&task_id={task_id}"
+        logger.debug(f"Fetching feedback from url: {url}")
 
         # GET feedback
         try:
@@ -69,6 +74,54 @@ class Feedback:
             if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
                 logger.error(e.response.json()["error"])
             raise
+
+    def list_v2(
+        self, page: int = 1, limit: int = 50, task_id: str | None = None, filter: str | None = None
+    ) -> httpx.Response:
+        query = """
+        query OrganizationFeedback($id: String!, $filter: String, $taskId: String, $page: Int, $limit: Int) {
+            organization(id: $id) {
+                id
+                feedbackV2(filter: $filter, taskId: $taskId, page: $page, limit: $limit) {
+                    pageInfo{
+                        totalCount
+                        currentPage
+                    }
+                    nodes {
+                        id
+                        jsonValues
+                        task {
+                            id
+                            name
+                        }
+                        completions {
+                            id
+                        }
+                    }
+                }
+            }
+        }
+        """
+
+        variables = {
+            "id": self._log10_config.org_id,
+            "taskId": task_id,
+            "filter": filter,
+            "page": page,
+            "limit": limit,
+        }
+        logger.debug(f"Fetching feedback with variables: {variables}")
+
+        response = _try_post_graphql_request(query, variables)
+
+        if response is None:
+            logger.error("Failed to get feedback")
+            return None
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            response.raise_for_status()
 
     def get(self, id: str) -> httpx.Response:
         base_url = self._log10_config.url
@@ -111,3 +164,43 @@ def _get_feedback_list(offset, limit, task_id):
         return []
 
     return feedback_data
+
+
+def _format_graphql_node(node):
+    return {
+        "id": node["id"],
+        "json_values": node["jsonValues"],
+        "task_id": node["task"]["id"],
+        "task_name": node["task"]["name"],
+        "matched_completion_ids": [c["id"] for c in node["completions"]],
+    }
+
+
+def _get_feedback_list_graphql(task_id, filter, page=1, limit=50):
+    feedback_data = []
+    current_page = page
+    limit = int(limit)
+
+    try:
+        while True:
+            res = Feedback().list_v2(page=current_page, limit=limit, task_id=task_id, filter=filter)
+            new_data = safe_get(res, ["data", "organization", "feedbackV2", "nodes"])
+
+            if new_data is None:
+                logger.warning("Warning: Expected data structure not found in API response.")
+                break
+
+            feedback_data.extend(new_data)
+
+            current_fetched = len(new_data)
+            current_page += 1
+
+            if current_fetched <= limit:
+                break
+    except Exception as e:
+        logger.error(f"Error fetching feedback {e}")
+        if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
+            logger.error(e.response.json()["error"])
+        return []
+
+    return [_format_graphql_node(item) for item in feedback_data]

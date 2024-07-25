@@ -61,6 +61,12 @@ def test_list_feedback(runner):
     assert "Total feedback:" in result.output
 
 
+def test_list_feedback_filter(runner):
+    result = runner.invoke(cli, ["feedback", "list", "--filter", "Coverage <= 5"])
+    assert result.exit_code == 0
+    assert "Total feedback:" in result.output
+
+
 def test_get_feedback(runner):
     result = runner.invoke(cli, ["feedback", "get", "--id", feedback_id])
     assert result.exit_code == 0

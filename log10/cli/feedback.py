@@ -5,7 +5,7 @@ from rich.console import Console
 from rich.table import Table
 from tqdm import tqdm
 
-from log10.feedback.feedback import Feedback, _get_feedback_list
+from log10.feedback.feedback import Feedback, _get_feedback_list, _get_feedback_list_graphql
 
 
 @click.command()
@@ -41,12 +41,22 @@ def create_feedback(task_id, values, completion_tags_selector, comment):
     type=str,
     help="The specific Task ID to filter feedback. If not provided, feedback for all tasks will be fetched.",
 )
-def list_feedback(offset, limit, task_id):
+@click.option(
+    "--filter",
+    default="",
+    type=str,
+    help="The filter applied to the feedback. If not provided, feedback will not be filtered. e.g. `log10 feedback list --filter 'Coverage <= 5'`.",
+)
+def list_feedback(offset, limit, task_id, filter):
     """
     List feedback based on the provided criteria. This command allows fetching feedback for a specific task or across all tasks,
     with control over the starting point and the number of items to retrieve.
     """
-    feedback_data = _get_feedback_list(offset, limit, task_id)
+    feedback_data = (
+        _get_feedback_list_graphql(task_id, filter, page=1, limit=limit)
+        if filter
+        else _get_feedback_list(offset, limit, task_id)
+    )
     data_for_table = []
     for feedback in feedback_data:
         data_for_table.append(
