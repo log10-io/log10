@@ -266,9 +266,13 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, compa
 @click.option("--max_tokens", default=512, help="Max tokens")
 @click.option("--top_p", default=1.0, help="Top p")
 @click.option("--analyze_prompt", is_flag=True, help="Run prompt analyzer on the messages.")
-@click.option("--file", "-f", help="Specify the filename for the report in markdown format.")
 @click.option(
-    "--save_all_results_to_dataframe", is_flag=True, help="Dump All Results table (in markdown file) to a csv file."
+    "--file", "-f", help="Specify the filename for the report in markdown format and all result in csv format."
+)
+@click.option(
+    "--save_all_results_to_dataframe",
+    is_flag=True,
+    help="Dump All Results table (in markdown file) to a csv file when generating the report file. {{report_file_name}}_all_result_dataframe_dump.csv",
 )
 def benchmark_models(
     ids,
@@ -302,6 +306,9 @@ def benchmark_models(
         for model in [m for m in models.split(",") if m]:
             if not _check_model_support(model):
                 raise click.UsageError(f"Model {model} is not supported.")
+
+    if save_all_results_to_dataframe and not file:
+        raise click.UsageError("--save_all_results_to_dataframe must be used with --file")
 
     # get completions ids
     completion_ids = []

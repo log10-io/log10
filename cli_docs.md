@@ -148,7 +148,7 @@ original_request:
 ```
 
 You can also filter the completions by tags and generate a report in markdown file using `--file` or `-f`.
-If you want to save the all results for post-processing, use `--save_all_results_to_dataframe` to dump it into a csv file.
+If you want to save the all results for post-processing, use `--save_all_results_to_dataframe` with `--file` to dump it into a csv file.
 And run our prompt analyzer (auto-prompt) using `--analyze_prompt`.
 
 ### Feedback Tasks and Feedback
@@ -242,10 +242,13 @@ Options:
   --top_p FLOAT                   Top p
   --analyze_prompt                Run prompt analyzer on the messages.
   -f, --file TEXT                 Specify the filename for the report in
-                                  markdown format.
+                                  markdown format and all result in csv
+                                  format.
   --save_all_results_to_dataframe
                                   Dump All Results table (in markdown file) to
-                                  a csv file.
+                                  a csv file when generating the report file. {
+                                  {report_file_name}}_all_result_dataframe_dum
+                                  p.csv
 ```
 
 #### log10 completions download
