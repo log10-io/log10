@@ -138,14 +138,14 @@ def _create_dataframe_from_comparison_data(model_response_raw_data):
     df = pd.DataFrame(
         rows,
         columns=[
-            "Completion ID",
-            "Prompt Messages",
-            "Model",
-            "Content",
-            "Prompt Tokens",
-            "Completion Tokens",
-            "Total Tokens",
-            "Duration (ms)",
+            "completion_id",
+            "prompt_messages",
+            "model",
+            "content",
+            "prompt_tokens",
+            "completion_tokens",
+            "total_tokens",
+            "duration_ms",
         ],
     )
 
@@ -266,8 +266,27 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, compa
 @click.option("--max_tokens", default=512, help="Max tokens")
 @click.option("--top_p", default=1.0, help="Top p")
 @click.option("--analyze_prompt", is_flag=True, help="Run prompt analyzer on the messages.")
-@click.option("--file", "-f", help="Specify the filename for the report in markdown format.")
-def benchmark_models(ids, tags, limit, offset, models, temperature, max_tokens, top_p, file, analyze_prompt):
+@click.option(
+    "--file", "-f", help="Specify the filename for the report in markdown format and all result in csv format."
+)
+@click.option(
+    "--save_all_results_to_dataframe",
+    is_flag=True,
+    help="Dump All Results table (in markdown file) to a csv file when generating the report file. {{report_file_name}}_all_result_dataframe_dump.csv",
+)
+def benchmark_models(
+    ids,
+    tags,
+    limit,
+    offset,
+    models,
+    temperature,
+    max_tokens,
+    top_p,
+    file,
+    analyze_prompt,
+    save_all_results_to_dataframe,
+):
     """
     Compare completions using different models and generate report
     """
@@ -288,6 +307,9 @@ def benchmark_models(ids, tags, limit, offset, models, temperature, max_tokens, 
             if not _check_model_support(model):
                 raise click.UsageError(f"Model {model} is not supported.")
 
+    if save_all_results_to_dataframe and not file:
+        raise click.UsageError("--save_all_results_to_dataframe must be used with --file")
+
     # get completions ids
     completion_ids = []
     if ids:
@@ -307,6 +329,7 @@ def benchmark_models(ids, tags, limit, offset, models, temperature, max_tokens, 
     data = []
     skipped_completion_ids = []
     for id in completion_ids:
+        rich.print(f"Processing completion {id}")
         # get message from id
         completion_data = _get_completion(id).json()["data"]
 
@@ -347,14 +370,14 @@ def benchmark_models(ids, tags, limit, offset, models, temperature, max_tokens, 
     # create an empty dataframe
     all_df = pd.DataFrame(
         columns=[
-            "Completion ID",
-            "Prompt Messages",
-            "Model",
-            "Content",
-            "Prompt Tokens",
-            "Completion Tokens",
-            "Total Tokens",
-            "Duration (ms)",
+            "completion_id",
+            "prompt_messages",
+            "model",
+            "content",
+            "prompt_tokens",
+            "completion_tokens",
+            "total_tokens",
+            "duration_ms",
         ]
     )
 
@@ -375,8 +398,15 @@ def benchmark_models(ids, tags, limit, offset, models, temperature, max_tokens, 
         for ret in data:
             df = _create_dataframe_from_comparison_data(ret)
             all_df = pd.concat([all_df, df])
-        pivot_df = all_df.pivot(index="Completion ID", columns="Model", values="Content")
-        pivot_df["Prompt Messages"] = all_df.groupby("Completion ID")["Prompt Messages"].first()
+
+        # save the dataframe to a csv file
+        if save_all_results_to_dataframe:
+            csv_file_name = file.replace(".md", "_all_result_dataframe_dump.csv")
+            all_df.to_csv(csv_file_name, index=False)
+            rich.print(f"Dataframe saved to {csv_file_name}")
+
+        pivot_df = all_df.pivot(index="completion_id", columns="model", values="content")
+        pivot_df["prompt_messages"] = all_df.groupby("completion_id")["prompt_messages"].first()
         # Reorder the columns
         cols = pivot_df.columns.tolist()
         cols = [cols[-1]] + cols[:-1]
@@ -389,7 +419,7 @@ def benchmark_models(ids, tags, limit, offset, models, temperature, max_tokens, 
         if analyze_prompt:
             prompt_analysis_markdown = "## Prompt Analysis\n\n"
             for completion_id, suggestions in prompt_analysis_data.items():
-                prompt_messages = all_df[all_df["Completion ID"] == completion_id]["Prompt Messages"].values[0]
+                prompt_messages = all_df[all_df["completion_id"] == completion_id]["prompt_messages"].values[0]
                 prompt_analysis_markdown += (
                     f"### Prompt Analysis for completion_id: {completion_id}\n\n{prompt_messages}\n\n"
                 )
