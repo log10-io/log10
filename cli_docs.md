@@ -402,6 +402,9 @@ Options:
                     to 25.
   --task_id TEXT    The specific Task ID to filter feedback. If not provided,
                     feedback for all tasks will be fetched.
+  --filter TEXT     The filter applied to the feedback. If not provided,
+                    feedback will not be filtered. e.g. `log10 feedback list
+                    --filter 'Coverage <= 5'`.
 ```
 
 #### log10 feedback predict
