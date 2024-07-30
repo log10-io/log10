@@ -147,8 +147,8 @@ original_request:
 ╰─────────────────────────┴───────────────────────────────────────────────────────┴──────────────────────────────────┴───────────────╯
 ```
 
-You can also filter the completions by tags and generate a report in markdown file using `--file` or `-f`.
-If you want to save the all results for post-processing, use `--save_all_results_to_dataframe` with `--file` to dump it into a csv file.
+You can also filter the completions by tags and save the results using `--file` or `-f`.
+Specify the output file using `.md` for a markdown report, `.csv` for comma-separated values, or `.jsonl` for JSON Lines format.
 And run our prompt analyzer (auto-prompt) using `--analyze_prompt`.
 
 ### Feedback Tasks and Feedback
@@ -227,28 +227,23 @@ Usage: log10 completions benchmark_models [OPTIONS]
   Compare completions using different models and generate report
 
 Options:
-  --ids TEXT                      Completion IDs. Separate multiple ids with
-                                  commas.
-  --tags TEXT                     Filter completions by specific tags.
-                                  Separate multiple tags with commas.
-  --limit TEXT                    Specify the maximum number of completions to
-                                  retrieve filtered by tags.
-  --offset TEXT                   Set the starting point (offset) from where
-                                  to begin fetching completions filtered by
-                                  tags.
-  --models TEXT                   Comma separated list of models to compare
-  --temperature FLOAT             Temperature
-  --max_tokens INTEGER            Max tokens
-  --top_p FLOAT                   Top p
-  --analyze_prompt                Run prompt analyzer on the messages.
-  -f, --file TEXT                 Specify the filename for the report in
-                                  markdown format and all result in csv
-                                  format.
-  --save_all_results_to_dataframe
-                                  Dump All Results table (in markdown file) to
-                                  a csv file when generating the report file. {
-                                  {report_file_name}}_all_result_dataframe_dum
-                                  p.csv
+  --ids TEXT            Completion IDs. Separate multiple ids with commas.
+  --tags TEXT           Filter completions by specific tags. Separate multiple
+                        tags with commas.
+  --limit TEXT          Specify the maximum number of completions to retrieve
+                        filtered by tags.
+  --offset TEXT         Set the starting point (offset) from where to begin
+                        fetching completions filtered by tags.
+  --models TEXT         Comma separated list of models to compare
+  --temperature FLOAT   Temperature
+  --max_tokens INTEGER  Max tokens
+  --top_p FLOAT         Top p
+  --analyze_prompt      Run prompt analyzer on the messages.
+  -f, --file FILE       Specify the filename to save the results. Specify the
+                        output file using `.md` for a markdown report, `.csv`
+                        for comma-separated values, or `.jsonl` for JSON Lines
+                        format. Only .md, .csv, and .jsonl extensions are
+                        supported.
 ```
 
 #### log10 completions download

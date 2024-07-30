@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import click
 import pandas as pd
@@ -267,12 +268,12 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, compa
 @click.option("--top_p", default=1.0, help="Top p")
 @click.option("--analyze_prompt", is_flag=True, help="Run prompt analyzer on the messages.")
 @click.option(
-    "--file", "-f", help="Specify the filename for the report in markdown format and all result in csv format."
-)
-@click.option(
-    "--save_all_results_to_dataframe",
-    is_flag=True,
-    help="Dump All Results table (in markdown file) to a csv file when generating the report file. {{report_file_name}}_all_result_dataframe_dump.csv",
+    "--file",
+    "-f",
+    type=click.Path(dir_okay=False),
+    help="Specify the filename to save the results. Specify the output file using `.md` for a markdown report, "
+    "`.csv` for comma-separated values, or `.jsonl` for JSON Lines format. Only .md, .csv, and .jsonl extensions "
+    "are supported.",
 )
 def benchmark_models(
     ids,
@@ -285,7 +286,6 @@ def benchmark_models(
     top_p,
     file,
     analyze_prompt,
-    save_all_results_to_dataframe,
 ):
     """
     Compare completions using different models and generate report
@@ -307,8 +307,13 @@ def benchmark_models(
             if not _check_model_support(model):
                 raise click.UsageError(f"Model {model} is not supported.")
 
-    if save_all_results_to_dataframe and not file:
-        raise click.UsageError("--save_all_results_to_dataframe must be used with --file")
+    if file:
+        path = Path(file)
+        ext_name = path.suffix.lower()
+        if ext_name not in [".md", ".csv", ".jsonl"]:
+            raise click.UsageError(
+                f"Only .md, .csv, and .jsonl extensions are supported for the output file. Got: {ext_name}"
+            )
 
     # get completions ids
     completion_ids = []
@@ -399,40 +404,44 @@ def benchmark_models(
             df = _create_dataframe_from_comparison_data(ret)
             all_df = pd.concat([all_df, df])
 
-        # save the dataframe to a csv file
-        if save_all_results_to_dataframe:
-            csv_file_name = file.replace(".md", "_all_result_dataframe_dump.csv")
-            all_df.to_csv(csv_file_name, index=False)
-            rich.print(f"Dataframe saved to {csv_file_name}")
+        if ext_name == ".csv":
+            # save the dataframe to a csv file
+            all_df.to_csv(path, index=False)
+            rich.print(f"Dataframe saved to csv file: {path}")
+        elif ext_name == ".jsonl":
+            # save the dataframe to a jsonl file
+            all_df.to_json(path, orient="records", lines=True)
+            rich.print(f"Dataframe saved to jsonl file: {path}")
+        elif ext_name == ".md":
+            # generate markdown report
+            pivot_df = all_df.pivot(index="completion_id", columns="model", values="content")
+            pivot_df["prompt_messages"] = all_df.groupby("completion_id")["prompt_messages"].first()
+            # Reorder the columns
+            cols = pivot_df.columns.tolist()
+            cols = [cols[-1]] + cols[:-1]
+            pivot_df = pivot_df[cols]
 
-        pivot_df = all_df.pivot(index="completion_id", columns="model", values="content")
-        pivot_df["prompt_messages"] = all_df.groupby("completion_id")["prompt_messages"].first()
-        # Reorder the columns
-        cols = pivot_df.columns.tolist()
-        cols = [cols[-1]] + cols[:-1]
-        pivot_df = pivot_df[cols]
+            pivot_table = generate_results_table(pivot_df, section_name="model comparison")
+            all_results_table = generate_results_table(all_df, section_name="All Results")
 
-        pivot_table = generate_results_table(pivot_df, section_name="model comparison")
-        all_results_table = generate_results_table(all_df, section_name="All Results")
+            prompt_analysis_markdown = ""
+            if analyze_prompt:
+                prompt_analysis_markdown = "## Prompt Analysis\n\n"
+                for completion_id, suggestions in prompt_analysis_data.items():
+                    prompt_messages = all_df[all_df["completion_id"] == completion_id]["prompt_messages"].values[0]
+                    prompt_analysis_markdown += (
+                        f"### Prompt Analysis for completion_id: {completion_id}\n\n{prompt_messages}\n\n"
+                    )
+                    prompt_analysis_markdown += convert_suggestion_to_markdown(suggestions)
 
-        prompt_analysis_markdown = ""
-        if analyze_prompt:
-            prompt_analysis_markdown = "## Prompt Analysis\n\n"
-            for completion_id, suggestions in prompt_analysis_data.items():
-                prompt_messages = all_df[all_df["completion_id"] == completion_id]["prompt_messages"].values[0]
-                prompt_analysis_markdown += (
-                    f"### Prompt Analysis for completion_id: {completion_id}\n\n{prompt_messages}\n\n"
-                )
-                prompt_analysis_markdown += convert_suggestion_to_markdown(suggestions)
+            # generate the list of skipped completions ids
+            skipped_completion_markdown = ""
+            if skipped_completion_ids:
+                skipped_completion_ids_str = ", ".join(skipped_completion_ids)
+                skipped_completion_markdown += "## Skipped Completion IDs\n\n"
+                skipped_completion_markdown += f"Skipped completions: {skipped_completion_ids_str}\n\n"
 
-        # generate the list of skipped completions ids
-        skipped_completion_markdown = ""
-        if skipped_completion_ids:
-            skipped_completion_ids_str = ", ".join(skipped_completion_ids)
-            skipped_completion_markdown += "## Skipped Completion IDs\n\n"
-            skipped_completion_markdown += f"Skipped completions: {skipped_completion_ids_str}\n\n"
-
-        generate_markdown_report(
-            file, [pivot_table, prompt_analysis_markdown, all_results_table, skipped_completion_markdown]
-        )
-        rich.print(f"Report saved to {file}")
+            generate_markdown_report(
+                path, [pivot_table, prompt_analysis_markdown, all_results_table, skipped_completion_markdown]
+            )
+            rich.print(f"Report saved to markdown file: {path}")
