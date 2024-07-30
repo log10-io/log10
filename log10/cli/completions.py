@@ -404,14 +404,15 @@ def benchmark_models(
             df = _create_dataframe_from_comparison_data(ret)
             all_df = pd.concat([all_df, df])
 
-        if path.suffix.lower() == ".csv":
+        if ext_name == ".csv":
             # save the dataframe to a csv file
             all_df.to_csv(path, index=False)
             rich.print(f"Dataframe saved to csv file: {path}")
-        elif path.suffix.lower() == ".jsonl":
+        elif ext_name == ".jsonl":
+            # save the dataframe to a jsonl file
             all_df.to_json(path, orient="records", lines=True)
             rich.print(f"Dataframe saved to jsonl file: {path}")
-        elif path.suffix.lower() == ".md":
+        elif ext_name == ".md":
             # generate markdown report
             pivot_df = all_df.pivot(index="completion_id", columns="model", values="content")
             pivot_df["prompt_messages"] = all_df.groupby("completion_id")["prompt_messages"].first()
