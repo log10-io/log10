@@ -1,11 +1,21 @@
 import json
+import logging
 import time
+from typing import List, Optional
 
 import click
 import httpx
 
 from log10._httpx_utils import _try_get
 from log10.llm import Log10Config
+
+
+logging.basicConfig(
+    format="[%(asctime)s - %(name)s - %(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger: logging.Logger = logging.getLogger("LOG10")
+logger.setLevel(logging.INFO)
 
 
 _log10_config = Log10Config()
@@ -75,10 +85,9 @@ def _get_valid_date_range(from_date, to_date):
     return date_range
 
 
-def _write_completions(res, output_file, compact_mode):
+def _write_completions(data, output_file, compact_mode):
     """Processes completions and appends them to the output file."""
     with open(output_file, "a") as file:
-        data = res.json()["data"]
         if compact_mode:
             for completion in data:
                 file.write(json.dumps(completion) + "\n")
@@ -203,3 +212,41 @@ _SUPPORTED_MODELS = [
 
 def _check_model_support(model: str) -> bool:
     return model in _SUPPORTED_MODELS
+
+
+class Completions:
+    completions_path = "/api/completions"
+
+    def __init__(self, log10_config: Log10Config = None):
+        self._log10_config = log10_config or Log10Config()
+        self._http_client = httpx.Client()
+        self._http_client.headers = {
+            "x-log10-token": self._log10_config.token,
+            "x-log10-organization-id": self._log10_config.org_id,
+            "Content-Type": "application/json",
+        }
+
+        self.org_id = self._log10_config.org_id
+        self.base_url = self._log10_config.url
+        self.url = f"{self.base_url}{self.completions_path}?organization_id={self.org_id}"
+
+    def _get_completions(
+        self,
+        offset: int,
+        limit: int,
+        timeout: int,
+        tag_names: Optional[List[str]] = None,
+        from_date: click.DateTime = None,
+        to_date: click.DateTime = None,
+        printout: bool = True,
+    ) -> List[dict]:
+        url = _get_completions_url(limit, offset, tag_names, from_date, to_date, self.base_url, self.org_id)
+        # Fetch completions
+        response = _try_get(url, timeout)
+
+        if response.status_code != 200:
+            logger.error(f"Error: {response.json()}")
+            return
+
+        completions = response.json()
+        return completions["data"]

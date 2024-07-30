@@ -3,13 +3,13 @@ import json
 import click
 import pandas as pd
 import rich
-import tqdm
 from rich.console import Console
 from rich.table import Table
 
 from log10._httpx_utils import _get_time_diff, _try_get
 from log10.cli_utils import generate_markdown_report, generate_results_table
 from log10.completions.completions import (
+    Completions,
     _check_model_support,
     _compare,
     _get_completion,
@@ -201,8 +201,8 @@ def get_completion(id):
 
 
 @click.command()
-@click.option("--limit", default="", help="Specify the maximum number of completions to retrieve.")
-@click.option("--offset", default="", help="Set the starting point (offset) from where to begin fetching completions.")
+@click.option("--limit", default=50, help="Specify the maximum number of completions to retrieve.")
+@click.option("--offset", default=0, help="Set the starting point (offset) from where to begin fetching completions.")
 @click.option(
     "--timeout", default=10, help="Set the maximum time (in seconds) allowed for the HTTP request to complete."
 )
@@ -225,34 +225,46 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, compa
     """
     Download completions to a jsonl file
     """
-    base_url = _log10_config.url
-    org_id = _log10_config.org_id
-
-    init_url = _get_completions_url(1, 0, tags, from_date, to_date, base_url, org_id)
-    res = _try_get(init_url)
-    if res.status_code != 200:
-        rich.print(f"Error: {res.json()}")
-        return
-
-    total_completions = res.json()["total"]
-    offset = int(offset) if offset else 0
-    limit = int(limit) if limit else total_completions
-    rich.print(f"Download total completions: {limit}/{total_completions}")
-    if not click.confirm("Do you want to continue?"):
-        return
-
-    # dowlnoad completions
-    pbar = tqdm.tqdm(total=limit)
+    input_offset = int(offset)
+    input_limit = int(limit)
+    fetched_total = 0
     batch_size = 10
-    end = offset + limit if offset + limit < total_completions else total_completions
-    for batch in range(offset, end, batch_size):
-        current_batch_size = batch_size if batch + batch_size < end else end - batch
-        download_url = _get_completions_url(
-            current_batch_size, batch, tags, from_date, to_date, base_url, org_id, printout=False
-        )
-        res = _try_get(download_url, timeout)
-        _write_completions(res, file, compact)
-        pbar.update(current_batch_size)
+
+    console = Console()
+    track_limit = input_limit if input_limit < batch_size else batch_size
+    track_offset = input_offset
+    try:
+        with console.status("[bold green]Downloading completions...") as _status:
+            while True and track_limit > 0:
+                # returns the data set from the offset at track_offset and the max of data is track_limit
+                new_data = Completions()._get_completions(
+                    offset=track_offset,
+                    limit=track_limit,
+                    timeout=timeout,
+                    tag_names=tags,
+                    from_date=from_date,
+                    to_date=to_date,
+                )
+
+                new_data_size = len(new_data)
+                fetched_total += new_data_size
+
+                if new_data_size == 0 or new_data_size < track_limit:
+                    break
+
+                track_offset += new_data_size
+                track_limit = input_limit - fetched_total if input_limit - fetched_total < batch_size else batch_size
+
+                # write new completions data to the downloaded file
+                _write_completions(new_data, file, compact)
+                console.print(f"Downloaded {fetched_total} completions so far to {file}.")
+    except Exception as e:
+        rich.print(f"Error fetching completions {e}")
+        if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
+            rich.print(e.response.json()["error"])
+        return
+
+    rich.print(f"Total downloaded completions {fetched_total}. Saved to {file}")
 
 
 @click.command()
