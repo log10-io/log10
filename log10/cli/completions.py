@@ -23,7 +23,7 @@ from log10.prompt_analyzer import PromptAnalyzer, convert_suggestion_to_markdown
 _log10_config = Log10Config()
 
 
-def _render_completions_table(completions_data, total_completions):
+def _render_completions_table(completions_data):
     data_for_table = []
     for completion in completions_data:
         prompt, response = "", ""
@@ -44,9 +44,12 @@ def _render_completions_table(completions_data, total_completions):
                     message = first_choice["message"]
                     response = (
                         message.get("content")
-                        or message.get("tool_calls", [])[-1].get("function", {}).get("arguments", "")
-                        if message.get("tool_calls")
-                        else ""
+                        or (
+                            message.get("tool_calls")[-1].get("function", {}).get("arguments", "")
+                            if message.get("tool_calls")
+                            else ""
+                        )
+                        or ""
                     )
                 elif "function_call" in first_choice:
                     response = json.dumps(first_choice.get("function_call", {}))
@@ -85,7 +88,6 @@ def _render_completions_table(completions_data, total_completions):
 
     console = Console()
     console.print(table)
-    console.print(f"{total_completions=}")
 
 
 def _render_comparison_table(model_response_raw_data):
@@ -183,10 +185,9 @@ def list_completions(limit, offset, timeout, tags, from_date, to_date):
     res = _try_get(url, timeout)
 
     completions = res.json()
-    total_completions = completions["total"]
     completions = completions["data"]
 
-    _render_completions_table(completions, total_completions)
+    _render_completions_table(completions)
 
 
 @click.command()
