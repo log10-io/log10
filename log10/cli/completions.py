@@ -219,7 +219,13 @@ def get_completion(id):
     type=click.DateTime(),
     help="Set the end date for fetching completions (inclusive). Use the format: YYYY-MM-DD.",
 )
-@click.option("--file", "-f", default="completions.jsonl", help="Specify the filename and path for the output file.")
+@click.option(
+    "--file",
+    "-f",
+    type=click.Path(dir_okay=False),
+    default="completions.jsonl",
+    help="Specify the filename and path for the output file. Only .jsonl extension is supported.",
+)
 def download_completions(limit, offset, timeout, tags, from_date, to_date, file):
     """
     Download completions to a jsonl file
@@ -229,12 +235,23 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, file)
     fetched_total = 0
     batch_size = 10
 
+    if file:
+        path = Path(file)
+        if path.exists():
+            rich.print(f'Warning: The file "{file}" already exists and will be overwritten.')
+
+        ext_name = path.suffix.lower()
+        if ext_name not in [".md", ".csv", ".jsonl"]:
+            raise click.UsageError(
+                f"Only .md, .csv, and .jsonl extensions are supported for the output file. Got: {ext_name}"
+            )
+
     console = Console()
     track_limit = input_limit if input_limit < batch_size else batch_size
     track_offset = input_offset
     try:
         with console.status("[bold green]Downloading completions...") as _status:
-            with open(file, "a") as output_file:
+            with open(file, "w") as output_file:
                 while True and track_limit > 0:
                     new_data = Completions()._get_completions(
                         offset=track_offset,
@@ -251,7 +268,7 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, file)
                     for completion in new_data:
                         output_file.write(json.dumps(completion) + "\n")
 
-                    console.print(f"Downloaded {fetched_total} completions so far to {file}.")
+                    console.print(f"Downloaded {fetched_total} completions to {file}.")
 
                     if new_data_size == 0 or new_data_size < track_limit:
                         break
