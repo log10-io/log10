@@ -241,10 +241,8 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, file)
             rich.print(f'Warning: The file "{file}" already exists and will be overwritten.')
 
         ext_name = path.suffix.lower()
-        if ext_name not in [".md", ".csv", ".jsonl"]:
-            raise click.UsageError(
-                f"Only .md, .csv, and .jsonl extensions are supported for the output file. Got: {ext_name}"
-            )
+        if ext_name not in [".jsonl"]:
+            raise click.UsageError(f"Only .jsonl extension is supported for the output file. Got: {ext_name}")
 
     console = Console()
     track_limit = input_limit if input_limit < batch_size else batch_size
