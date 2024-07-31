@@ -248,7 +248,7 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, file)
     track_limit = input_limit if input_limit < batch_size else batch_size
     track_offset = input_offset
     try:
-        with console.status("[bold green]Downloading completions...") as _status:
+        with console.status("[bold green]Downloading completions...", spinner="bouncingBar") as _status:
             with open(file, "w") as output_file:
                 while True and track_limit > 0:
                     new_data = Completions()._get_completions(
