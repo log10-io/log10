@@ -270,8 +270,6 @@ Options:
   --to [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%d %H:%M:%S]
                                   Set the end date for fetching completions
                                   (inclusive). Use the format: YYYY-MM-DD.
-  --compact                       Enable to download only the compact version
-                                  of the output.
   -f, --file TEXT                 Specify the filename and path for the output
                                   file.
 ```

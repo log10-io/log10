@@ -4,18 +4,17 @@ from pathlib import Path
 import click
 import pandas as pd
 import rich
-import tqdm
 from rich.console import Console
 from rich.table import Table
 
 from log10._httpx_utils import _get_time_diff, _try_get
 from log10.cli_utils import generate_markdown_report, generate_results_table
 from log10.completions.completions import (
+    Completions,
     _check_model_support,
     _compare,
     _get_completion,
     _get_completions_url,
-    _write_completions,
 )
 from log10.llm import Log10Config
 from log10.prompt_analyzer import PromptAnalyzer, convert_suggestion_to_markdown, display_prompt_analyzer_suggestions
@@ -24,7 +23,7 @@ from log10.prompt_analyzer import PromptAnalyzer, convert_suggestion_to_markdown
 _log10_config = Log10Config()
 
 
-def _render_completions_table(completions_data, total_completions):
+def _render_completions_table(completions_data):
     data_for_table = []
     for completion in completions_data:
         prompt, response = "", ""
@@ -45,9 +44,12 @@ def _render_completions_table(completions_data, total_completions):
                     message = first_choice["message"]
                     response = (
                         message.get("content")
-                        or message.get("tool_calls", [])[-1].get("function", {}).get("arguments", "")
-                        if message.get("tool_calls")
-                        else ""
+                        or (
+                            message.get("tool_calls")[-1].get("function", {}).get("arguments", "")
+                            if message.get("tool_calls")
+                            else ""
+                        )
+                        or ""
                     )
                 elif "function_call" in first_choice:
                     response = json.dumps(first_choice.get("function_call", {}))
@@ -86,7 +88,6 @@ def _render_completions_table(completions_data, total_completions):
 
     console = Console()
     console.print(table)
-    console.print(f"{total_completions=}")
 
 
 def _render_comparison_table(model_response_raw_data):
@@ -184,10 +185,9 @@ def list_completions(limit, offset, timeout, tags, from_date, to_date):
     res = _try_get(url, timeout)
 
     completions = res.json()
-    total_completions = completions["total"]
     completions = completions["data"]
 
-    _render_completions_table(completions, total_completions)
+    _render_completions_table(completions)
 
 
 @click.command()
@@ -201,8 +201,8 @@ def get_completion(id):
 
 
 @click.command()
-@click.option("--limit", default="", help="Specify the maximum number of completions to retrieve.")
-@click.option("--offset", default="", help="Set the starting point (offset) from where to begin fetching completions.")
+@click.option("--limit", default=50, help="Specify the maximum number of completions to retrieve.")
+@click.option("--offset", default=0, help="Set the starting point (offset) from where to begin fetching completions.")
 @click.option(
     "--timeout", default=10, help="Set the maximum time (in seconds) allowed for the HTTP request to complete."
 )
@@ -219,40 +219,69 @@ def get_completion(id):
     type=click.DateTime(),
     help="Set the end date for fetching completions (inclusive). Use the format: YYYY-MM-DD.",
 )
-@click.option("--compact", is_flag=True, help="Enable to download only the compact version of the output.")
-@click.option("--file", "-f", default="completions.jsonl", help="Specify the filename and path for the output file.")
-def download_completions(limit, offset, timeout, tags, from_date, to_date, compact, file):
+@click.option(
+    "--file",
+    "-f",
+    type=click.Path(dir_okay=False),
+    default="completions.jsonl",
+    help="Specify the filename and path for the output file. Only .jsonl extension is supported.",
+)
+def download_completions(limit, offset, timeout, tags, from_date, to_date, file):
     """
     Download completions to a jsonl file
     """
-    base_url = _log10_config.url
-    org_id = _log10_config.org_id
-
-    init_url = _get_completions_url(1, 0, tags, from_date, to_date, base_url, org_id)
-    res = _try_get(init_url)
-    if res.status_code != 200:
-        rich.print(f"Error: {res.json()}")
-        return
-
-    total_completions = res.json()["total"]
-    offset = int(offset) if offset else 0
-    limit = int(limit) if limit else total_completions
-    rich.print(f"Download total completions: {limit}/{total_completions}")
-    if not click.confirm("Do you want to continue?"):
-        return
-
-    # dowlnoad completions
-    pbar = tqdm.tqdm(total=limit)
+    input_offset = int(offset)
+    input_limit = int(limit)
+    fetched_total = 0
     batch_size = 10
-    end = offset + limit if offset + limit < total_completions else total_completions
-    for batch in range(offset, end, batch_size):
-        current_batch_size = batch_size if batch + batch_size < end else end - batch
-        download_url = _get_completions_url(
-            current_batch_size, batch, tags, from_date, to_date, base_url, org_id, printout=False
-        )
-        res = _try_get(download_url, timeout)
-        _write_completions(res, file, compact)
-        pbar.update(current_batch_size)
+
+    if file:
+        path = Path(file)
+        if path.exists():
+            rich.print(f'Warning: The file "{file}" already exists and will be overwritten.')
+
+        ext_name = path.suffix.lower()
+        if ext_name not in [".jsonl"]:
+            raise click.UsageError(f"Only .jsonl extension is supported for the output file. Got: {ext_name}")
+
+    console = Console()
+    track_limit = input_limit if input_limit < batch_size else batch_size
+    track_offset = input_offset
+    try:
+        with console.status("[bold green]Downloading completions...", spinner="bouncingBar") as _status:
+            with open(file, "w") as output_file:
+                while True and track_limit > 0:
+                    new_data = Completions()._get_completions(
+                        offset=track_offset,
+                        limit=track_limit,
+                        timeout=timeout,
+                        tag_names=tags,
+                        from_date=from_date,
+                        to_date=to_date,
+                    )
+
+                    new_data_size = len(new_data)
+                    fetched_total += new_data_size
+
+                    for completion in new_data:
+                        output_file.write(json.dumps(completion) + "\n")
+
+                    console.print(f"Downloaded {fetched_total} completions to {file}.")
+
+                    if new_data_size == 0 or new_data_size < track_limit:
+                        break
+
+                    track_offset += new_data_size
+                    track_limit = (
+                        input_limit - fetched_total if input_limit - fetched_total < batch_size else batch_size
+                    )
+    except Exception as e:
+        rich.print(f"Error fetching completions {e}")
+        if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
+            rich.print(e.response.json()["error"])
+        return
+
+    rich.print(f"Download total completions: {fetched_total}. Saved to {file}")
 
 
 @click.command()
