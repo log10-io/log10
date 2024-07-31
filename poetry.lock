@@ -3928,4 +3928,4 @@ together = ["together"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<4.0"
-content-hash = "2cf7be399896ec9a1a4e386d023c22ac1200b413019d025cdb3d6530caf92fb4"
+content-hash = "5dc9a83d0bf79d0fd7c4ee631af6381db64820612e76907ea635b9ee3b69d6ac"
