@@ -264,7 +264,7 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, compa
             rich.print(e.response.json()["error"])
         return
 
-    rich.print(f"Total downloaded completions {fetched_total}. Saved to {file}")
+    rich.print(f"Download total completions: {fetched_total}. Saved to {file}")
 
 
 @click.command()
