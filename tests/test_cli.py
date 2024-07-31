@@ -29,7 +29,7 @@ def test_get_completion(runner):
 def test_download_completions(runner):
     result = runner.invoke(cli, ["completions", "download", "--limit", "1", "--tags", "log10/summary-grading"])
     assert result.exit_code == 0
-    assert "Total downloaded completions 1. Saved to completions.jsonl" in result.output
+    assert "Download total completions: 1. Saved to completions.jsonl" in result.output
 
 
 def test_benchmark_models_with_ids(runner):
