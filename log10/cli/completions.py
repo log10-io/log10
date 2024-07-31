@@ -15,7 +15,6 @@ from log10.completions.completions import (
     _compare,
     _get_completion,
     _get_completions_url,
-    _write_completions,
 )
 from log10.llm import Log10Config
 from log10.prompt_analyzer import PromptAnalyzer, convert_suggestion_to_markdown, display_prompt_analyzer_suggestions
@@ -220,9 +219,8 @@ def get_completion(id):
     type=click.DateTime(),
     help="Set the end date for fetching completions (inclusive). Use the format: YYYY-MM-DD.",
 )
-@click.option("--compact", is_flag=True, help="Enable to download only the compact version of the output.")
 @click.option("--file", "-f", default="completions.jsonl", help="Specify the filename and path for the output file.")
-def download_completions(limit, offset, timeout, tags, from_date, to_date, compact, file):
+def download_completions(limit, offset, timeout, tags, from_date, to_date, file):
     """
     Download completions to a jsonl file
     """
@@ -236,29 +234,32 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, compa
     track_offset = input_offset
     try:
         with console.status("[bold green]Downloading completions...") as _status:
-            while True and track_limit > 0:
-                # returns the data set from the offset at track_offset and the max of data is track_limit
-                new_data = Completions()._get_completions(
-                    offset=track_offset,
-                    limit=track_limit,
-                    timeout=timeout,
-                    tag_names=tags,
-                    from_date=from_date,
-                    to_date=to_date,
-                )
+            with open(file, "a") as output_file:
+                while True and track_limit > 0:
+                    new_data = Completions()._get_completions(
+                        offset=track_offset,
+                        limit=track_limit,
+                        timeout=timeout,
+                        tag_names=tags,
+                        from_date=from_date,
+                        to_date=to_date,
+                    )
 
-                new_data_size = len(new_data)
-                fetched_total += new_data_size
+                    new_data_size = len(new_data)
+                    fetched_total += new_data_size
 
-                if new_data_size == 0 or new_data_size < track_limit:
-                    break
+                    for completion in new_data:
+                        output_file.write(json.dumps(completion) + "\n")
 
-                track_offset += new_data_size
-                track_limit = input_limit - fetched_total if input_limit - fetched_total < batch_size else batch_size
+                    console.print(f"Downloaded {fetched_total} completions so far to {file}.")
 
-                # write new completions data to the downloaded file
-                _write_completions(new_data, file, compact)
-                console.print(f"Downloaded {fetched_total} completions so far to {file}.")
+                    if new_data_size == 0 or new_data_size < track_limit:
+                        break
+
+                    track_offset += new_data_size
+                    track_limit = (
+                        input_limit - fetched_total if input_limit - fetched_total < batch_size else batch_size
+                    )
     except Exception as e:
         rich.print(f"Error fetching completions {e}")
         if hasattr(e, "response") and hasattr(e.response, "json") and "error" in e.response.json():
