@@ -85,18 +85,6 @@ def _get_valid_date_range(from_date, to_date):
     return date_range
 
 
-def _write_completions(data, output_file, compact_mode):
-    """Processes completions and appends them to the output file."""
-    with open(output_file, "a") as file:
-        if compact_mode:
-            for completion in data:
-                file.write(json.dumps(completion) + "\n")
-        else:
-            for completion_id in (completion["id"] for completion in data):
-                completion = _get_completion(completion_id).json()["data"]
-                file.write(json.dumps(completion) + "\n")
-
-
 def _get_llm_repsone(
     model: str,
     messages: list[dict],
