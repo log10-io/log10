@@ -1,4 +1,5 @@
 import json
+import time
 from pathlib import Path
 
 import click
@@ -248,8 +249,9 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, file)
     track_limit = input_limit if input_limit < batch_size else batch_size
     track_offset = input_offset
     try:
-        with console.status("[bold green]Downloading completions...", spinner="bouncingBar") as _status:
+        with console.status("[bold green]Downloading completions...", spinner="bouncingBar") as status:
             with open(file, "w") as output_file:
+                start_time = time.time()
                 while True and track_limit > 0:
                     new_data = Completions()._get_completions(
                         offset=track_offset,
@@ -266,7 +268,14 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, file)
                     for completion in new_data:
                         output_file.write(json.dumps(completion) + "\n")
 
-                    console.print(f"Downloaded {fetched_total} completions to {file}.")
+                    elapsed_time = time.time() - start_time
+                    rate = fetched_total / elapsed_time if elapsed_time > 0 else 0
+                    status.update(
+                        f"[bold green]Downloading completions...\n"
+                        f"📥 Downloaded {fetched_total} | "
+                        f"⏱️ {elapsed_time:.1f}s | "
+                        f"⚡ {rate:.1f}/s"
+                    )
 
                     if new_data_size == 0 or new_data_size < track_limit:
                         break
@@ -281,7 +290,12 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, file)
             rich.print(e.response.json()["error"])
         return
 
-    rich.print(f"Download total completions: {fetched_total}. Saved to {file}")
+    rich.print(
+        f"[bold green]📥 Downloaded {fetched_total} | "
+        f"⏱️ {elapsed_time:.1f}s. | "
+        f"⚡ {rate:.2f}/s\n"
+        f"💾 Saved to {file}"
+    )
 
 
 @click.command()
