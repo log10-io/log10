@@ -272,7 +272,7 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, file)
                     rate = fetched_total / elapsed_time if elapsed_time > 0 else 0
                     status.update(
                         f"[bold green]Downloading completions...\n"
-                        f"📥 Downloaded: {fetched_total} | "
+                        f"📥 Downloaded {fetched_total} | "
                         f"⏱️ {elapsed_time:.1f}s | "
                         f"⚡ {rate:.1f}/s"
                     )
@@ -291,7 +291,10 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, file)
         return
 
     rich.print(
-        f"[bold green]📥 Downloaded {fetched_total} | ⏱️ {elapsed_time:.1f}s. | ⚡ {rate:.2f}/s\n💾 Saved to {file}"
+        f"[bold green]📥 Downloaded {fetched_total} | "
+        f"⏱️ {elapsed_time:.1f}s. | "
+        f"⚡ {rate:.2f}/s\n"
+        f"💾 Saved to {file}"
     )
 
 
