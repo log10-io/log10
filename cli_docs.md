@@ -8,7 +8,7 @@ Here's a [demo video](https://www.loom.com/share/4f5da34df6e94b7083b1e33c707deb5
 Install the `log10-io` python package (version >= 0.6.7) and [setup Log10](README.md#⚙️-setup)
 
 ```bash
-$ pip install log10-io
+$ pip install 'log10-io[cli]'
 ```
 
 ### Completions
