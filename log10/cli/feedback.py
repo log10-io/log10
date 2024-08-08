@@ -114,18 +114,28 @@ def get_feedback(id):
     help="The specific Task ID to filter feedback. If not provided, feedback for all tasks will be fetched.",
 )
 @click.option(
+    "--filter",
+    default="",
+    type=str,
+    help="The filter applied to the feedback. If not provided, feedback will not be filtered. e.g. `log10 feedback list --filter 'Coverage <= 5'`.",
+)
+@click.option(
     "--file",
     "-f",
     type=str,
     required=False,
     help="Path to the file where the feedback will be saved. The feedback data is saved in JSON Lines (jsonl) format. If not specified, feedback will be printed to stdout.",
 )
-def download_feedback(offset, limit, task_id, file):
+def download_feedback(offset, limit, task_id, filter, file):
     """
     Download feedback based on the provided criteria. This command allows fetching feedback for a specific task or across all tasks,
     with control over the starting point and the number of items to retrieve.
     """
-    feedback_data = _get_feedback_list(offset, limit, task_id)
+    feedback_data = (
+        _get_feedback_list_graphql(task_id, filter, page=1, limit=limit)
+        if filter
+        else _get_feedback_list(offset, limit, task_id)
+    )
 
     console = Console()
     if not file:
