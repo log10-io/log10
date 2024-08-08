@@ -227,7 +227,9 @@ Usage: log10 completions benchmark_models [OPTIONS]
   Compare completions using different models and generate report
 
 Options:
-  --ids TEXT            Completion IDs. Separate multiple ids with commas.
+  --ids TEXT            Log10 completion IDs. Provide a comma-separated list
+                        of completion IDs or a path to a JSON file containing
+                        the list of IDs.
   --tags TEXT           Filter completions by specific tags. Separate multiple
                         tags with commas.
   --limit TEXT          Specify the maximum number of completions to retrieve
