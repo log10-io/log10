@@ -299,7 +299,12 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, file)
 
 
 @click.command()
-@click.option("--ids", default="", help="Completion IDs. Separate multiple ids with commas.")
+@click.option(
+    "--ids",
+    default="",
+    help="Log10 completion IDs. Provide a comma-separated list of completion IDs or a "
+    "path to a JSON file containing the list of IDs.",
+)
 @click.option("--tags", default="", help="Filter completions by specific tags. Separate multiple tags with commas.")
 @click.option("--limit", help="Specify the maximum number of completions to retrieve filtered by tags.")
 @click.option(
@@ -361,7 +366,16 @@ def benchmark_models(
     # get completions ids
     completion_ids = []
     if ids:
-        completion_ids = [id for id in ids.split(",") if id]
+        ids_path = Path(ids)
+        if ids_path.is_file():
+            if ids_path.suffix.lower() != ".json":
+                raise click.UsageError(
+                    f"Only json format is supported for the IDs file. Got {ids_path.suffix.lower()}"
+                )
+            with open(ids_path, "r") as f:
+                completion_ids = json.load(f)
+        else:
+            completion_ids = [id for id in ids.split(",") if id]
     elif tags:
         base_url = _log10_config.url
         org_id = _log10_config.org_id
