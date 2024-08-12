@@ -100,12 +100,10 @@ def get_feedback(id):
 
 @click.command()
 @click.option(
-    "--offset",
-    default=0,
-    help="The starting index from which to begin the feedback fetch. Leave empty to start from the beginning.",
+    "--offset", default=0, type=int, help="The starting index from which to begin the feedback fetch. Defaults to 0."
 )
 @click.option(
-    "--limit", default="", help="The maximum number of feedback items to retrieve. Leave empty to retrieve all."
+    "--limit", default=25, type=int, help="The maximum number of feedback items to retrieve. Defaults to 25."
 )
 @click.option(
     "--task_id",
