@@ -1,6 +1,8 @@
 import json
+from pathlib import Path
 
 import click
+import rich
 from rich.console import Console
 from rich.table import Table
 from tqdm import tqdm
@@ -120,7 +122,7 @@ def get_feedback(id):
 @click.option(
     "--file",
     "-f",
-    type=str,
+    type=click.Path(dir_okay=False),
     required=False,
     help="Path to the file where the feedback will be saved. The feedback data is saved in JSON Lines (jsonl) format. If not specified, feedback will be printed to stdout.",
 )
@@ -129,6 +131,15 @@ def download_feedback(offset, limit, task_id, filter, file):
     Download feedback based on the provided criteria. This command allows fetching feedback for a specific task or across all tasks,
     with control over the starting point and the number of items to retrieve.
     """
+    if file:
+        file_path = Path(file)
+        if file_path.exists():
+            rich.print(f"Warning: The file {file_path} already exists and will be overwritten.")
+
+        ext_filename = file_path.suffix.lower()
+        if ext_filename != ".jsonl":
+            raise click.UsageError(f"Only .jsonl extension is supported for the output file. Got: {ext_filename}")
+
     feedback_data = (
         _get_feedback_list_graphql(task_id, filter, page=1, limit=limit)
         if filter
