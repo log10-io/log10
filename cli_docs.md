@@ -363,6 +363,9 @@ Options:
                     empty to retrieve all.
   --task_id TEXT    The specific Task ID to filter feedback. If not provided,
                     feedback for all tasks will be fetched.
+  --filter TEXT     The filter applied to the feedback. If not provided,
+                    feedback will not be filtered. e.g. `log10 feedback list
+                    --filter 'Coverage <= 5'`.
   -f, --file TEXT   Path to the file where the feedback will be saved. The
                     feedback data is saved in JSON Lines (jsonl) format. If
                     not specified, feedback will be printed to stdout.
