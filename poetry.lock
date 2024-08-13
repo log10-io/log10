@@ -1872,25 +1872,37 @@ extra-proxy = ["azure-identity (>=1.15.0,<2.0.0)", "azure-keyvault-secrets (>=4.
 proxy = ["PyJWT (>=2.8.0,<3.0.0)", "apscheduler (>=3.10.4,<4.0.0)", "backoff", "cryptography (>=42.0.5,<43.0.0)", "fastapi (>=0.109.1,<0.110.0)", "fastapi-sso (>=0.10.0,<0.11.0)", "gunicorn (>=21.2.0,<22.0.0)", "orjson (>=3.9.7,<4.0.0)", "python-multipart (>=0.0.9,<0.0.10)", "pyyaml (>=6.0.1,<7.0.0)", "rq", "uvicorn (>=0.22.0,<0.23.0)"]
 
 [[package]]
+name = "logfire-api"
+version = "0.50.1"
+description = "Shim for the Logfire SDK which does nothing unless Logfire is installed"
+optional = true
+python-versions = ">=3.8"
+files = [
+    {file = "logfire_api-0.50.1-py3-none-any.whl", hash = "sha256:9f58204e4a261baa49737c93a6556aee58511eef7927b58d31e7a3cb860e9bff"},
+    {file = "logfire_api-0.50.1.tar.gz", hash = "sha256:e3f46e522834453ce622b2a5f4f4e148fce90b3a65ffc0e5b27288aa7687ba81"},
+]
+
+[[package]]
 name = "magentic"
-version = "0.27.0"
+version = "0.31.0"
 description = "Seamlessly integrate LLMs as Python functions"
 optional = true
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "magentic-0.27.0-py3-none-any.whl", hash = "sha256:e340966f8309a06812da6fcfd758fc5f4045af336726f7eaba528f9c918b3a80"},
-    {file = "magentic-0.27.0.tar.gz", hash = "sha256:693746b0263aaf164099386e3528e64bc6876178f92c42c70866e4bea97df868"},
+    {file = "magentic-0.31.0-py3-none-any.whl", hash = "sha256:38f11c37a7ce980371721de59c11a55ce5ebc8c7c9da3d474c19b3c8b8c8e9b9"},
+    {file = "magentic-0.31.0.tar.gz", hash = "sha256:4ac65fbc45bb5e32982e46529a297fc8b250cf6b3f7568d0712967852a2c87ce"},
 ]
 
 [package.dependencies]
 filetype = "*"
+logfire-api = "*"
 openai = ">=1.26.0"
 pydantic = ">=2.0.0"
 pydantic-settings = ">=2.0.0"
 
 [package.extras]
 anthropic = ["anthropic (>=0.27.0)"]
-litellm = ["litellm (>=1.36.0)"]
+litellm = ["litellm (>=1.41.12)"]
 
 [[package]]
 name = "markdown-it-py"
