@@ -358,12 +358,15 @@ Usage: log10 feedback download [OPTIONS]
 
 Options:
   --offset INTEGER  The starting index from which to begin the feedback fetch.
-                    Leave empty to start from the beginning.
-  --limit TEXT      The maximum number of feedback items to retrieve. Leave
-                    empty to retrieve all.
+                    Defaults to 0.
+  --limit INTEGER   The maximum number of feedback items to retrieve. Defaults
+                    to 25.
   --task_id TEXT    The specific Task ID to filter feedback. If not provided,
                     feedback for all tasks will be fetched.
-  -f, --file TEXT   Path to the file where the feedback will be saved. The
+  --filter TEXT     The filter applied to the feedback. If not provided,
+                    feedback will not be filtered. e.g. `log10 feedback list
+                    --filter 'Coverage <= 5'`.
+  -f, --file FILE   Path to the file where the feedback will be saved. The
                     feedback data is saved in JSON Lines (jsonl) format. If
                     not specified, feedback will be printed to stdout.
 ```
