@@ -93,6 +93,7 @@ def _render_completions_table(completions_data):
 
 def _render_comparison_table(model_response_raw_data):
     rich.print(f"completion_id: {model_response_raw_data['completion_id']}")
+    rich.print(f"tags: {model_response_raw_data['tags']}")
     rich.print("original_request:")
     rich.print_json(json.dumps(model_response_raw_data["original_request"], indent=4))
 
@@ -104,7 +105,7 @@ def _render_comparison_table(model_response_raw_data):
 
     for model, data in model_response_raw_data.items():
         # only display model data
-        if model not in ["completion_id", "original_request"]:
+        if model not in ["completion_id", "original_request", "tags"]:
             usage = data["usage"]
             formatted_usage = f"{usage['total_tokens']} ({usage['prompt_tokens']}/{usage['completion_tokens']})"
             table.add_row(model, data["content"], formatted_usage, str(data["duration"]))
@@ -113,11 +114,12 @@ def _render_comparison_table(model_response_raw_data):
 
 def _create_dataframe_from_comparison_data(model_response_raw_data):
     completion_id = model_response_raw_data["completion_id"]
+    tags = model_response_raw_data["tags"]
     original_request = model_response_raw_data["original_request"]
     rows = []
     for model, model_data in model_response_raw_data.items():
         # only display model data
-        if model not in ["completion_id", "original_request"]:
+        if model not in ["completion_id", "original_request", "tags"]:
             content = model_data["content"]
             usage = model_data["usage"]
             prompt_tokens = usage["prompt_tokens"]
@@ -128,6 +130,7 @@ def _create_dataframe_from_comparison_data(model_response_raw_data):
             rows.append(
                 [
                     completion_id,
+                    tags,
                     prompt_messages,
                     model,
                     content,
@@ -142,6 +145,7 @@ def _create_dataframe_from_comparison_data(model_response_raw_data):
         rows,
         columns=[
             "completion_id",
+            "tags",
             "prompt_messages",
             "model",
             "content",
@@ -394,6 +398,7 @@ def benchmark_models(
         rich.print(f"Processing completion {id}")
         # get message from id
         completion_data = _get_completion(id).json()["data"]
+        tags = [t["name"] for t in completion_data["tagResolved"]]
 
         # skip completion if status is not finished or kind is not chat
         if completion_data["status"] != "finished" or completion_data["kind"] != "chat":
@@ -412,6 +417,7 @@ def benchmark_models(
                 "usage": original_model_response["usage"],
                 "duration": completion_data["duration"],
             },
+            "tags": tags,
         }
         messages = original_model_request["messages"]
         compare_models_data = _compare(compare_models, messages, temperature, max_tokens, top_p)
@@ -433,6 +439,7 @@ def benchmark_models(
     all_df = pd.DataFrame(
         columns=[
             "completion_id",
+            "tags",
             "prompt_messages",
             "model",
             "content",
