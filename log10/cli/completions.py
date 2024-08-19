@@ -270,7 +270,15 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, file)
                     fetched_total += new_data_size
 
                     for completion in new_data:
-                        output_file.write(json.dumps(completion) + "\n")
+                        res = _get_completion(completion["id"])
+                        if res.status_code != 200:
+                            rich.print(f"Error fetching completion {completion['id']}")
+                            continue
+                        if not res.json().get("data", {}):
+                            rich.print(f"Completion {completion['id']} is empty")
+                            continue
+                        full_completion_data = res.json()["data"]
+                        output_file.write(json.dumps(full_completion_data) + "\n")
 
                     elapsed_time = time.time() - start_time
                     rate = fetched_total / elapsed_time if elapsed_time > 0 else 0
