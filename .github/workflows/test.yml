@@ -119,11 +119,16 @@ jobs:
           if $empty_inputs; then
             echo "All variables are empty"
             poetry run pytest -vv tests/ --ignore=tests/test_cli.py
-            poetry run pytest --llm_provider=anthropic -vv tests/test_magentic.py
+            if [ "${{ matrix.python-version }}" == "3.11" ]; then
+              echo "Running on Python 3.11"
+              poetry run pytest --llm_provider=anthropic -vv tests/test_magentic.py
+            else
+              echo "Skipping running magentic tests on Python ${{ matrix.python-version }}"
+            fi
           fi
 
       - name: Run scheduled llm tests
-        if: ${{ github.event_name == 'schedule' }}
+        if: github.event_name == 'schedule' && matrix.python-version == '3.11'
         run: |
           echo "This is a schedule event"
           poetry run pytest -vv tests/ --ignore=tests/test_cli.py
