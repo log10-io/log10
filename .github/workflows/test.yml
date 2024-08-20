@@ -36,11 +36,12 @@ on:
         type: string
         required: false
 
-env:
-  PYTHON_VERSION: 3.11.4
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.9, 3.11]
     env:
       LOG10_URL: "https://log10.io"
       LOG10_ORG_ID: ${{ secrets.LOG10_ORG_ID }}
@@ -54,10 +55,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install poetry
         run: pipx install poetry
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: ${{env.PYTHON_VERSION}}
+          python-version: ${{ matrix.python-version }}
           cache: "poetry"
           architecture: 'x64'
       - name: Install dependencies
