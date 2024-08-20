@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import List
+from typing import List, Union
 
 import anthropic
 from anthropic import AI_PROMPT, HUMAN_PROMPT
@@ -133,7 +133,7 @@ class Anthropic(LLM):
 
     @staticmethod
     def prepare_response(
-        response: anthropic.types.Completion | anthropic.types.Message, input_prompt: str = ""
+        response: Union[anthropic.types.Completion, anthropic.types.Message], input_prompt: str = ""
     ) -> dict:
         if not hasattr(response, "stop_reason"):
             return None
