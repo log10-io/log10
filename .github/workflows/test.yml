@@ -118,9 +118,10 @@ jobs:
 
           if $empty_inputs; then
             echo "All variables are empty"
-            poetry run pytest -vv tests/ --ignore=tests/test_cli.py
+            poetry run pytest -vv tests/ --ignore=tests/test_cli.py --ignore=tests/test_magentic.py
             if [ "${{ matrix.python-version }}" == "3.11" ]; then
               echo "Running on Python 3.11"
+              poetry run pytest tests/test_magentic.py
               poetry run pytest --llm_provider=anthropic -vv tests/test_magentic.py
             else
               echo "Skipping running magentic tests on Python ${{ matrix.python-version }}"
