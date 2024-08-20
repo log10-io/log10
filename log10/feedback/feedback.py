@@ -1,4 +1,5 @@
 import logging
+from typing import Union
 
 import httpx
 
@@ -76,7 +77,7 @@ class Feedback:
             raise
 
     def list_v2(
-        self, page: int = 1, limit: int = 50, task_id: str | None = None, filter: str | None = None
+        self, page: int = 1, limit: int = 50, task_id: Union[str, None] = None, filter: Union[str, None] = None
     ) -> httpx.Response:
         query = """
         query OrganizationFeedback($id: String!, $filter: String, $taskId: String, $page: Int, $limit: Int) {
