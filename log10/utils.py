@@ -2,7 +2,7 @@ import json
 import re
 import string
 from copy import deepcopy
-from typing import Any
+from typing import Any, Union
 
 
 def merge_hparams(override, base):
@@ -48,7 +48,7 @@ def parse_field(value):
         return [value]
 
 
-def safe_get(data: dict[str, Any], keys: list[str]) -> Any | None:
+def safe_get(data: dict[str, Any], keys: list[str]) -> Union[Any, None]:
     """
     Safely navigate a nested dictionary structure.
 
