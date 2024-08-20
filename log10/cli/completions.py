@@ -106,8 +106,10 @@ def _render_comparison_table(model_response_raw_data):
     for model, data in model_response_raw_data.items():
         # only display model data
         if model not in ["completion_id", "original_request", "tags"]:
-            usage = data["usage"]
-            formatted_usage = f"{usage['total_tokens']} ({usage['prompt_tokens']}/{usage['completion_tokens']})"
+            usage = data.get("usage", {})
+            formatted_usage = (
+                f"{usage['total_tokens']} ({usage['prompt_tokens']}/{usage['completion_tokens']})" if usage else "N/A"
+            )
             table.add_row(model, data["content"], formatted_usage, str(data["duration"]))
     rich.print(table)
 
@@ -120,13 +122,13 @@ def _create_dataframe_from_comparison_data(model_response_raw_data):
     for model, model_data in model_response_raw_data.items():
         # only display model data
         if model not in ["completion_id", "original_request", "tags"]:
-            content = model_data["content"]
-            usage = model_data["usage"]
-            prompt_tokens = usage["prompt_tokens"]
-            completion_tokens = usage["completion_tokens"]
-            total_tokens = usage["total_tokens"]
-            duration = model_data["duration"]
-            prompt_messages = json.dumps(original_request["messages"])
+            content = model_data.get("content", "")
+            usage = model_data.get("usage", {})
+            prompt_tokens = usage.get("prompt_tokens", 0)
+            completion_tokens = usage.get("completion_tokens", 0)
+            total_tokens = usage.get("total_tokens", 0)
+            duration = model_data.get("duration", 0)
+            prompt_messages = json.dumps(original_request.get("messages", []))
             rows.append(
                 [
                     completion_id,
@@ -189,8 +191,7 @@ def list_completions(limit, offset, timeout, tags, from_date, to_date):
     # Fetch completions
     res = _try_get(url, timeout)
 
-    completions = res.json()
-    completions = completions["data"]
+    completions = res.json().get("data", [])
 
     _render_completions_table(completions)
 
@@ -393,8 +394,8 @@ def benchmark_models(
         org_id = _log10_config.org_id
         url = _get_completions_url(limit, offset, tags, None, None, base_url, org_id)
         res = _try_get(url)
-        completions = res.json()["data"]
-        completion_ids = [completion["id"] for completion in completions]
+        completions = res.json().get("data", [])
+        completion_ids = [completion.get("id") for completion in completions if completion.get("id") is not None]
         if not completion_ids:
             SystemExit(f"No completions found for tags: {tags}")
 
@@ -404,33 +405,49 @@ def benchmark_models(
     skipped_completion_ids = []
     for id in completion_ids:
         rich.print(f"Processing completion {id}")
-        # get message from id
-        completion_data = _get_completion(id).json()["data"]
-        tags = [t["name"] for t in completion_data["tagResolved"]]
+        try:
+            # get completion from id
+            res = _get_completion(id)
+            if res.status_code != 200:
+                rich.print(f"Error fetching completion {id}")
+                skipped_completion_ids.append(id)
+                continue
 
-        # skip completion if status is not finished or kind is not chat
-        if completion_data["status"] != "finished" or completion_data["kind"] != "chat":
-            rich.print(f"Skip completion {id}. Status is not finished or kind is not chat.")
+            completion_data = res.json().get("data", {})
+
+            # skip completion if status is not finished or kind is not chat
+            if completion_data.get("status") != "finished" or completion_data.get("kind") != "chat":
+                rich.print(f"Skip completion {id}. Status is not finished or kind is not chat.")
+                skipped_completion_ids.append(id)
+                continue
+
+            # get tags
+            tags = [t.get("name") for t in completion_data.get("tagResolved", [])]
+
+            original_model_request = completion_data.get("request", {})
+            original_model_response = completion_data.get("response", {})
+            original_model = original_model_response.get("model", "")
+            benchmark_data = {
+                "completion_id": id,
+                "original_request": original_model_request,
+                f"{original_model} (original model)": {
+                    "content": original_model_response.get("choices", [{}])[0].get("message", {}).get("content", ""),
+                    "usage": original_model_response.get("usage", {}),
+                    "duration": completion_data.get("duration", 0),
+                },
+                "tags": tags,
+            }
+            if messages := original_model_request.get("messages", []):
+                compare_models_data = _compare(compare_models, messages, temperature, max_tokens, top_p)
+                benchmark_data.update(compare_models_data)
+                data.append(benchmark_data)
+            else:
+                rich.print(f"Skip completion {id}. No messages found in the request.")
+                skipped_completion_ids.append(id)
+        except Exception as e:
+            rich.print(f"Error processing completion {id}. {str(e)}")
+            rich.print(f"Completion {completion_data}")
             skipped_completion_ids.append(id)
-            continue
-
-        original_model_request = completion_data["request"]
-        original_model_response = completion_data["response"]
-        original_model = original_model_response["model"]
-        benchmark_data = {
-            "completion_id": id,
-            "original_request": original_model_request,
-            f"{original_model} (original model)": {
-                "content": original_model_response["choices"][0]["message"]["content"],
-                "usage": original_model_response["usage"],
-                "duration": completion_data["duration"],
-            },
-            "tags": tags,
-        }
-        messages = original_model_request["messages"]
-        compare_models_data = _compare(compare_models, messages, temperature, max_tokens, top_p)
-        benchmark_data.update(compare_models_data)
-        data.append(benchmark_data)
 
     prompt_analysis_data = {}
     if analyze_prompt:
