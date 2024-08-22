@@ -6,6 +6,7 @@ import time
 import traceback
 import uuid
 from datetime import datetime, timezone
+from enum import Enum
 
 import httpx
 from httpx import Request, Response
@@ -27,6 +28,24 @@ read_timeout = float(LOG10_HTTPX_READ_TIMEOUT) if LOG10_HTTPX_READ_TIMEOUT else 
 timeout = httpx.Timeout(5.0, read=read_timeout)
 httpx_client = httpx.Client()
 httpx_async_client = httpx.AsyncClient(timeout=timeout)
+
+
+class LLM_PROVIDER(Enum):
+    ANTHROPIC = "Anthropic"
+    OPENAI = "OpenAI"
+    UNKNOWN = "Unknown"
+
+
+PROVIDER_PATHS = {
+    LLM_PROVIDER.ANTHROPIC: ["/v1/messages", "/v1/complete"],
+    LLM_PROVIDER.OPENAI: ["v1/chat/completions"],
+}
+
+USER_AGENT_NAME_TO_PROVIDER = {
+    "AsyncOpenAI": LLM_PROVIDER.OPENAI,
+    "AsyncAnthropic": LLM_PROVIDER.ANTHROPIC,
+    "Anthropic": LLM_PROVIDER.ANTHROPIC,
+}
 
 
 def _get_time_diff(created_at):
@@ -225,14 +244,28 @@ def format_anthropic_request(request_content) -> str:
     return json.dumps(request_content)
 
 
+def _get_llm_provider(request: Request) -> LLM_PROVIDER:
+    user_agent = request.headers.get("user-agent", "")
+    class_name = user_agent.split("/")[0]
+
+    if class_name in ["AsyncAnthropic", "Anthropic"]:
+        return LLM_PROVIDER.ANTHROPIC
+    elif class_name in ["AsyncOpenAI"]:
+        return LLM_PROVIDER.OPENAI
+    else:
+        return LLM_PROVIDER.UNKNOWN
+
+
 def _init_log_row(request: Request):
     start_time = time.time()
     request.started = start_time
     orig_module = ""
     orig_qualname = ""
     request_content_decode = request.content.decode("utf-8")
-    host = request.headers.get("host")
-    if "openai" in host:
+    llm_provider = _get_llm_provider(request)
+
+    # host = request.headers.get("host")
+    if llm_provider == LLM_PROVIDER.OPENAI:
         if "chat" in str(request.url):
             kind = "chat"
             orig_module = "openai.api_resources.chat_completion"
@@ -241,7 +274,7 @@ def _init_log_row(request: Request):
             kind = "completion"
             orig_module = "openai.api_resources.completion"
             orig_qualname = "Completion.create"
-    elif "anthropic" in host:
+    elif llm_provider == LLM_PROVIDER.ANTHROPIC:
         kind = "chat"
         url_path = request.url
         content_type = request.headers.get("content-type")
@@ -259,10 +292,15 @@ def _init_log_row(request: Request):
             orig_qualname = "Completions.create"
 
         request_content_decode = format_anthropic_request(request_content)
+    # elif "mistral" in host:
+    #     kind = "chat"
+    #     orig_module = "mistral.api_resources.chat" ## generated not correct
+    #     orig_qualname = "Chat" ## generated not correct
 
     else:
         logger.debug("Currently logging is only available for async openai and anthropic.")
         return
+
     log_row = {
         "status": "started",
         "kind": kind,
@@ -278,15 +316,21 @@ def _init_log_row(request: Request):
 
 
 def get_completion_id(request: Request):
-    host = request.headers.get("host")
-    if "anthropic" in host:
-        paths = ["/v1/messages", "/v1/complete"]
-        if not any(path in str(request.url) for path in paths):
-            logger.debug("Currently logging is only available for anthropic v1/messages and v1/complete.")
-            return
+    # request_user_agent = request.headers.get("user-agent")
+    # logger.info(f"Request_user_agent: {request_user_agent}")
+    # allowed_class_names = ["AsyncOpenAI", "AsyncAnthropic", "Anthropic"]
+    # request_class_name = request_user_agent.split("/")[0]
 
-    if "openai" in host and "v1/chat/completions" not in str(request.url):
-        logger.debug("Currently logging is only available for openai v1/chat/completions.")
+    llm_provider = _get_llm_provider(request)
+    if llm_provider is LLM_PROVIDER.UNKNOWN:
+        logger.debug("Currently logging is only available for async openai and anthropic.")
+        return
+
+    # Check if the request URL matches any of the allowed paths for the class name
+    if not any(path in str(request.url) for path in PROVIDER_PATHS.get(llm_provider, [])):
+        logger.debug(
+            f'Currently logging is only available for {llm_provider} {', '.join(PROVIDER_PATHS[llm_provider])}.'
+        )
         return
 
     completion_id = str(uuid.uuid4())
@@ -361,6 +405,10 @@ class _RequestHooks:
 
         logger.debug("LOG10: sending sync request")
         self.log_row = _init_log_row(request)
+        if not self.log_row:
+            logger.debug("LOG10: log row is not initialized. Skipping")
+            return
+
         _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=self.log_row)
 
 
@@ -396,6 +444,7 @@ class _AsyncRequestHooks:
 class _LogResponse(Response):
     def __init__(self, *args, **kwargs):
         self.log_row = kwargs.pop("log_row")
+        self.llm_provider = _get_llm_provider(kwargs.get("request"))
         super().__init__(*args, **kwargs)
 
     def patch_streaming_log(self, duration: int, full_response: str):
@@ -452,11 +501,10 @@ class _LogResponse(Response):
                     )
             yield chunk
 
-    def is_response_end_reached(self, text: str):
-        host = self.request.headers.get("host")
-        if "anthropic" in host:
+    def is_response_end_reached(self, text: str) -> bool:
+        if self.llm_provider == LLM_PROVIDER.ANTHROPIC:
             return self.is_anthropic_response_end_reached(text)
-        elif "openai" in host:
+        elif self.llm_provider == LLM_PROVIDER.OPENAI:
             return self.is_openai_response_end_reached(text)
         else:
             logger.debug("Currently logging is only available for async openai and anthropic.")
@@ -631,11 +679,10 @@ class _LogResponse(Response):
         return response_json
 
     def parse_response_data(self, responses: list[str]):
-        host = self.request.headers.get("host")
-        if "openai" in host:
-            return self.parse_openai_responses(responses)
-        elif "anthropic" in host:
+        if self.llm_provider == LLM_PROVIDER.ANTHROPIC:
             return self.parse_anthropic_responses(responses)
+        elif self.llm_provider == LLM_PROVIDER.OPENAI:
+            return self.parse_openai_responses(responses)
         else:
             logger.debug("Currently logging is only available for async openai and anthropic.")
             return None
