@@ -38,7 +38,7 @@ class LLM_PROVIDER(Enum):
 
 PROVIDER_PATHS = {
     LLM_PROVIDER.ANTHROPIC: ["/v1/messages", "/v1/complete"],
-    LLM_PROVIDER.OPENAI: ["v1/chat/completions"],
+    LLM_PROVIDER.OPENAI: ["v1/chat/completions", "chat/completions"],
 }
 
 USER_AGENT_NAME_TO_PROVIDER = {
@@ -264,7 +264,6 @@ def _init_log_row(request: Request):
     request_content_decode = request.content.decode("utf-8")
     llm_provider = _get_llm_provider(request)
 
-    # host = request.headers.get("host")
     if llm_provider == LLM_PROVIDER.OPENAI:
         if "chat" in str(request.url):
             kind = "chat"
@@ -292,11 +291,6 @@ def _init_log_row(request: Request):
             orig_qualname = "Completions.create"
 
         request_content_decode = format_anthropic_request(request_content)
-    # elif "mistral" in host:
-    #     kind = "chat"
-    #     orig_module = "mistral.api_resources.chat" ## generated not correct
-    #     orig_qualname = "Chat" ## generated not correct
-
     else:
         logger.debug("Currently logging is only available for async openai and anthropic.")
         return
@@ -316,11 +310,6 @@ def _init_log_row(request: Request):
 
 
 def get_completion_id(request: Request):
-    # request_user_agent = request.headers.get("user-agent")
-    # logger.info(f"Request_user_agent: {request_user_agent}")
-    # allowed_class_names = ["AsyncOpenAI", "AsyncAnthropic", "Anthropic"]
-    # request_class_name = request_user_agent.split("/")[0]
-
     llm_provider = _get_llm_provider(request)
     if llm_provider is LLM_PROVIDER.UNKNOWN:
         logger.debug("Currently logging is only available for async openai and anthropic.")
@@ -436,6 +425,10 @@ class _AsyncRequestHooks:
 
         logger.debug("LOG10: sending async request")
         self.log_row = _init_log_row(request)
+        if not self.log_row:
+            logger.debug("LOG10: log row is not initialized. Skipping")
+            return
+
         asyncio.create_task(
             _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=self.log_row)
         )
@@ -445,6 +438,7 @@ class _LogResponse(Response):
     def __init__(self, *args, **kwargs):
         self.log_row = kwargs.pop("log_row")
         self.llm_provider = _get_llm_provider(kwargs.get("request"))
+        self.host_header = kwargs.get("request").headers.get("host")
         super().__init__(*args, **kwargs)
 
     def patch_streaming_log(self, duration: int, full_response: str):
@@ -459,7 +453,10 @@ class _LogResponse(Response):
             for frame in current_stack_frame
         ]
 
-        responses = full_response.split("\n\n")
+        separator = (
+            "\r\n\r\n" if self.llm_provider == LLM_PROVIDER.OPENAI and "perplexity" in self.host_header else "\n\n"
+        )
+        responses = full_response.split(separator)
         response_json = self.parse_response_data(responses)
 
         self.log_row["response"] = json.dumps(response_json)
@@ -505,13 +502,23 @@ class _LogResponse(Response):
         if self.llm_provider == LLM_PROVIDER.ANTHROPIC:
             return self.is_anthropic_response_end_reached(text)
         elif self.llm_provider == LLM_PROVIDER.OPENAI:
-            return self.is_openai_response_end_reached(text)
+            if "perplexity" in self.host_header:
+                return self.is_perplexity_response_end_reached(text)
+            else:
+                return self.is_openai_response_end_reached(text)
         else:
             logger.debug("Currently logging is only available for async openai and anthropic.")
             return False
 
     def is_anthropic_response_end_reached(self, text: str):
         return "event: message_stop" in text
+
+    def is_perplexity_response_end_reached(self, text: str):
+        json_strings = text.split("data: ")[1:]
+        # Parse the last JSON string
+        last_json_str = json_strings[-1].strip()
+        last_object = json.loads(last_json_str)
+        return last_object.get("choices", [{}])[0].get("finish_reason", "") == "stop"
 
     def is_openai_response_end_reached(self, text: str):
         return "data: [DONE]" in text
@@ -612,7 +619,8 @@ class _LogResponse(Response):
         finish_reason = ""
 
         for r in responses:
-            if self.is_openai_response_end_reached(r):
+            # For perplexity, the last item in the responses is empty
+            if self.is_openai_response_end_reached(r) or not r:
                 break
 
             # loading the substring of response text after 'data: '.
