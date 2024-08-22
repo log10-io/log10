@@ -361,6 +361,11 @@ class _RequestHooks:
 
         logger.debug("LOG10: sending sync request")
         self.log_row = _init_log_row(request)
+
+        if not self.log_row:
+            logger.debug("LOG10: log row is not created. Skipping")
+            return
+
         _try_post_request(url=f"{base_url}/api/completions/{completion_id}", payload=self.log_row)
 
 
@@ -388,6 +393,11 @@ class _AsyncRequestHooks:
 
         logger.debug("LOG10: sending async request")
         self.log_row = _init_log_row(request)
+
+        if not self.log_row:
+            logger.debug("LOG10: log row is not created. Skipping")
+            return
+
         asyncio.create_task(
             _try_post_request_async(url=f"{base_url}/api/completions/{completion_id}", payload=self.log_row)
         )
