@@ -318,7 +318,7 @@ def get_completion_id(request: Request):
     # Check if the request URL matches any of the allowed paths for the class name
     if not any(path in str(request.url) for path in PROVIDER_PATHS.get(llm_provider, [])):
         logger.debug(
-            f'Currently logging is only available for {llm_provider} {', '.join(PROVIDER_PATHS[llm_provider])}.'
+            f"Currently logging is only available for {llm_provider} {', '.join(PROVIDER_PATHS[llm_provider])}."
         )
         return
 
