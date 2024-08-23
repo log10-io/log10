@@ -461,8 +461,10 @@ class _LogResponse(Response):
         separator = (
             "\r\n\r\n" if self.llm_client == LLM_CLIENTS.OPENAI and "perplexity" in self.host_header else "\n\n"
         )
+
         responses = full_response.split(separator)
-        response_json = self.parse_response_data(responses)
+        filter_responses = [r for r in responses if r]
+        response_json = self.parse_response_data(filter_responses)
 
         self.log_row["response"] = json.dumps(response_json)
         self.log_row["status"] = "finished"
@@ -522,15 +524,16 @@ class _LogResponse(Response):
         json_strings = text.split("data: ")[1:]
         # Parse the last JSON string
         last_json_str = json_strings[-1].strip()
-        last_object = json.loads(last_json_str)
+        try:
+            last_object = json.loads(last_json_str)
+        except json.JSONDecodeError:
+            logger.debug(f"Full response: {repr(text)}")
+            logger.debug(f"Failed to parse the last JSON string: {last_json_str}")
+            return False
         return last_object.get("choices", [{}])[0].get("finish_reason", "") == "stop"
 
     def is_openai_response_end_reached(self, text: str):
-        """
-        In Perplexity, the last item in the responses is empty.
-        In OpenAI and Mistral, the last item in the responses is "data: [DONE]".
-        """
-        return not text or "data: [DONE]" in text
+        return "data: [DONE]" in text
 
     def parse_anthropic_responses(self, responses: list[str]):
         message_id = ""
@@ -628,8 +631,12 @@ class _LogResponse(Response):
         finish_reason = ""
 
         for r in responses:
-            if self.is_openai_response_end_reached(r):
-                break
+            if "perplexity" in self.host_header:
+                if self.is_perplexity_response_end_reached(r):
+                    break
+            else:
+                if self.is_openai_response_end_reached(r):
+                    break
 
             # loading the substring of response text after 'data: '.
             # example: 'data: {"choices":[{"text":"Hello, how can I help you today?"}]}'
