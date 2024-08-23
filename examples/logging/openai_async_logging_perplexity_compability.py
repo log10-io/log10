@@ -10,7 +10,7 @@ from log10.load import log10
 
 log10(openai)
 
-client = AsyncOpenAI(base_url="https://api.perplexity.ai",  api_key=os.environ.get("PERPLEXITYAI_API_KEY"))
+client = AsyncOpenAI(base_url="https://api.perplexity.ai", api_key=os.environ.get("PERPLEXITYAI_API_KEY"))
 
 
 async def main():
