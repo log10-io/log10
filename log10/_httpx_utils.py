@@ -38,6 +38,8 @@ class LLM_CLIENTS(Enum):
 
 PROVIDER_PATHS = {
     LLM_CLIENTS.ANTHROPIC: ["/v1/messages", "/v1/complete"],
+    # OpenAI and Mistral use the path "v1/chat/completions"
+    # Perplexity uses the path "chat/completions". Documentation: https://docs.perplexity.ai/reference/post_chat_completions
     LLM_CLIENTS.OPENAI: ["v1/chat/completions", "chat/completions"],
 }
 
