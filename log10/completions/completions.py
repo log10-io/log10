@@ -201,6 +201,11 @@ _SUPPORTED_MODELS = [
 
 
 def _check_model_support(model: str) -> bool:
+    # check openai fine-tuned models
+    # e.g. ft:gpt-3.5-turbo-0125:log10::9Q1qGLY2
+    if model.startswith("ft:"):
+        model = model.split(":")[1]
+
     return model in _SUPPORTED_MODELS
 
 
