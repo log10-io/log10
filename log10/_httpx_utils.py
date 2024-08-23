@@ -257,10 +257,8 @@ def _get_llm_client(request: Request) -> LLM_CLIENTS:
     user_agent = request.headers.get("user-agent", "")
     class_name = user_agent.split("/")[0]
 
-    if class_name in ["AsyncAnthropic", "Anthropic"]:
-        return LLM_CLIENTS.ANTHROPIC
-    elif class_name in ["AsyncOpenAI", "OpenAI"]:
-        return LLM_CLIENTS.OPENAI
+    if class_name in USER_AGENT_NAME_TO_PROVIDER.keys():
+        return USER_AGENT_NAME_TO_PROVIDER[class_name]
     else:
         return LLM_CLIENTS.UNKNOWN
 
@@ -528,8 +526,11 @@ class _LogResponse(Response):
         return last_object.get("choices", [{}])[0].get("finish_reason", "") == "stop"
 
     def is_openai_response_end_reached(self, text: str):
-        # For perplexity, the last item in the responses is empty
-        return "data: [DONE]" in text or not text
+        """
+        In Perplexity, the last item in the responses is empty.
+        In OpenAI and Mistral, the last item in the responses is "data: [DONE]".
+        """
+        return not text or "data: [DONE]" in text
 
     def parse_anthropic_responses(self, responses: list[str]):
         message_id = ""
