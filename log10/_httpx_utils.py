@@ -520,7 +520,7 @@ class _LogResponse(Response):
     def is_anthropic_response_end_reached(self, text: str):
         return "event: message_stop" in text
 
-    def is_perplexity_response_end_reached(self, text: str):
+    def is_perplexity_response_end_reached(self, text: str, check_content: bool = False):
         json_strings = text.split("data: ")[1:]
         # Parse the last JSON string
         last_json_str = json_strings[-1].strip()
@@ -530,7 +530,14 @@ class _LogResponse(Response):
             logger.debug(f"Full response: {repr(text)}")
             logger.debug(f"Failed to parse the last JSON string: {last_json_str}")
             return False
-        return last_object.get("choices", [{}])[0].get("finish_reason", "") == "stop"
+
+        choice = last_object.get("choices", [{}])[0]
+        finish_reason = choice.get("finish_reason", "")
+        content = choice.get("delta", {}).get("content", "")
+
+        if finish_reason == "stop":
+            return not content if check_content else True
+        return False
 
     def is_openai_response_end_reached(self, text: str):
         return "data: [DONE]" in text
@@ -632,7 +639,7 @@ class _LogResponse(Response):
 
         for r in responses:
             if "perplexity" in self.host_header:
-                if self.is_perplexity_response_end_reached(r):
+                if self.is_perplexity_response_end_reached(r, check_content=True):
                     break
             else:
                 if self.is_openai_response_end_reached(r):
