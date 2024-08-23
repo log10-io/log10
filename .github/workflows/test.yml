@@ -50,6 +50,7 @@ jobs:
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
       LAMINI_API_KEY: ${{ secrets.LAMINI_API_KEY }}
       GOOGLE_API_KEY : ${{ secrets.GOOGLE_API_KEY }}
+      PERPLEXITYAI_API_KEY: ${{ secrets.PERPLEXITYAI_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - name: Install poetry
