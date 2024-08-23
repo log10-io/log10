@@ -23,7 +23,9 @@ def pytest_addoption(parser):
     parser.addoption("--llm_provider", action="store", help="Model provider name for Magentic tests")
 
     parser.addoption(
-        "--openai_compability_model", action="store", help="Model name for client compability model in Magentic tests"
+        "--openai_compatibility_model",
+        action="store",
+        help="Model name for client compatibility model in Magentic tests",
     )
 
 
@@ -73,7 +75,7 @@ def magentic_models(request):
     model_configs_to_providers = {
         "openai": ["openai_model", "openai_vision_model"],
         "anthropic": ["anthropic_model", "anthropic_model"],
-        "litellm": ["openai_compability_model", "openai_compability_model"],
+        "litellm": ["openai_compatibility_model", "openai_compatibility_model"],
     }
 
     model_configs = model_configs_to_providers[llm_provider]

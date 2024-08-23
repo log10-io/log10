@@ -16,7 +16,7 @@ model_name = "llama-3.1-sonar-small-128k-chat"
 if "PERPLEXITYAI_API_KEY" not in os.environ:
     raise ValueError("Please set the PERPLEXITYAI_API_KEY environment variable.")
 
-compability_config = {
+compatibility_config = {
     "base_url": "https://api.perplexity.ai",
     "api_key": os.environ.get("PERPLEXITYAI_API_KEY"),
 }
@@ -24,7 +24,7 @@ compability_config = {
 
 @pytest.mark.chat
 def test_chat(session):
-    client = openai.OpenAI(**compability_config)
+    client = openai.OpenAI(**compatibility_config)
     completion = client.chat.completions.create(
         model=model_name,
         messages=[
@@ -47,7 +47,7 @@ def test_chat(session):
 
 @pytest.mark.chat
 def test_chat_not_given(session):
-    client = openai.OpenAI(**compability_config)
+    client = openai.OpenAI(**compatibility_config)
     completion = client.chat.completions.create(
         model=model_name,
         messages=[
@@ -70,7 +70,7 @@ def test_chat_not_given(session):
 @pytest.mark.async_client
 @pytest.mark.asyncio(scope="module")
 async def test_chat_async(session):
-    client = AsyncOpenAI(**compability_config)
+    client = AsyncOpenAI(**compatibility_config)
     completion = await client.chat.completions.create(
         model=model_name,
         messages=[{"role": "user", "content": "Say this is a test"}],
@@ -86,7 +86,7 @@ async def test_chat_async(session):
 @pytest.mark.async_client
 @pytest.mark.asyncio(scope="module")
 async def test_perplexity_chat_async(session):
-    client = AsyncOpenAI(**compability_config)
+    client = AsyncOpenAI(**compatibility_config)
     completion = await client.chat.completions.create(
         model=model_name,
         messages=[{"role": "user", "content": "Say this is a test"}],
@@ -101,7 +101,7 @@ async def test_perplexity_chat_async(session):
 @pytest.mark.chat
 @pytest.mark.stream
 def test_chat_stream(session):
-    client = openai.OpenAI(**compability_config)
+    client = openai.OpenAI(**compatibility_config)
     response = client.chat.completions.create(
         model=model_name,
         messages=[{"role": "user", "content": "Count to 5"}],
@@ -120,7 +120,7 @@ def test_chat_stream(session):
 @pytest.mark.stream
 @pytest.mark.asyncio(scope="module")
 async def test_chat_async_stream(session):
-    client = AsyncOpenAI(**compability_config)
+    client = AsyncOpenAI(**compatibility_config)
 
     output = ""
     stream = await client.chat.completions.create(
