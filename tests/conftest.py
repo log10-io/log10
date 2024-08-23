@@ -22,6 +22,12 @@ def pytest_addoption(parser):
 
     parser.addoption("--llm_provider", action="store", help="Model provider name for Magentic tests")
 
+    parser.addoption(
+        "--openai_compatibility_model",
+        action="store",
+        help="Model name for client compatibility model in Magentic tests",
+    )
+
 
 @pytest.fixture
 def openai_model(request):
@@ -66,12 +72,17 @@ def llm_provider(request):
 @pytest.fixture
 def magentic_models(request):
     llm_provider = request.config.getoption("--llm_provider")
-    model_config_name = f"--{llm_provider}_model"
-    vision_model_config_name = llm_provider == "openai" and f"--{llm_provider}_vision_model" or model_config_name
+    model_configs_to_providers = {
+        "openai": ["openai_model", "openai_vision_model"],
+        "anthropic": ["anthropic_model", "anthropic_model"],
+        "litellm": ["openai_compatibility_model", "openai_compatibility_model"],
+    }
+
+    model_configs = model_configs_to_providers[llm_provider]
 
     return {
-        "chat_model": request.config.getoption(model_config_name),
-        "vision_model": request.config.getoption(vision_model_config_name),
+        "chat_model": request.config.getoption(model_configs[0]),
+        "vision_model": request.config.getoption(model_configs[1]),
     }
 
 

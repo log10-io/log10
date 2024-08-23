@@ -50,6 +50,7 @@ jobs:
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
       LAMINI_API_KEY: ${{ secrets.LAMINI_API_KEY }}
       GOOGLE_API_KEY : ${{ secrets.GOOGLE_API_KEY }}
+      PERPLEXITYAI_API_KEY: ${{ secrets.PERPLEXITYAI_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - name: Install poetry
@@ -118,6 +119,7 @@ jobs:
             echo "All variables are empty"
             poetry run pytest -vv tests/ --ignore=tests/test_cli.py
             poetry run pytest --llm_provider=anthropic -vv tests/test_magentic.py
+            poetry run pytest --llm_provider=litellm --openai_compatibility_model=perplexity/llama-3.1-sonar-small-128k-chat -vv tests/test_magentic.py -m chat
           fi
 
       - name: Run scheduled llm tests
@@ -126,3 +128,4 @@ jobs:
           echo "This is a schedule event"
           poetry run pytest -vv tests/ --ignore=tests/test_cli.py
           poetry run pytest --openai_model=gpt-4o -m chat -vv tests/test_openai.py
+          poetry run pytest --llm_provider=litellm --openai_compatibility_model=perplexity/llama-3.1-sonar-small-128k-chat -vv tests/test_magentic.py -m chat
