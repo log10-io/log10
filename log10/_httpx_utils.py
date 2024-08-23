@@ -530,7 +530,11 @@ class _LogResponse(Response):
             logger.debug(f"Full response: {repr(text)}")
             logger.debug(f"Failed to parse the last JSON string: {last_json_str}")
             return False
-        return last_object.get("choices", [{}])[0].get("finish_reason", "") == "stop"
+        
+        choice = last_object.get("choices", [{}])[0]
+        finish_reason = choice.get("finish_reason", "")
+        content = choice.get("delta", {}).get("content", "")
+        return finish_reason == "stop" and not content
 
     def is_openai_response_end_reached(self, text: str):
         return "data: [DONE]" in text
