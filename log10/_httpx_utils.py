@@ -36,7 +36,7 @@ class LLM_CLIENTS(Enum):
     UNKNOWN = "Unknown"
 
 
-PROVIDER_PATHS = {
+CLIENT_PATHS = {
     LLM_CLIENTS.ANTHROPIC: ["/v1/messages", "/v1/complete"],
     # OpenAI and Mistral use the path "v1/chat/completions"
     # Perplexity uses the path "chat/completions". Documentation: https://docs.perplexity.ai/reference/post_chat_completions
@@ -247,13 +247,19 @@ def format_anthropic_request(request_content) -> str:
     return json.dumps(request_content)
 
 
-def _get_llm_provider(request: Request) -> LLM_CLIENTS:
+def _get_llm_client(request: Request) -> LLM_CLIENTS:
+    """
+    The request object includes the user-agent header, which is used to identify the LLM client.
+    For example:
+    - headers({'user-agent': 'AsyncOpenAI/Python 1.40.6'})
+    - headers({'user-agent': 'Anthropic/Python 0.34.0'})
+    """
     user_agent = request.headers.get("user-agent", "")
     class_name = user_agent.split("/")[0]
 
     if class_name in ["AsyncAnthropic", "Anthropic"]:
         return LLM_CLIENTS.ANTHROPIC
-    elif class_name in ["AsyncOpenAI"]:
+    elif class_name in ["AsyncOpenAI", "OpenAI"]:
         return LLM_CLIENTS.OPENAI
     else:
         return LLM_CLIENTS.UNKNOWN
@@ -265,9 +271,9 @@ def _init_log_row(request: Request):
     orig_module = ""
     orig_qualname = ""
     request_content_decode = request.content.decode("utf-8")
-    llm_provider = _get_llm_provider(request)
+    llm_client = _get_llm_client(request)
 
-    if llm_provider == LLM_CLIENTS.OPENAI:
+    if llm_client == LLM_CLIENTS.OPENAI:
         if "chat" in str(request.url):
             kind = "chat"
             orig_module = "openai.api_resources.chat_completion"
@@ -276,7 +282,7 @@ def _init_log_row(request: Request):
             kind = "completion"
             orig_module = "openai.api_resources.completion"
             orig_qualname = "Completion.create"
-    elif llm_provider == LLM_CLIENTS.ANTHROPIC:
+    elif llm_client == LLM_CLIENTS.ANTHROPIC:
         kind = "chat"
         url_path = request.url
         content_type = request.headers.get("content-type")
@@ -313,16 +319,14 @@ def _init_log_row(request: Request):
 
 
 def get_completion_id(request: Request):
-    llm_provider = _get_llm_provider(request)
-    if llm_provider is LLM_CLIENTS.UNKNOWN:
+    llm_client = _get_llm_client(request)
+    if llm_client is LLM_CLIENTS.UNKNOWN:
         logger.debug("Currently logging is only available for async openai and anthropic.")
         return
 
     # Check if the request URL matches any of the allowed paths for the class name
-    if not any(path in str(request.url) for path in PROVIDER_PATHS.get(llm_provider, [])):
-        logger.debug(
-            f"Currently logging is only available for {llm_provider} {', '.join(PROVIDER_PATHS[llm_provider])}."
-        )
+    if not any(path in str(request.url) for path in CLIENT_PATHS.get(llm_client, [])):
+        logger.debug(f"Currently logging is only available for {llm_client} {', '.join(CLIENT_PATHS[llm_client])}.")
         return
 
     completion_id = str(uuid.uuid4())
@@ -440,7 +444,7 @@ class _AsyncRequestHooks:
 class _LogResponse(Response):
     def __init__(self, *args, **kwargs):
         self.log_row = kwargs.pop("log_row")
-        self.llm_provider = _get_llm_provider(kwargs.get("request"))
+        self.llm_client = _get_llm_client(kwargs.get("request"))
         self.host_header = kwargs.get("request").headers.get("host")
         super().__init__(*args, **kwargs)
 
@@ -457,7 +461,7 @@ class _LogResponse(Response):
         ]
 
         separator = (
-            "\r\n\r\n" if self.llm_provider == LLM_CLIENTS.OPENAI and "perplexity" in self.host_header else "\n\n"
+            "\r\n\r\n" if self.llm_client == LLM_CLIENTS.OPENAI and "perplexity" in self.host_header else "\n\n"
         )
         responses = full_response.split(separator)
         response_json = self.parse_response_data(responses)
@@ -502,9 +506,9 @@ class _LogResponse(Response):
             yield chunk
 
     def is_response_end_reached(self, text: str) -> bool:
-        if self.llm_provider == LLM_CLIENTS.ANTHROPIC:
+        if self.llm_client == LLM_CLIENTS.ANTHROPIC:
             return self.is_anthropic_response_end_reached(text)
-        elif self.llm_provider == LLM_CLIENTS.OPENAI:
+        elif self.llm_client == LLM_CLIENTS.OPENAI:
             if "perplexity" in self.host_header:
                 return self.is_perplexity_response_end_reached(text)
             else:
@@ -690,9 +694,9 @@ class _LogResponse(Response):
         return response_json
 
     def parse_response_data(self, responses: list[str]):
-        if self.llm_provider == LLM_CLIENTS.ANTHROPIC:
+        if self.llm_client == LLM_CLIENTS.ANTHROPIC:
             return self.parse_anthropic_responses(responses)
-        elif self.llm_provider == LLM_CLIENTS.OPENAI:
+        elif self.llm_client == LLM_CLIENTS.OPENAI:
             return self.parse_openai_responses(responses)
         else:
             logger.debug("Currently logging is only available for async openai and anthropic.")
