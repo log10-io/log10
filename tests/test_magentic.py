@@ -15,6 +15,7 @@ from magentic import (
     prompt,
 )
 from magentic.chat_model.anthropic_chat_model import AnthropicChatModel
+from magentic.chat_model.litellm_chat_model import LitellmChatModel
 from magentic.vision import UserImageMessage
 from pydantic import BaseModel
 
@@ -27,6 +28,7 @@ def _get_model_obj(llm_provider, model, params):
     provider_map = {
         "openai": (OpenaiChatModel, (log10, {"module": openai})),
         "anthropic": (AnthropicChatModel, (log10, {"module": anthropic})),
+        "litellm": (LitellmChatModel, (log10, {"module": openai})),
     }
 
     if llm_provider not in provider_map:
@@ -102,6 +104,7 @@ def test_function_logging(session, _magentic_model_obj):
     _LogAssertion(completion_id=session.last_completion_id(), function_args=function_args).assert_tool_calls_response()
 
 
+@pytest.mark.chat
 @pytest.mark.async_client
 @pytest.mark.stream
 @pytest.mark.asyncio(scope="module")
@@ -146,6 +149,7 @@ async def test_async_parallel_stream_logging(session, _magentic_model_obj):
     _LogAssertion(completion_id=session.last_completion_id(), function_args=function_args).assert_tool_calls_response()
 
 
+@pytest.mark.chat
 @pytest.mark.async_client
 @pytest.mark.stream
 @pytest.mark.asyncio(scope="module")
