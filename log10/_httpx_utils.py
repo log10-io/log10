@@ -462,6 +462,8 @@ class _LogResponse(Response):
             "\r\n\r\n" if self.llm_client == LLM_CLIENTS.OPENAI and "perplexity" in self.host_header else "\n\n"
         )
         responses = full_response.split(separator)
+        filter_responses = [r for r in responses if r]
+        response_json = self.parse_response_data(filter_responses)
         response_json = self.parse_response_data(responses)
 
         self.log_row["response"] = json.dumps(response_json)
@@ -507,10 +509,10 @@ class _LogResponse(Response):
         if self.llm_client == LLM_CLIENTS.ANTHROPIC:
             return self.is_anthropic_response_end_reached(text)
         elif self.llm_client == LLM_CLIENTS.OPENAI:
-            if "perplexity" in self.host_header:
-                return self.is_perplexity_response_end_reached(text)
-            else:
+            if "openai" in self.host_header:
                 return self.is_openai_response_end_reached(text)
+            else:
+                return self.is_openai_compatible_response_end_reached(text)
         else:
             logger.debug("Currently logging is only available for async openai and anthropic.")
             return False
@@ -518,19 +520,28 @@ class _LogResponse(Response):
     def is_anthropic_response_end_reached(self, text: str):
         return "event: message_stop" in text
 
-    def is_perplexity_response_end_reached(self, text: str):
+    def is_openai_compatible_response_end_reached(self, text: str, check_content: bool = False):
         json_strings = text.split("data: ")[1:]
         # Parse the last JSON string
         last_json_str = json_strings[-1].strip()
-        last_object = json.loads(last_json_str)
-        return last_object.get("choices", [{}])[0].get("finish_reason", "") == "stop"
+        try:
+            last_object = json.loads(last_json_str)
+        except json.JSONDecodeError:
+            logger.debug(f"Full response: {repr(text)}")
+            logger.debug(f"Failed to parse the last JSON string: {last_json_str}")
+            return False
+
+        choice = last_object.get("choices", [{}])[0]
+        finish_reason = choice.get("finish_reason", "")
+        content = choice.get("delta", {}).get("content", "")
+
+        if finish_reason == "stop":
+            return not content if check_content else True
+        return False
 
     def is_openai_response_end_reached(self, text: str):
-        """
-        In Perplexity, the last item in the responses is empty.
-        In OpenAI and Mistral, the last item in the responses is "data: [DONE]".
-        """
-        return not text or "data: [DONE]" in text
+        logger.debug(f"Full response: {repr(text)}")
+        return "data: [DONE]" in text
 
     def parse_anthropic_responses(self, responses: list[str]):
         message_id = ""
@@ -628,8 +639,12 @@ class _LogResponse(Response):
         finish_reason = ""
 
         for r in responses:
-            if self.is_openai_response_end_reached(r):
-                break
+            if "openai" in self.host_header:
+                if self.is_openai_response_end_reached(r):
+                    break
+            else:
+                if self.is_openai_compatible_response_end_reached(r, check_content=True):
+                    break
 
             # loading the substring of response text after 'data: '.
             # example: 'data: {"choices":[{"text":"Hello, how can I help you today?"}]}'
