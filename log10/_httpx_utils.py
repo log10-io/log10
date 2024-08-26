@@ -528,7 +528,11 @@ class _LogResponse(Response):
             logger.debug(f"Failed to parse the last JSON string: {last_json_str}")
             return False
 
-        choice = last_object.get("choices", [{}])[0]
+        if choices := last_object.get("choices", []):
+            choice = choices[0]
+        else:
+            return False
+
         finish_reason = choice.get("finish_reason", "")
         content = choice.get("delta", {}).get("content", "")
 
