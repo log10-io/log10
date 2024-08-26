@@ -464,7 +464,6 @@ class _LogResponse(Response):
         responses = full_response.split(separator)
         filter_responses = [r for r in responses if r]
         response_json = self.parse_response_data(filter_responses)
-        response_json = self.parse_response_data(responses)
 
         self.log_row["response"] = json.dumps(response_json)
         self.log_row["status"] = "finished"
@@ -645,8 +644,8 @@ class _LogResponse(Response):
         full_argument = ""
         finish_reason = ""
 
-        for r in responses:
-            if self.is_openai_response_end_reached(r, check_content=True):
+        for index, r in enumerate(responses):
+            if (index == len(responses) - 1) and self.is_openai_response_end_reached(r, check_content=True):
                 break
 
             # loading the substring of response text after 'data: '.
