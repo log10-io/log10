@@ -509,10 +509,7 @@ class _LogResponse(Response):
         if self.llm_client == LLM_CLIENTS.ANTHROPIC:
             return self.is_anthropic_response_end_reached(text)
         elif self.llm_client == LLM_CLIENTS.OPENAI:
-            if "openai" in self.host_header:
-                return self.is_openai_response_end_reached(text)
-            else:
-                return self.is_openai_compatible_response_end_reached(text)
+            return self.is_openai_response_end_reached(text)
         else:
             logger.debug("Currently logging is only available for async openai and anthropic.")
             return False
@@ -539,9 +536,15 @@ class _LogResponse(Response):
             return not content if check_content else True
         return False
 
-    def is_openai_response_end_reached(self, text: str):
-        logger.debug(f"Full response: {repr(text)}")
-        return "data: [DONE]" in text
+    def is_openai_response_end_reached(self, text: str, check_content: bool = False):
+        """
+        OpenAI, Mistral response end is reached when the data contains "data: [DONE]".
+        Perplexity, Cerebras response end is reached when the last JSON object contains finish_reason == stop.
+        """
+        if "data: [DONE]" in text:
+            return True
+        else:
+            return self.is_openai_compatible_response_end_reached(text, check_content)
 
     def parse_anthropic_responses(self, responses: list[str]):
         message_id = ""
@@ -639,12 +642,8 @@ class _LogResponse(Response):
         finish_reason = ""
 
         for r in responses:
-            if "openai" in self.host_header:
-                if self.is_openai_response_end_reached(r):
-                    break
-            else:
-                if self.is_openai_compatible_response_end_reached(r, check_content=True):
-                    break
+            if self.is_openai_response_end_reached(r, check_content=True):
+                break
 
             # loading the substring of response text after 'data: '.
             # example: 'data: {"choices":[{"text":"Hello, how can I help you today?"}]}'
