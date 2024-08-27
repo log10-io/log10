@@ -5,6 +5,7 @@ from typing import List, Optional
 
 import click
 import httpx
+import openai
 
 from log10._httpx_utils import _try_get
 from log10.llm import Log10Config
@@ -162,8 +163,7 @@ def _compare(models: list[str], messages: dict, temperature: float = 0.2, max_to
     return ret
 
 
-_SUPPORTED_MODELS = [
-    # openai chat models
+_OPENAI_SUPPORTED_MODELS = [
     "gpt-4o",
     "gpt-4o-2024-05-13",
     "gpt-4o-2024-08-06",
@@ -188,19 +188,35 @@ _SUPPORTED_MODELS = [
     "gpt-3.5-turbo-1106",
     "gpt-3.5-turbo-0125",
     "gpt-3.5-turbo-16k-0613",
-    # anthropic claude
+]
+
+
+_ANTHROPIC_SUPPORTED_MODELS = [
     "claude-3-5-sonnet-20240620",
     "claude-3-opus-20240229",
     "claude-3-sonnet-20240229",
     "claude-3-haiku-20240307",
-    # mistral
-    "mistral-small-latest",
-    "mistral-medium-latest",
-    "mistral-large-latest",
 ]
+
+_MISTRAL_SUPPORTED_MODELS = [
+    "mistral-large-latest",
+    "open-mistral-nemo",
+]
+
+_SUPPORTED_MODELS = _OPENAI_SUPPORTED_MODELS + _ANTHROPIC_SUPPORTED_MODELS + _MISTRAL_SUPPORTED_MODELS
 
 
 def _check_model_support(model: str) -> bool:
+    # check openai fine-tuned models
+    # e.g. ft:gpt-3.5-turbo-0125:log10::9Q1qGLY2
+    if model.startswith("ft:"):
+        base_model = model.split(":")[1]
+        if base_model in _OPENAI_SUPPORTED_MODELS:
+            ft_models = [m.id for m in openai.models.list().data if m.id.startswith("ft:")]
+            return model in ft_models
+
+    # TODO check other fine-tuned models
+
     return model in _SUPPORTED_MODELS
 
 
