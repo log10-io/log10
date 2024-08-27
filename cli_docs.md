@@ -200,6 +200,49 @@ To get auto generated feedback for a completion, use [`log10 feedback autofeedba
 
 ## CLI References
 
+```bash
+$ log10 --help
+Usage: log10 [OPTIONS] COMMAND [ARGS]...
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  auto-prompt    Analyze prompts and messages to get suggestions
+  completions    Manage logs from completions i.e.
+  feedback       Manage feedback for completions i.e.
+  feedback-task  Manage tasks for feedback i.e.
+```
+
+### Auto Prompt
+
+```bash
+$ log10 auto-prompt --help
+Usage: log10 auto-prompt [OPTIONS] COMMAND [ARGS]...
+
+  Analyze prompts and messages to get suggestions
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  analyze Analyze a prompt or messages and provide suggestions on how to improve it. 
+```
+
+#### log10 auto-prompt analyze
+```bash
+$ log10 auto-prompt analyze --help
+Usage: log10 auto-prompt analyze [OPTIONS]
+
+  Analyze a prompt or messages and provide suggestions on how to improve it.
+
+Options:
+  -p, --prompt TEXT    The prompt to analyze. Provide a string or a file
+                       containing the prompt.
+  -m, --messages TEXT  The messages to analyze. Provide a JSON or JSON file of
+                       openai style messages.
+```
+
 ### Completions
 
 ```bash

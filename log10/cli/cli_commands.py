@@ -10,6 +10,7 @@ except ImportError:
     exit(1)
 
 from log10.cli.autofeedback import auto_feedback_icl, get_autofeedback_cli
+from log10.cli.autoprompt import autoprompt
 from log10.cli.completions import benchmark_models, download_completions, get_completion, list_completions
 from log10.cli.feedback import create_feedback, download_feedback, get_feedback, list_feedback
 from log10.cli.feedback_task import create_feedback_task, get_feedback_task, list_feedback_task
@@ -52,6 +53,14 @@ def feedback_task():
     pass
 
 
+@click.group()
+def auto_prompt():
+    """
+    Analyze prompts and messages to get suggestions
+    """
+    pass
+
+
 cli.add_command(completions)
 completions.add_command(list_completions, "list")
 completions.add_command(get_completion, "get")
@@ -72,3 +81,6 @@ cli.add_command(feedback_task)
 feedback_task.add_command(create_feedback_task, "create")
 feedback_task.add_command(list_feedback_task, "list")
 feedback_task.add_command(get_feedback_task, "get")
+
+cli.add_command(auto_prompt)
+auto_prompt.add_command(autoprompt, "analyze")
