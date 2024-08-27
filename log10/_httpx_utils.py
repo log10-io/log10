@@ -547,7 +547,7 @@ class _LogResponse(Response):
         hosts = ["openai", "mistral"]
 
         if any(p in self.host_header for p in hosts):
-            suffix = f"data: [DONE]{'' if parse_single_data_entry else '\n\n'}"
+            suffix = "data: [DONE]" + ("" if parse_single_data_entry else "\n\n")
             if text.endswith(suffix):
                 return True
 
