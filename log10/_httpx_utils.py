@@ -516,7 +516,7 @@ class _LogResponse(Response):
     def is_anthropic_response_end_reached(self, text: str):
         return "event: message_stop" in text
 
-    def is_openai_compatible_response_end_reached(self, text: str, check_content: bool = False):
+    def has_response_finished_with_stop_reason(self, text: str, parse_single_data_entry: bool = False):
         json_strings = text.split("data: ")[1:]
         # Parse the last JSON string
         last_json_str = json_strings[-1].strip()
@@ -536,18 +536,22 @@ class _LogResponse(Response):
         content = choice.get("delta", {}).get("content", "")
 
         if finish_reason == "stop":
-            return not content if check_content else True
+            return not content if parse_single_data_entry else True
         return False
 
-    def is_openai_response_end_reached(self, text: str, check_content: bool = False):
+    def is_openai_response_end_reached(self, text: str, parse_single_data_entry: bool = False):
         """
-        OpenAI, Mistral response end is reached when the data contains "data: [DONE]".
+        OpenAI, Mistral response end is reached when the data contains "data: [DONE]\n\n".
         Perplexity, Cerebras response end is reached when the last JSON object contains finish_reason == stop.
         """
-        if "data: [DONE]" in text:
-            return True
-        else:
-            return self.is_openai_compatible_response_end_reached(text, check_content)
+        hosts = ["openai", "mistral"]
+
+        if any(p in self.host_header for p in hosts):
+            suffix = f"data: [DONE]{'' if parse_single_data_entry else '\n\n'}"
+            if text.endswith(suffix):
+                return True
+
+        return self.has_response_finished_with_stop_reason(text, parse_single_data_entry)
 
     def parse_anthropic_responses(self, responses: list[str]):
         message_id = ""
@@ -644,8 +648,8 @@ class _LogResponse(Response):
         full_argument = ""
         finish_reason = ""
 
-        for index, r in enumerate(responses):
-            if (index == len(responses) - 1) and self.is_openai_response_end_reached(r, check_content=True):
+        for r in responses:
+            if self.is_openai_response_end_reached(r, parse_single_data_entry=True):
                 break
 
             # loading the substring of response text after 'data: '.
