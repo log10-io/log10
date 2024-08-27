@@ -92,3 +92,8 @@ def test_list_feedback_task(runner):
 def test_get_feedback_task(runner):
     result = runner.invoke(cli, ["feedback-task", "get", "--id", feedback_task_id])
     assert result.exit_code == 0
+
+
+def test_auto_prompt(runner):
+    result = runner.invoke(cli, ["auto-prompt", "analyze", "--prompt", "Summarize this article in 3 sentences."])
+    assert result.exit_code == 0
