@@ -11,19 +11,38 @@ from tests.utils import _LogAssertion
 
 log10(openai)
 
-model_name = "llama-3.1-sonar-small-128k-chat"
 
-if "PERPLEXITYAI_API_KEY" not in os.environ:
-    raise ValueError("Please set the PERPLEXITYAI_API_KEY environment variable.")
+# Define a fixture that provides parameterized api_key and base_url
+@pytest.fixture(
+    params=[
+        {
+            "model_name": "llama-3.1-sonar-small-128k-chat",
+            "api_key": "PERPLEXITYAI_API_KEY",
+            "base_url": "https://api.perplexity.ai",
+        },
+        {"model_name": "open-mistral-nemo", "api_key": "MISTRAL_API_KEY", "base_url": "https://api.mistral.ai/v1"},
+    ]
+)
+def config(request):
+    api_environment_variable = request.param["api_key"]
+    if api_environment_variable not in os.environ:
+        raise ValueError(f"Please set the {api_environment_variable} environment variable.")
 
-compatibility_config = {
-    "base_url": "https://api.perplexity.ai",
-    "api_key": os.environ.get("PERPLEXITYAI_API_KEY"),
-}
+    return {
+        "base_url": request.param["base_url"],
+        "api_key": request.param["api_key"],
+        "model_name": request.param["model_name"],
+    }
 
 
 @pytest.mark.chat
-def test_chat(session):
+def test_chat(session, config):
+    compatibility_config = {
+        "base_url": config["base_url"],
+        "api_key": os.environ.get(config["api_key"]),
+    }
+    model_name = config["model_name"]
+
     client = openai.OpenAI(**compatibility_config)
     completion = client.chat.completions.create(
         model=model_name,
@@ -46,7 +65,13 @@ def test_chat(session):
 
 
 @pytest.mark.chat
-def test_chat_not_given(session):
+def test_chat_not_given(session, config):
+    compatibility_config = {
+        "base_url": config["base_url"],
+        "api_key": os.environ.get(config["api_key"]),
+    }
+    model_name = config["model_name"]
+
     client = openai.OpenAI(**compatibility_config)
     completion = client.chat.completions.create(
         model=model_name,
@@ -69,23 +94,13 @@ def test_chat_not_given(session):
 @pytest.mark.chat
 @pytest.mark.async_client
 @pytest.mark.asyncio(scope="module")
-async def test_chat_async(session):
-    client = AsyncOpenAI(**compatibility_config)
-    completion = await client.chat.completions.create(
-        model=model_name,
-        messages=[{"role": "user", "content": "Say this is a test"}],
-    )
+async def test_chat_async(session, config):
+    compatibility_config = {
+        "base_url": config["base_url"],
+        "api_key": os.environ.get(config["api_key"]),
+    }
+    model_name = config["model_name"]
 
-    content = completion.choices[0].message.content
-    assert isinstance(content, str)
-    await finalize()
-    _LogAssertion(completion_id=session.last_completion_id(), message_content=content).assert_chat_response()
-
-
-@pytest.mark.chat
-@pytest.mark.async_client
-@pytest.mark.asyncio(scope="module")
-async def test_perplexity_chat_async(session):
     client = AsyncOpenAI(**compatibility_config)
     completion = await client.chat.completions.create(
         model=model_name,
@@ -100,7 +115,13 @@ async def test_perplexity_chat_async(session):
 
 @pytest.mark.chat
 @pytest.mark.stream
-def test_chat_stream(session):
+def test_chat_stream(session, config):
+    compatibility_config = {
+        "base_url": config["base_url"],
+        "api_key": os.environ.get(config["api_key"]),
+    }
+    model_name = config["model_name"]
+
     client = openai.OpenAI(**compatibility_config)
     response = client.chat.completions.create(
         model=model_name,
@@ -119,9 +140,14 @@ def test_chat_stream(session):
 @pytest.mark.async_client
 @pytest.mark.stream
 @pytest.mark.asyncio(scope="module")
-async def test_chat_async_stream(session):
-    client = AsyncOpenAI(**compatibility_config)
+async def test_chat_async_stream(session, config):
+    compatibility_config = {
+        "base_url": config["base_url"],
+        "api_key": os.environ.get(config["api_key"]),
+    }
+    model_name = config["model_name"]
 
+    client = AsyncOpenAI(**compatibility_config)
     output = ""
     stream = await client.chat.completions.create(
         model=model_name,
