@@ -45,12 +45,12 @@ def autoprompt(prompt):
 
         if isinstance(prompt_json, list) and all("role" in item and "content" in item for item in prompt_json):
             # prompt is a list of messages
-            prompt = "\n\n".join([f"{m["role"]}: {m["content"]}" for m in prompt_json if m["role"] in ALLOWED_ROLES])
+            prompt = "\n\n".join([f'{m["role"]}: {m["content"]}' for m in prompt_json if m["role"] in ALLOWED_ROLES])
         elif isinstance(prompt_json, dict) and "request" in prompt_json and "messages" in prompt_json["request"]:
             # prompt is a log10 completion
             prompt = "\n\n".join(
                 [
-                    f"{m["role"]}: {m["content"]}"
+                    f'{m["role"]}: {m["content"]}'
                     for m in prompt_json["request"]["messages"]
                     if m["role"] in ALLOWED_ROLES
                 ]
