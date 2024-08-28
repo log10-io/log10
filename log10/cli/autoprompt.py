@@ -6,8 +6,21 @@ import click
 from log10.prompt_analyzer import PromptAnalyzer, display_prompt_analyzer_suggestions
 
 
-# ignor "tool" and "funciton" roles
+# ignore "tool" and "funciton" roles
 ALLOWED_ROLES = {"system", "user", "assistant"}
+
+
+def _parse_messages_to_single_prompt(messages: list) -> str:
+    """
+    Parse a list of messages to a single prompt string.
+    """
+    return "\n\n".join(
+        [
+            f'{m.get("role")}: {m.get("content")}'
+            for m in messages
+            if m.get("role") in ALLOWED_ROLES and m.get("content")
+        ]
+    )
 
 
 @click.command()
@@ -29,8 +42,6 @@ def autoprompt(prompt):
     if not prompt:
         click.echo("Enter the prompt to analyze (end with Ctrl+D):")
         prompt = click.get_text_stream("stdin").read()
-        if not prompt:
-            raise click.BadParameter("No prompt provided.")
 
     # check if prompt is a file path
     prompt_file = Path(prompt)
@@ -39,22 +50,21 @@ def autoprompt(prompt):
             click.echo(f"Prompt loaded from {prompt_file}:")
             prompt = f.read()
 
+    if not prompt:
+        raise click.BadParameter("No prompt provided.")
+
     # try to parse the prompt as a json
     try:
         prompt_json = json.loads(prompt)
 
         if isinstance(prompt_json, list) and all("role" in item and "content" in item for item in prompt_json):
             # prompt is a list of messages
-            prompt = "\n\n".join([f'{m["role"]}: {m["content"]}' for m in prompt_json if m["role"] in ALLOWED_ROLES])
-        elif isinstance(prompt_json, dict) and "request" in prompt_json and "messages" in prompt_json["request"]:
+            messages = [m for m in prompt_json if m["role"] in ALLOWED_ROLES]
+            prompt = _parse_messages_to_single_prompt(messages)
+        elif isinstance(prompt_json, dict) and "messages" in prompt_json.get("request", {}):
             # prompt is a log10 completion
-            prompt = "\n\n".join(
-                [
-                    f'{m["role"]}: {m["content"]}'
-                    for m in prompt_json["request"]["messages"]
-                    if m["role"] in ALLOWED_ROLES
-                ]
-            )
+            messages = [m for m in prompt_json["request"]["messages"] if m["role"] in ALLOWED_ROLES]
+            prompt = _parse_messages_to_single_prompt(messages)
         elif isinstance(prompt_json, str):
             # prompt is a plain string
             prompt = prompt_json
@@ -65,6 +75,11 @@ def autoprompt(prompt):
     except json.JSONDecodeError:
         # Input is a plain string
         prompt = prompt
+
+    if not prompt:
+        raise click.RuntimeError(
+            "The prompt is empty after parsing the messages. Please provide messages with roles {ALLOWED_ROLES} and non-empty content."
+        )
 
     click.echo(prompt)
     analyzer = PromptAnalyzer()
