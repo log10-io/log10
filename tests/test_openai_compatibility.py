@@ -21,6 +21,7 @@ log10(openai)
             "base_url": "https://api.perplexity.ai",
         },
         {"model_name": "open-mistral-nemo", "api_key": "MISTRAL_API_KEY", "base_url": "https://api.mistral.ai/v1"},
+        {"model_name": "llama3.1-8b", "api_key": "CEREBRAS_API_KEY", "base_url": "https://api.cerebras.ai/v1"},
     ]
 )
 def config(request):
@@ -132,7 +133,7 @@ def test_chat_stream(session, config):
 
     output = ""
     for chunk in response:
-        output += chunk.choices[0].delta.content
+        output += chunk.choices[0].delta.content or ""
 
     _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 

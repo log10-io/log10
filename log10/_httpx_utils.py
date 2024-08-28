@@ -534,15 +534,18 @@ class _LogResponse(Response):
 
         finish_reason = choice.get("finish_reason", "")
         content = choice.get("delta", {}).get("content", "")
+        usage = last_object.get("usage", {})
 
         if finish_reason == "stop":
-            return not content if parse_single_data_entry else True
+            return not content and not usage if parse_single_data_entry else True
         return False
 
     def is_openai_response_end_reached(self, text: str, parse_single_data_entry: bool = False):
         """
         OpenAI, Mistral response end is reached when the data contains "data: [DONE]\n\n".
         Perplexity, Cerebras response end is reached when the last JSON object contains finish_reason == stop.
+        The parse_single_data_entry argument is used to distinguish between a single data entry and multiple data entries.
+        The function is called in two contexts: first, to assess whether the entire accumulated response has completed when processing streaming data, and second, to verify if a single response object has finished processing during individual response handling.
         """
         hosts = ["openai", "mistral"]
 
