@@ -534,10 +534,9 @@ class _LogResponse(Response):
 
         finish_reason = choice.get("finish_reason", "")
         content = choice.get("delta", {}).get("content", "")
-        usage = last_object.get("usage", {})
 
         if finish_reason == "stop":
-            return not content and not usage if parse_single_data_entry else True
+            return not content if parse_single_data_entry else True
         return False
 
     def is_openai_response_end_reached(self, text: str, parse_single_data_entry: bool = False):
