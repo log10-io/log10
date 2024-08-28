@@ -237,10 +237,16 @@ Usage: log10 auto-prompt analyze [OPTIONS]
   Analyze a prompt or messages and provide suggestions on how to improve it.
 
 Options:
-  -p, --prompt TEXT    The prompt to analyze. Provide a string or a file
-                       containing the prompt.
-  -m, --messages TEXT  The messages to analyze. Provide a JSON or JSON file of
-                       openai style messages.
+  -p, --prompt TEXT  The prompt to analyze. Provide a string or a file
+                     containing the prompt. We allow three formats: 1) string
+                     prompt, e.g. "Summarize this article in 3 sentences." 2)
+                     messages, e.g. [{"role": "user", "content": "Hello"},
+                     {"role": "assistant", "content": "Hi"}] 3) log10
+                     completion, e.g. {..., "request": {..., "messages":
+                     [{"role": "user", "content": "Hello"}, {"role":
+                     "assistant", "content": "Hi"}], ...}, "response": {...}}
+                     The prompt input could be a string or a file path. If
+                     it's a file path, read the file.
 ```
 
 ### Completions
