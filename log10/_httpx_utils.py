@@ -462,7 +462,8 @@ class _LogResponse(Response):
             "\r\n\r\n" if self.llm_client == LLM_CLIENTS.OPENAI and "perplexity" in self.host_header else "\n\n"
         )
         responses = full_response.split(separator)
-        response_json = self.parse_response_data(responses)
+        filter_responses = [r for r in responses if r]
+        response_json = self.parse_response_data(filter_responses)
 
         self.log_row["response"] = json.dumps(response_json)
         self.log_row["status"] = "finished"
@@ -507,10 +508,7 @@ class _LogResponse(Response):
         if self.llm_client == LLM_CLIENTS.ANTHROPIC:
             return self.is_anthropic_response_end_reached(text)
         elif self.llm_client == LLM_CLIENTS.OPENAI:
-            if "perplexity" in self.host_header:
-                return self.is_perplexity_response_end_reached(text)
-            else:
-                return self.is_openai_response_end_reached(text)
+            return self.is_openai_response_end_reached(text)
         else:
             logger.debug("Currently logging is only available for async openai and anthropic.")
             return False
@@ -518,19 +516,44 @@ class _LogResponse(Response):
     def is_anthropic_response_end_reached(self, text: str):
         return "event: message_stop" in text
 
-    def is_perplexity_response_end_reached(self, text: str):
+    def has_response_finished_with_stop_reason(self, text: str, parse_single_data_entry: bool = False):
         json_strings = text.split("data: ")[1:]
         # Parse the last JSON string
         last_json_str = json_strings[-1].strip()
-        last_object = json.loads(last_json_str)
-        return last_object.get("choices", [{}])[0].get("finish_reason", "") == "stop"
+        try:
+            last_object = json.loads(last_json_str)
+        except json.JSONDecodeError:
+            logger.debug(f"Full response: {repr(text)}")
+            logger.debug(f"Failed to parse the last JSON string: {last_json_str}")
+            return False
 
-    def is_openai_response_end_reached(self, text: str):
+        if choices := last_object.get("choices", []):
+            choice = choices[0]
+        else:
+            return False
+
+        finish_reason = choice.get("finish_reason", "")
+        content = choice.get("delta", {}).get("content", "")
+
+        if finish_reason == "stop":
+            return not content if parse_single_data_entry else True
+        return False
+
+    def is_openai_response_end_reached(self, text: str, parse_single_data_entry: bool = False):
         """
-        In Perplexity, the last item in the responses is empty.
-        In OpenAI and Mistral, the last item in the responses is "data: [DONE]".
+        OpenAI, Mistral response end is reached when the data contains "data: [DONE]\n\n".
+        Perplexity, Cerebras response end is reached when the last JSON object contains finish_reason == stop.
+        The parse_single_data_entry argument is used to distinguish between a single data entry and multiple data entries.
+        The function is called in two contexts: first, to assess whether the entire accumulated response has completed when processing streaming data, and second, to verify if a single response object has finished processing during individual response handling.
         """
-        return not text or "data: [DONE]" in text
+        hosts = ["openai", "mistral"]
+
+        if any(p in self.host_header for p in hosts):
+            suffix = "data: [DONE]" + ("" if parse_single_data_entry else "\n\n")
+            if text.endswith(suffix):
+                return True
+
+        return self.has_response_finished_with_stop_reason(text, parse_single_data_entry)
 
     def parse_anthropic_responses(self, responses: list[str]):
         message_id = ""
@@ -628,7 +651,7 @@ class _LogResponse(Response):
         finish_reason = ""
 
         for r in responses:
-            if self.is_openai_response_end_reached(r):
+            if self.is_openai_response_end_reached(r, parse_single_data_entry=True):
                 break
 
             # loading the substring of response text after 'data: '.
