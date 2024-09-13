@@ -17,7 +17,7 @@ from log10.load import get_log10_session_tags, last_completion_response_var, ses
 
 logger: logging.Logger = logging.getLogger("LOG10")
 
-GRAPHQL_URL = "https://graphql.log10.io/graphql"
+GRAPHQL_URL = os.environ.get("LOG10_GRAPHQL_URL", "https://graphql.log10.io/graphql")
 
 LOG10_HTTPX_READ_TIMEOUT = os.environ.get("LOG10_HTTPX_READ_TIMEOUT")
 _log10_config = Log10Config()
