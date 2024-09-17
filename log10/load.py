@@ -113,7 +113,10 @@ def get_session_id():
 #
 session_id_var = contextvars.ContextVar("session_id", default=get_session_id())
 last_completion_response_var = contextvars.ContextVar("last_completion_response", default=None)
+# is this tags_var for log10_session?
+# first how does this tags_var get set and passed around? what's the option to set it by users
 tags_var = contextvars.ContextVar("tags", default=[])
+extra_tags_var = contextvars.ContextVar("extra_tags", default=[])
 
 
 def get_log10_session_tags():
@@ -164,6 +167,64 @@ class log10_session:
             return None
         response = last_completion_response_var.get()
         return response["completionID"]
+
+
+@contextmanager
+def add_tags(tags: list[str]):
+    """
+    A context manager that adds tags to the current session.
+    This could be used with log10_session to add extra tags to the session.
+    Example:
+    >>> from log10.load import add_tags
+    >>> with add_tags(["tag1", "tag2"]):
+    >>>     completion = client.chat.completions.create(
+    >>>         model="gpt-4o",
+    >>>         messages=[
+    >>>             {
+    >>>                 "role": "user",
+    >>>                 "content": "Hello?",
+    >>>             },
+    >>>         ],
+    >>>     )
+    >>>     print(completion.choices[0].message)
+    """
+    current_tags = tags_var.get()
+    new_tags = current_tags + tags
+    new_tags_token = tags_var.set(new_tags)
+    try:
+        yield
+    finally:
+        tags_var.reset(new_tags_token)
+
+
+def with_tags(tags: list[str]):
+    """
+    A decorator that adds tags to a function call.
+    Example:
+    >>> from log10.load import with_tags
+    >>> @with_tags(["decorator-tags", "decorator-tags-2"])
+    >>> def completion_with_tags():
+    >>>     completion = client.chat.completions.create(
+    >>>         model="gpt-4o",
+    >>>         messages=[
+    >>>             {
+    >>>                 "role": "user",
+    >>>                 "content": "Hello?",
+    >>>             },
+    >>>         ],
+    >>>     )
+    >>>     print(completion.choices[0].message)
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            with add_tags(tags):
+                return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 @contextmanager
