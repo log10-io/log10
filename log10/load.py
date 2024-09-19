@@ -123,33 +123,79 @@ def get_log10_session_tags():
     return tags_var.get()
 
 
-class log10_session:
-    def __init__(self, tags=None):
-        self.tags = tags
+class TagsManager:
+    def __init__(self, tags: list[str] = None):
+        self.tags = self._validate_tags(tags) or []
+
+    @staticmethod
+    def _validate_tags(tags: list[str] | None) -> list[str]:
+        if tags is None:
+            return None
+
+        if not isinstance(tags, list):
+            logger.error("tags must be a list")
+            return None
+
+        validated_tags = []
+        for tag in tags:
+            if not isinstance(tag, str):
+                logger.warning(f"All tags must be strings, found {tag} of type {type(tag)}")
+                # skip this tag
+                continue
+            validated_tags.append(tag)
+        return validated_tags
+
+    def _enter(self):
+        current_tags = tags_var.get()
+        new_tags = current_tags + self.tags
+
+        self.tags_token = tags_var.set(new_tags)
+        return self.tags_token
+
+    def _exit(self, exc_type, exc_value, traceback):
+        tags_var.reset(self.tags_token)
 
     def __enter__(self):
+        return self._enter()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self._exit(exc_type, exc_value, traceback)
+
+    async def __aenter__(self):
+        return self._enter()
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        self._exit(exc_type, exc_value, traceback)
+
+
+class log10_session:
+    def __init__(self, tags=None):
+        self.tags_manager = TagsManager(tags)
+
+    def _enter(self):
         self.session_id_token = session_id_var.set(get_session_id())
         self.last_completion_response_token = last_completion_response_var.set(None)
-        self.tags_token = tags_var.set(self.tags)
+        self.tags_manager._enter()
 
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def _exit(self, exc_type, exc_value, traceback):
         session_id_var.reset(self.session_id_token)
         last_completion_response_var.reset(self.last_completion_response_token)
-        tags_var.reset(self.tags_token)
+        self.tags_manager._exit(exc_type, exc_value, traceback)
+
+    def __enter__(self):
+        return self._enter()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self._exit(exc_type, exc_value, traceback)
         return
 
     async def __aenter__(self):
-        self.session_id_token = session_id_var.set(get_session_id())
-        self.last_completion_response_token = last_completion_response_var.set(None)
-        self.tags_token = tags_var.set(self.tags)
-        return self
+        return self._enter()
 
     async def __aexit__(self, exc_type, exc_value, traceback):
-        session_id_var.reset(self.session_id_token)
-        last_completion_response_var.reset(self.last_completion_response_token)
-        tags_var.reset(self.tags_token)
+        self._exit(exc_type, exc_value, traceback)
         return
 
     def last_completion_url(self):
@@ -170,13 +216,13 @@ class log10_session:
 
 
 @contextmanager
-def add_tags(tags: list[str]):
+def log10_tags(tags: list[str]):
     """
     A context manager that adds tags to the current session.
     This could be used with log10_session to add extra tags to the session.
     Example:
-    >>> from log10.load import add_tags
-    >>> with add_tags(["tag1", "tag2"]):
+    >>> from log10.load import log10_tags
+    >>> with log10_tags(["tag1", "tag2"]):
     >>>     completion = client.chat.completions.create(
     >>>         model="gpt-4o",
     >>>         messages=[
@@ -188,13 +234,9 @@ def add_tags(tags: list[str]):
     >>>     )
     >>>     print(completion.choices[0].message)
     """
-    current_tags = tags_var.get()
-    new_tags = current_tags + tags
-    new_tags_token = tags_var.set(new_tags)
-    try:
+    tags_manager = TagsManager(tags)
+    with tags_manager:
         yield
-    finally:
-        tags_var.reset(new_tags_token)
 
 
 def with_tags(tags: list[str]):
@@ -219,7 +261,7 @@ def with_tags(tags: list[str]):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            with add_tags(tags):
+            with log10_tags(tags):
                 return func(*args, **kwargs)
 
         return wrapper
