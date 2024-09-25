@@ -20,12 +20,15 @@ logger: logging.Logger = logging.getLogger("LOG10")
 GRAPHQL_URL = "https://graphql.log10.io/graphql"
 
 LOG10_HTTPX_READ_TIMEOUT = os.environ.get("LOG10_HTTPX_READ_TIMEOUT")
+LOG10_HTTPX_WRITE_TIMEOUT = os.environ.get("LOG10_HTTPX_WRITE_TIMEOUT")
+
 _log10_config = Log10Config()
 base_url = _log10_config.url
 # Default timeouts for httpx client: connect, read, write, and pool are all 5 seconds.
 # We're overriding the read timeout to 10s when LOG10_HTTPX_READ_TIMEOUT is not set.
 read_timeout = float(LOG10_HTTPX_READ_TIMEOUT) if LOG10_HTTPX_READ_TIMEOUT else 10.0
-timeout = httpx.Timeout(5.0, read=read_timeout)
+write_timeout = float(LOG10_HTTPX_WRITE_TIMEOUT) if LOG10_HTTPX_WRITE_TIMEOUT else 10.0
+timeout = httpx.Timeout(5.0, read=read_timeout, write=write_timeout)
 httpx_client = httpx.Client()
 httpx_async_client = httpx.AsyncClient(timeout=timeout)
 
