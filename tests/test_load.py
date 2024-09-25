@@ -1,6 +1,6 @@
 import pytest
 
-from log10.load import get_log10_session_tags, log10_session, log10_tags
+from log10.load import get_log10_session_tags, log10_session, log10_tags, with_log10_tags
 
 
 def test_log10_tags():
@@ -80,3 +80,27 @@ def test_log10_session_invalid_input():
     # Test with non-string tags
     with log10_session(tags=["valid", 123, {"invalid": "tag"}]):
         assert get_log10_session_tags() == ["valid"]
+
+
+def test_with_log10_tags_decorator():
+    @with_log10_tags(["decorator_tag1", "decorator_tag2"])
+    def decorated_function():
+        return get_log10_session_tags()
+
+    # Test that the decorator adds tags
+    assert decorated_function() == ["decorator_tag1", "decorator_tag2"]
+
+    # Test that tags are cleared after the decorated function call
+    assert get_log10_session_tags() == []
+
+    # Test nested decorators
+    @with_log10_tags(["outer_tag"])
+    def outer_function():
+        @with_log10_tags(["inner_tag"])
+        def inner_function():
+            return get_log10_session_tags()
+
+        return inner_function()
+
+    assert outer_function() == ["outer_tag", "inner_tag"]
+    assert get_log10_session_tags() == []
