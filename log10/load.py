@@ -194,7 +194,7 @@ async def log_async(completion_url, log_row):
         organizationSlug = res.json().get("organizationSlug", None)
 
         if completionID is None:
-            logging.warn("LOG10: failed to get completionID from log10. Skipping log.")
+            logger.warning("LOG10: failed to get completionID from log10. Skipping log.")
             return None
 
         if DEBUG:
@@ -205,7 +205,7 @@ async def log_async(completion_url, log_row):
                 _url = f"{completion_url}/{completionID}"
                 res = post_request(_url, log_row)
             except Exception as e:
-                logging.warn(f"LOG10: failed to log: {e}. Skipping")
+                logger.warning(f"LOG10: failed to log: {e}. Skipping")
                 return None
 
         elif target_service == "bigquery":
@@ -213,7 +213,7 @@ async def log_async(completion_url, log_row):
             # NOTE: We only save on request finalization.
 
     except Exception as e:
-        logging.warn(f"LOG10: failed to log: {e}. Skipping")
+        logger.warning(f"LOG10: failed to log: {e}. Skipping")
         return None
 
     return {"completionID": completionID, "organizationSlug": organizationSlug}
@@ -233,7 +233,7 @@ def log_sync(completion_url, log_row):
         completionID = res.json().get("completionID", None)
 
         if completionID is None:
-            logging.warn("LOG10: failed to get completionID from log10. Skipping log.")
+            logger.warning("LOG10: failed to get completionID from log10. Skipping log.")
             return None
 
         if DEBUG:
@@ -241,7 +241,7 @@ def log_sync(completion_url, log_row):
         _url = f"{completion_url}/{completionID}"
         res = post_request(_url, log_row)
     except Exception as e:
-        logging.warn(f"LOG10: failed to get completionID from log10: {e}")
+        logger.warning(f"LOG10: failed to get completionID from log10: {e}")
         return None
 
     return completionID
@@ -388,7 +388,7 @@ class StreamingResponseWrapper:
                     logger.error(f"LOG10: failed to insert in log10: {self.partial_log_row} with error {res.text}")
             except Exception as e:
                 traceback.print_tb(e.__traceback__)
-                logging.warn(f"LOG10: failed to log: {e}. Skipping")
+                logger.warning(f"LOG10: failed to log: {e}. Skipping")
 
             raise se
 
@@ -578,7 +578,7 @@ def intercepting_decorator(func):
                     completionID = log_sync(completion_url=completion_url, log_row=log_row)
 
                     if completionID is None:
-                        logging.warn("LOG10: failed to get completionID from log10. Skipping log.")
+                        logger.warning("LOG10: failed to get completionID from log10. Skipping log.")
                         func_with_backoff(func, *args, **kwargs)
                         return
 
@@ -742,7 +742,7 @@ def intercepting_decorator(func):
                         if res.status_code != 200:
                             logger.error(f"LOG10: failed to insert in log10: {log_row} with error {res.text}")
                     except Exception as e:
-                        logging.warn(f"LOG10: failed to log: {e}. Skipping")
+                        logger.warning(f"LOG10: failed to log: {e}. Skipping")
 
                 elif target_service == "bigquery":
                     try:
