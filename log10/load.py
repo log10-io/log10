@@ -113,10 +113,7 @@ def get_session_id():
 #
 session_id_var = contextvars.ContextVar("session_id", default=get_session_id())
 last_completion_response_var = contextvars.ContextVar("last_completion_response", default=None)
-# is this tags_var for log10_session?
-# first how does this tags_var get set and passed around? what's the option to set it by users
 tags_var = contextvars.ContextVar("tags", default=[])
-extra_tags_var = contextvars.ContextVar("extra_tags", default=[])
 
 
 def get_log10_session_tags():
@@ -133,14 +130,17 @@ class TagsManager:
             return None
 
         if not isinstance(tags, list):
-            logger.error("tags must be a list")
+            logger.warning(
+                f"Invalid tags format: expected list, got {type(tags).__name__}. Tags will be omitted from the log."
+            )
             return None
 
         validated_tags = []
         for tag in tags:
             if not isinstance(tag, str):
-                logger.warning(f"All tags must be strings, found {tag} of type {type(tag)}")
-                # skip this tag
+                logger.warning(
+                    f"Invalid tag type: expected str, got {type(tag).__name__}. This tag will be omitted: {repr(tag)}"
+                )
                 continue
             validated_tags.append(tag)
         return validated_tags
@@ -239,12 +239,12 @@ def log10_tags(tags: list[str]):
         yield
 
 
-def with_tags(tags: list[str]):
+def with_log10_tags(tags: list[str]):
     """
     A decorator that adds tags to a function call.
     Example:
-    >>> from log10.load import with_tags
-    >>> @with_tags(["decorator-tags", "decorator-tags-2"])
+    >>> from log10.load import with_log10_tags
+    >>> @with_log10_tags(["decorator-tags", "decorator-tags-2"])
     >>> def completion_with_tags():
     >>>     completion = client.chat.completions.create(
     >>>         model="gpt-4o",

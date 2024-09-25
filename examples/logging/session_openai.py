@@ -1,10 +1,10 @@
-from log10.load import OpenAI, log10_session, log10_tags, with_tags
+from log10.load import OpenAI, log10_session, log10_tags, with_log10_tags
 
 
 client = OpenAI()
 
 
-@with_tags(["decorator-tags", "decorator-tags-2"])
+@with_log10_tags(["decorator-tags", "decorator-tags-2"])
 def completion_with_tags():
     completion = client.chat.completions.create(
         model="gpt-4o",
