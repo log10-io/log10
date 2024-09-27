@@ -16,7 +16,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 packages = [
-    { include = "log10" },
+    { include = "log10", from = "src" },
 ]
 
 [tool.poetry.scripts]
