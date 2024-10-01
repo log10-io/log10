@@ -67,6 +67,11 @@ mosaicml = ["mosaicml-cli"]
 google-generativeai = ["google-generativeai"]
 lamini = ["lamini"]
 cli = ["click", "rich", "tabulate", "pandas"]
+eval = ["pytest_log10_eval"]
+
+[tool.poetry.dependencies.pytest_log10_eval]
+path = "src/pytest_log10_eval"
+optional = true
 
 [tool.ruff]
 # Never enforce `E501` (line length violations).
