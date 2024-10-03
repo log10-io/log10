@@ -297,12 +297,13 @@ class JSONReport(JSONReportBase):
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
 
+        indent = 2 if self._config.option.pretty_print else None
         with open(path, "w", encoding="utf-8") as f:
             json.dump(
                 self.report,
                 f,
                 default=str,
-                indent=self._config.option.json_report_indent,
+                indent=indent,
             )
 
     def _log10_upload_report_to_s3(self, upload_url, report_path):
@@ -415,7 +416,12 @@ def json_metadata(request):
 
 def pytest_addoption(parser):
     group = parser.getgroup("jsonreport", "reporting test results as JSON")
-    group.addoption("--json-report-indent", type=int, help="pretty-print JSON with " "specified indentation level")
+    group.addoption(
+        "--pretty-print",
+        action="store_true",
+        default=False,
+        help="pretty-print JSON report with indentation",
+    )
     group.addoption(
         "--local",
         action="store_true",
