@@ -2748,6 +2748,40 @@ docs = ["sphinx (>=5.3)", "sphinx-rtd-theme (>=1.0)"]
 testing = ["coverage (>=6.2)", "hypothesis (>=5.7.1)"]
 
 [[package]]
+name = "pytest-log10-managed-evaluation"
+version = "0.13.0"
+description = "pytest plugin for log10 managed evaluation"
+optional = true
+python-versions = ">=3.10,<4.0"
+files = []
+develop = false
+
+[package.dependencies]
+pytest = ">=6.2.0"
+pytest-metadata = ">=1.0.0"
+
+[package.source]
+type = "directory"
+url = "src/pytest_log10_managed_evaluation"
+
+[[package]]
+name = "pytest-metadata"
+version = "3.1.1"
+description = "pytest plugin for test session metadata"
+optional = true
+python-versions = ">=3.8"
+files = [
+    {file = "pytest_metadata-3.1.1-py3-none-any.whl", hash = "sha256:c8e0844db684ee1c798cfa38908d20d67d0463ecb6137c72e91f418558dd5f4b"},
+    {file = "pytest_metadata-3.1.1.tar.gz", hash = "sha256:d2a29b0355fbc03f168aa96d41ff88b1a3b44a3b02acbe491801c98a048017c8"},
+]
+
+[package.dependencies]
+pytest = ">=7.0.0"
+
+[package.extras]
+test = ["black (>=22.1.0)", "flake8 (>=4.0.1)", "pre-commit (>=2.17.0)", "tox (>=3.24.5)"]
+
+[[package]]
 name = "python-dateutil"
 version = "2.9.0.post0"
 description = "Extensions to the standard Python datetime module"
@@ -4110,9 +4144,10 @@ langchain = ["langchain"]
 litellm = ["litellm"]
 mistralai = ["mistralai"]
 mosaicml = ["mosaicml-cli"]
+pytest = ["pytest_log10_managed_evaluation"]
 together = ["together"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4.0"
-content-hash = "054096f0d326a64d0473aa34ddb004ac3c1b7aad0b608b63b28b2196e0ce9d49"
+content-hash = "2f906897683b29de65c10ff297aece98c77e85efe3fd00a84b7a33bf6f617d86"
