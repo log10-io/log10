@@ -796,7 +796,9 @@ def intercepting_decorator(func):
                     if type(output).__name__ == "LegacyAPIResponse":
                         response = json.loads(output.content)
                     else:
-                        response = output.model_dump()
+                        response = output.copy()
+                        if "choices" in response:
+                            response = flatten_response(response)
                 elif "lamini" in func.__module__:
                     response = {
                         "id": str(uuid.uuid4()),
