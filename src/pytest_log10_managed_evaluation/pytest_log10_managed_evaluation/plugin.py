@@ -34,9 +34,6 @@ class JSONReportBase:
             self._config = config
         if not hasattr(config, "_json_report"):
             self._config._json_report = self
-        # If the user sets --tb=no, always omit the traceback from the report
-        if self._config.option.tbstyle == "no" and not self._must_omit("traceback"):
-            self._config.option.json_report_omit.append("traceback")
 
     def pytest_addhooks(self, pluginmanager):
         pluginmanager.add_hookspecs(Hooks)
@@ -116,7 +113,7 @@ class JSONReportBase:
             del item._json_report_extra["metadata"]
 
     def _must_omit(self, key):
-        return key in self._config.option.json_report_omit
+        return False
 
 
 class JSONReport(JSONReportBase):
@@ -348,20 +345,19 @@ class JSONReport(JSONReportBase):
         del pytest_warning_recorded
 
     def pytest_terminal_summary(self, terminalreporter):
-        if self._terminal_min_verbosity > (
-            self._config.option.json_report_verbosity
-            if self._config.option.json_report_verbosity is not None
-            else terminalreporter.verbosity
-        ):
+        if self._terminal_min_verbosity > terminalreporter.verbosity:
             return
-        terminalreporter.write_sep("-", "Log10 Eval Report")
+
+        terminalreporter.write_sep("=", "Log10 Eval Report")
         if self.log10_test_run:
             terminalreporter.write_line(
-                f"Log10 Eval is enabled. Test run: {self.log10_test_run.get('name')}-{self.log10_test_run.get('id')}"
+                f"Log10 Eval is enabled.\nTest run: {self.log10_test_run.get('name')}-{self.log10_test_run.get('id')}"
             )
+
             # todo (wenzhe) add url to managed eval page in log10 UI
+            terminalreporter.write_line("Log10 managed evaluation page: <url-placeholder>")
         else:
-            terminalreporter.write_line("Log10 Eval runs locally. ")
+            terminalreporter.write_line("Log10 Eval runs locally.")
         terminalreporter.write_line(self._terminal_summary)
 
 
@@ -419,16 +415,7 @@ def json_metadata(request):
 
 def pytest_addoption(parser):
     group = parser.getgroup("jsonreport", "reporting test results as JSON")
-    group.addoption(
-        "--json-report-omit",
-        default=[],
-        nargs="+",
-        help="list of fields to "
-        "omit in the report (choose from: collectors, log, traceback, "
-        "streams, warnings, keywords)",
-    )
     group.addoption("--json-report-indent", type=int, help="pretty-print JSON with " "specified indentation level")
-    group._addoption("--json-report-verbosity", type=int, help="set verbosity (default is " "value of --verbosity)")
     group.addoption(
         "--local",
         action="store_true",
