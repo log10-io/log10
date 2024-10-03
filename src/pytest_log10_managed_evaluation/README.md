@@ -2,8 +2,6 @@
 
 A pytest plugin for managing evaluation in Log10 platform.
 
-[TODO]: add link to the evaluation doc
-
 ## Installation
 After [configuring the Log10 environment variables](https://docs.log10.io/observability/advanced/logging#configuration),
 ```bash
