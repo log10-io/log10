@@ -6,7 +6,7 @@ build-backend = "poetry.core.masonry.api"
 name = "pytest_log10_managed_evaluation"
 description = "pytest plugin for log10 managed evaluation"
 
-version = "0.13.0" # Match this with log10-io version
+version = "0.14.0rc1" # Match this with log10-io version
 authors = ["log10 team"]
 license = "MIT"
 classifiers = [
