@@ -1,16 +1,11 @@
+import logging
 import time
 import uuid
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from langchain.schema import AIMessage, BaseMessage, HumanMessage, SystemMessage
-
-
-"""Callback Handler that prints to std out."""
-import logging
-from typing import Any, Dict, List, Optional, Union
-
 from langchain.callbacks.base import BaseCallbackHandler
-from langchain.schema import AgentAction, AgentFinish, LLMResult
+from langchain.schema import AgentAction, AgentFinish, AIMessage, BaseMessage, HumanMessage, LLMResult, SystemMessage
 
 from log10.llm import LLM, Kind, Message
 
