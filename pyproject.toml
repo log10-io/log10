@@ -16,7 +16,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 packages = [
-    { include = "log10" },
+    { include = "log10", from = "src" },
 ]
 
 [tool.poetry.scripts]
@@ -55,6 +55,8 @@ click = {version = "^8.1.7", optional = true}
 rich = {version = "^13.7.1", optional = true}
 tabulate = {version = "^0.9.0", optional = true}
 pandas = {version = ">=2", optional = true}
+# pytest = {version = ">=8.0.0", optional = true}
+# pytest-metadata = {version = ">=1.0.0", optional = true}
 
 [tool.poetry.extras]
 autofeedback_icl = ["magentic"]
@@ -67,6 +69,15 @@ mosaicml = ["mosaicml-cli"]
 google-generativeai = ["google-generativeai"]
 lamini = ["lamini"]
 cli = ["click", "rich", "tabulate", "pandas"]
+# eval = ["pytest", "pytest-metadata"]
+eval = ["pytest_log10_eval"]
+
+[tool.poetry.dependencies.pytest_log10_eval]
+path = "src/pytest_log10_eval"
+optional = true
+
+# [tool.poetry.plugins."pytest11"]
+# "pytest-log10-managed-eval" = "log10.pytest_log10_eval"
 
 [tool.ruff]
 # Never enforce `E501` (line length violations).
