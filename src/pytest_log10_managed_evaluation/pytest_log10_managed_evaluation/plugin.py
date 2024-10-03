@@ -442,6 +442,9 @@ def pytest_addoption(parser):
 
 
 def pytest_configure(config):
+    if config.option.collectonly:
+        return
+
     if hasattr(config, "workerinput"):
         Plugin = JSONReportWorker
     else:
