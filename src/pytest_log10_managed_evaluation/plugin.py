@@ -417,6 +417,12 @@ def json_metadata(request):
 def pytest_addoption(parser):
     group = parser.getgroup("jsonreport", "reporting test results as JSON")
     group.addoption(
+        "--log10",
+        action="store_true",
+        default=False,
+        help="Enable Log10 managed evaluation reporting",
+    )
+    group.addoption(
         "--pretty-print",
         action="store_true",
         default=False,
@@ -432,10 +438,20 @@ def pytest_addoption(parser):
         "--eval-session-name", action="store", default=None, help="Name for the evaluation session in JSON report"
     )
     parser.addini("eval_session_name", "Name for the evaluation session in JSON report", default=None)
+    parser.addini(
+        "log10",
+        "Enable Log10 managed evaluation reporting",
+        type="bool",
+        default=False,
+    )
 
 
 def pytest_configure(config):
     if config.option.collectonly:
+        return
+
+    log10_enabled = config.getoption("log10") or config.getini("log10")
+    if not log10_enabled:
         return
 
     if hasattr(config, "workerinput"):
