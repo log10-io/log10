@@ -5,33 +5,47 @@ A pytest plugin for managing evaluation in Log10 platform.
 ## Installation
 After [configuring the Log10 environment variables](https://docs.log10.io/observability/advanced/logging#configuration),
 ```bash
-pip install 'log10-io[pytest]'
+pip install log10-io
 ```
 
 ## Options
 
 | Option | Type | Description |
 |--------|------|-------------|
+| `--log10` | Command-line | Enable Log10 managed evaluation reporting |
 | `--eval-session-name` | Command-line | Set name for the evaluation session |
 | `--local` | Command-line | Run pytest locally without showing the session in Log10. A JSON report file will be saved locally. |
 | `--pretty-print` | Command-line | Pretty-print the JSON report with indentation. |
+| `log10` | INI | Enable Log10 managed evaluation reporting. Set in `pytest.ini` or `setup.cfg`. |
 | `eval_session_name` | INI | Set name for the evaluation session. Set in `pytest.ini` or `setup.cfg`. |
 
 ## Usage
 
-Once installed, the plugin is automatically enabled when you run pytest. Simply execute your tests as you normally would, e.g.:
+To enable the Log10 managed evaluation reporting, you need to use the `--log10` option or set `log10 = true` in your pytest configuration file. Once enabled, execute your tests as you normally would:
+
 ```bash
-pytest tests
+pytest tests --log10
 ```
 
 This will run your tests and upload the results to the Log10 platform for managed evaluation.
+
+### Enabling Log10 Reporting in Configuration
+
+You can enable Log10 reporting by default in your pytest configuration file:
+
+Example in `pytest.ini`:
+
+```ini
+[pytest]
+log10 = true
+```
 
 ### Running Tests Locally
 
 If you prefer to run tests locally without uploading results to Log10, use the `--local` option:
 
 ```bash
-pytest tests --local
+pytest tests --log10 --local
 ```
 
 When using the `--local` option, a JSON report will be generated and saved in the `.pytest_log10_eval_reports` folder in your project directory. This is useful for:
@@ -45,7 +59,7 @@ This helps in organizing and identifying specific test runs in the Log10 platfor
 To assign a custom name to your evaluation session, use the `--eval-session-name` option:
 
 ```bash
-pytest tests --eval-session-name <your-test-session-name>
+pytest tests --log10 --eval-session-name <your-test-session-name>
 ```
 
 Use `eval_session_name` in INI file
@@ -64,7 +78,7 @@ eval_session_name = <your-test-session-name>
 For improved readability of local JSON reports, use the `--pretty-print` option:
 
 ```bash
-pytest tests --local --pretty-print
+pytest tests --log10 --local --pretty-print
 ```
 
 This will format the JSON report with proper indentation, making it easier to read and analyze.
