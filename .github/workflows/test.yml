@@ -63,7 +63,7 @@ jobs:
           cache: "poetry"
           architecture: 'x64'
       - name: Install dependencies
-        run: poetry install --extras "autofeedback_icl litellm langchain gemini mistralai together mosaicml google-generativeai lamini cli"
+        run: poetry install  --all-extras
 
       - name: Run cli tests
         run: poetry run pytest -vv tests/test_cli.py

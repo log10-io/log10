@@ -41,6 +41,8 @@ anthropic = "<1"
 requests = "^2.31.0"
 python-dotenv = "^1.0.0"
 backoff = "^2.2.1"
+pytest = ">=8.0.0"
+pytest-metadata = ">=1.0.0"
 langchain = {version = "<0.2.0", optional = true}
 magentic = {version = ">=0.17.0", optional = true, markers = "python_version >= '3.10'"}
 litellm = {version = "^1.41.12", optional = true}
@@ -55,8 +57,6 @@ click = {version = "^8.1.7", optional = true}
 rich = {version = "^13.7.1", optional = true}
 tabulate = {version = "^0.9.0", optional = true}
 pandas = {version = ">=2", optional = true}
-# pytest = {version = ">=8.0.0", optional = true}
-# pytest-metadata = {version = ">=1.0.0", optional = true}
 
 [tool.poetry.extras]
 autofeedback_icl = ["magentic"]
@@ -69,11 +69,9 @@ mosaicml = ["mosaicml-cli"]
 google-generativeai = ["google-generativeai"]
 lamini = ["lamini"]
 cli = ["click", "rich", "tabulate", "pandas"]
-pytest = ["pytest_log10_managed_evaluation"]
 
-[tool.poetry.dependencies.pytest_log10_managed_evaluation]
-path = "src/pytest_log10_managed_evaluation"
-optional = true
+[tool.poetry.plugins."pytest11"]
+log10_managed_evaluation = "log10.pytest_log10_managed_evaluation.plugin"
 
 [tool.ruff]
 # Never enforce `E501` (line length violations).
