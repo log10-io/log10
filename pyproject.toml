@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 name = "log10-io"
 
-version = "0.14.0rc1"
+version = "0.14.0-rc2"
 authors = ["log10 team"]
 license = "MIT"
 description = "Unified LLM data management"
