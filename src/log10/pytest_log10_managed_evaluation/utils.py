@@ -13,6 +13,9 @@ def create_log10_test_run(eval_name: str):
         name
         reportUploadUrl
         createdAt
+        organization {
+          slug
+        }
       }
     }
     """
