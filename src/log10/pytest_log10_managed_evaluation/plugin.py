@@ -275,7 +275,7 @@ class JSONReport(JSONReportBase):
         except OSError as e:
             self._terminal_summary = "could not save report: {}".format(e)
         else:
-            self._terminal_summary = "report saved to: {}".format(path)
+            self._terminal_summary = "Report saved to: {}".format(path)
 
         if self.log10_test_run is not None:
             upload_url = self.log10_test_run.get("reportUploadUrl")
@@ -351,12 +351,14 @@ class JSONReport(JSONReportBase):
 
         terminalreporter.write_sep("=", "Log10 Eval Report")
         if self.log10_test_run:
-            terminalreporter.write_line(
-                f"Log10 Eval is enabled.\nTest run: {self.log10_test_run.get('name')}-{self.log10_test_run.get('id')}"
-            )
+            test_run_name = self.log10_test_run.get("name")
+            test_run_id = self.log10_test_run.get("id")
+            terminalreporter.write_line(f"Log10 Eval is enabled.\nTest run: {test_run_name}-{test_run_id}")
 
             # todo (wenzhe) add url to managed eval page in log10 UI
-            terminalreporter.write_line("Log10 managed evaluation page: <url-placeholder>")
+            test_run_org_slug = self.log10_test_run.get("organization", {}).get("slug")
+            evaluations_page_url = f"https://log10.io/app/{test_run_org_slug}/evaluations?id={test_run_id}"
+            terminalreporter.write_line(f"Log10 Evaluation URL: {evaluations_page_url}")
         else:
             terminalreporter.write_line("Log10 Eval runs locally.")
         terminalreporter.write_line(self._terminal_summary)

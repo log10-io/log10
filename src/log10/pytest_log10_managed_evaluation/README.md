@@ -2,6 +2,12 @@
 
 A pytest plugin for managing evaluation in Log10 platform.
 
+## Overview
+
+This plugin facilitates the evaluation of LLM applications using Log10.
+For detailed information on how to start evaluating your LLM applications,
+please refer to our [evaluation documentation](https://docs.log10.io/evaluation).
+
 ## Installation
 After [configuring the Log10 environment variables](https://docs.log10.io/observability/advanced/logging#configuration),
 ```bash
