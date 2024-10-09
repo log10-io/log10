@@ -799,7 +799,7 @@ def intercepting_decorator(func):
                     if type(output).__name__ == "LegacyAPIResponse":
                         response = json.loads(output.content)
                     else:
-                        response = output.copy()
+                        response = output.model_copy()
                         if "choices" in response:
                             response = flatten_response(response)
                 elif "lamini" in func.__module__:
@@ -832,7 +832,7 @@ def intercepting_decorator(func):
                             response=response,
                             partial_log_row=log_row,
                         )
-                    response = output.copy()
+                    response = output.model_copy()
 
                 if hasattr(response, "model_dump_json"):
                     response = response.model_dump_json()
