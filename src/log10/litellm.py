@@ -81,7 +81,7 @@ class Log10LitellmLogger(CustomLogger, LLM):
 
         completion_id = run["completion_id"]
         last_completion_response_var.set({"completionID": completion_id})
-        self.log_end(completion_id, response_obj.dict(), duration)
+        self.log_end(completion_id, response_obj.model_dump(), duration)
 
     def log_failure_event(self, kwargs, response_obj, start_time, end_time):
         update_log_row = {
