@@ -5,10 +5,10 @@ from tests.utils import _LogAssertion
 
 
 @pytest.mark.chat
-def test_mock_chat_completions():
+@pytest.mark.parametrize("model", ["claude-3-haiku-20240307", "gpt-4o"])
+def test_mock_chat_completions(model):
     cmpl = Completions()
 
-    model = "gpt-3.5-turbo"
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": "What's the capital of France?"},
