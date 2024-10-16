@@ -300,7 +300,7 @@ class Completions:
             ...     model=model,
             ...     messages=messages,
             ...     response_content=response_content,
-            ...     tags=["geography", "test"]
+            ...     tags=["geography", "xdoctest"]
             ... )
             >>> print(f"Assistant's response: {result.choices[0].message.content}")
             Assistant's response: The capital of France is Paris.
