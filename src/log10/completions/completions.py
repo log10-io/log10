@@ -2,13 +2,18 @@ import json
 import logging
 import time
 from typing import List, Optional
+from uuid import uuid4
 
 import click
 import httpx
 import openai
+from openai.types.chat.chat_completion import ChatCompletion, Choice
+from openai.types.chat.chat_completion_message import ChatCompletionMessage
+from openai.types.completion_usage import CompletionUsage
 
 from log10._httpx_utils import _try_get
 from log10.llm import Log10Config
+from log10.load import log10_tags, tags_var, with_log10_tags
 
 
 logging.basicConfig(
@@ -220,8 +225,13 @@ def _check_model_support(model: str) -> bool:
     return model in _SUPPORTED_MODELS
 
 
+def _get_current_unix_timestamp() -> int:
+    return int(time.time())
+
+
 class Completions:
     completions_path = "/api/completions"
+    v1_completions_path = "/api/v1/completions"
 
     def __init__(self, log10_config: Log10Config = None):
         self._log10_config = log10_config or Log10Config()
@@ -256,3 +266,107 @@ class Completions:
 
         completions = response.json()
         return completions["data"]
+
+    @with_log10_tags(["MOCK_CHAT_COMPLETIONS"])
+    def mock_chat_completions(
+        self, model: str, messages: list[dict], response_content: str, tags: list[str] = None
+    ) -> ChatCompletion:
+        """
+        Mock a chat completion and log it with Log10.
+
+        Args:
+            model (str): The name of the model to mock (e.g., "gpt-3.5-turbo").
+            messages (list[dict]): A list of message dictionaries, each containing 'role' and 'content'.
+            response_content (str): The content of the simulated assistant's response.
+            tags (list[str], optional): Additional tags to include with the log entry.
+
+        Returns:
+            ChatCompletion: openai chat completion object
+
+        Raises:
+            httpx.HTTPError: If there's an error communicating with the Log10 API.
+            Exception: For any other unexpected errors during the process.
+
+        Example:
+            >>> from log10.completions import Completions
+            >>> completions = Completions()
+            >>> model = "gpt-4o"
+            >>> messages = [
+            ...     {"role": "system", "content": "You are a helpful assistant."},
+            ...     {"role": "user", "content": "What's the capital of France?"}
+            ... ]
+            >>> response_content = "The capital of France is Paris."
+            >>> result = completions.mock_chat_completions(
+            ...     model=model,
+            ...     messages=messages,
+            ...     response_content=response_content,
+            ...     tags=["geography", "test"]
+            ... )
+            >>> print(f"Assistant's response: {result.choices[0].message.content}")
+            Assistant's response: The capital of France is Paris.
+            >>> print(f"Model used: {result.model}")
+            Model used: gpt-4o
+
+        Note:
+            This method adds the tag "MOCK_CHAT_COMPLETIONS" automatically to distinguish
+            mocked completions from real ones in your logs.
+        """
+        completion_id = str(uuid4())
+        v1_completions_post_url = f"{self.base_url}{self.v1_completions_path}/{completion_id}"
+
+        # current_tags = tags_var.get()
+        # if tags:
+        #     current_tags.extend(tags)
+
+        # todo(wenzhe): support tool_calls, json schema etc in request
+        response = ChatCompletion(
+            id="chatcmpl-" + completion_id,
+            object="chat.completion",
+            created=_get_current_unix_timestamp(),
+            model=model,
+            system_fingerprint="log10_mock_chat_completion",
+            choices=[
+                Choice(
+                    index=0,
+                    message=ChatCompletionMessage(role="assistant", content=response_content),
+                    finish_reason="stop",
+                )
+            ],
+            usage=CompletionUsage(prompt_tokens=0, completion_tokens=0, total_tokens=0),
+        )
+
+        # exclude None vals in message, otherwise 400 error
+        # cannot exclude none for the full response_dict, found 'logprobs' key is required but would be removed it's None.
+        response_dict = response.model_dump()
+        response_dict["choices"][0]["message"] = response.choices[0].message.model_dump(exclude_none=True)
+
+        with log10_tags(tags):
+            data = {
+                "duration": 0,
+                "id": completion_id,
+                "kind": "chat",
+                "organization_id": self.org_id,
+                "stack_trace": [],
+                "status": "finished",
+                "tags": tags_var.get(),
+                "request": {
+                    "messages": messages,
+                    "model": model,
+                },
+                "response": response_dict,
+            }
+
+        try:
+            res = self._http_client.post(v1_completions_post_url, json=data)
+            res.raise_for_status()
+            return response
+        except httpx.HTTPError as http_err:
+            if "401" in str(http_err):
+                logger.error(
+                    "Failed anthorization. Please verify that LOG10_TOKEN and LOG10_ORG_ID are set correctly and try again."
+                    + "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
+                )
+            else:
+                logger.error(f"Failed with error: {http_err}")
+        except Exception as err:
+            logger.error(f"Failed to insert in log10: {data} with error {err}.", exc_info=True)
