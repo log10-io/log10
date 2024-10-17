@@ -109,7 +109,7 @@ def _get_llm_repsone(
             model=model, messages=messages, temperature=temperature, max_tokens=max_tokens, top_p=top_p
         )
         ret["content"] = response.choices[0].message.content
-        ret["usage"] = response.usage.dict()
+        ret["usage"] = response.usage.model_dump()
     elif "claude-3" in model:
         from log10.load import Anthropic
 
