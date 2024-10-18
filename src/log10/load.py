@@ -28,7 +28,7 @@ logging.basicConfig(
 )
 logger: logging.Logger = logging.getLogger("LOG10")
 
-url = os.environ.get("LOG10_URL")
+url = os.environ.get("LOG10_URL", "https://log10.io")
 token = os.environ.get("LOG10_TOKEN")
 org_id = os.environ.get("LOG10_ORG_ID")
 
@@ -97,9 +97,6 @@ def post_request(url: str, json_payload: dict = {}) -> requests.Response:
     except requests.RequestException as e:
         logger.error(f"HTTP request: POST Request Exception - {e}")
         raise
-
-
-post_session_request = functools.partial(post_request, url + "/api/sessions", {})
 
 
 def get_session_id():
