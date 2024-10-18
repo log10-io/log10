@@ -92,7 +92,13 @@ def post_request(url: str, json_payload: dict = {}) -> requests.Response:
         logger.error("HTTP request: POST Connection Error")
         raise
     except requests.HTTPError as e:
-        logger.error(f"HTTP request: POST HTTP Error - {e}")
+        if "401" in str(e):
+            logger.error(
+                "Failed authorization. Please verify that LOG10_TOKEN and LOG10_ORG_ID are set correctly and try again."
+                "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
+            )
+        else:
+            logger.error(f"HTTP request: POST HTTP Error - {e}")
         raise
     except requests.RequestException as e:
         logger.error(f"HTTP request: POST Request Exception - {e}")
