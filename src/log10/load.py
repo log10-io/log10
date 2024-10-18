@@ -28,7 +28,7 @@ logging.basicConfig(
 )
 logger: logging.Logger = logging.getLogger("LOG10")
 
-url = os.environ.get("LOG10_URL")
+url = os.environ.get("LOG10_URL", "https://log10.io")
 token = os.environ.get("LOG10_TOKEN")
 org_id = os.environ.get("LOG10_ORG_ID")
 
@@ -92,14 +92,17 @@ def post_request(url: str, json_payload: dict = {}) -> requests.Response:
         logger.error("HTTP request: POST Connection Error")
         raise
     except requests.HTTPError as e:
-        logger.error(f"HTTP request: POST HTTP Error - {e}")
+        if "401" in str(e):
+            logger.error(
+                "Failed authorization. Please verify that LOG10_TOKEN and LOG10_ORG_ID are set correctly and try again."
+                "\nSee https://github.com/log10-io/log10#%EF%B8%8F-setup for details"
+            )
+        else:
+            logger.error(f"HTTP request: POST HTTP Error - {e}")
         raise
     except requests.RequestException as e:
         logger.error(f"HTTP request: POST Request Exception - {e}")
         raise
-
-
-post_session_request = functools.partial(post_request, url + "/api/sessions", {})
 
 
 def get_session_id():
