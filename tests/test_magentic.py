@@ -234,7 +234,8 @@ def test_large_image_upload(session, _magentic_model_obj):
     if not os.path.exists("./tests/large_image.png"):
         import requests
 
-        url = "https://log10py-public.s3.us-east-2.amazonaws.com/large_image.png"
+        # 10MB image from https://github.com/ckenst/images-catalog/blob/master/size/medium_size/aldrin-looks-back-at-tranquility-base_9457418581_o.jpg
+        url = "https://raw.githubusercontent.com/ckenst/images-catalog/master/size/medium_size/aldrin-looks-back-at-tranquility-base_9457418581_o.jpg"
         response = requests.get(url)
         with open("./tests/large_image.png", "wb") as f:
             f.write(response.content)
