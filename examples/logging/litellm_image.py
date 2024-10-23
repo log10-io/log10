@@ -14,7 +14,6 @@ image_media_type = "image/png"
 image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
 
 
-model_name = ("gpt-4-vision-preview",)
 model_name = "claude-3-haiku-20240307"
 resp = litellm.completion(
     model=model_name,
