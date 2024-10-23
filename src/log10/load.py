@@ -419,7 +419,7 @@ class StreamingResponseWrapper:
             elif tc := chunk.choices[0].delta.tool_calls:
                 # self.tool_calls is a list
                 if tc[0].id:
-                    self.tool_calls.append(tc[0].dict())
+                    self.tool_calls.append(tc[0].model_dump())
                 elif tc[0].function.arguments:
                     self.tool_calls[tc[0].index]["function"]["arguments"] += tc[0].function.arguments
             elif chunk.choices[0].finish_reason:
@@ -483,7 +483,7 @@ class StreamingResponseWrapper:
                     ],
                 }
             if self.usage:
-                response["usage"] = self.usage.dict()
+                response["usage"] = self.usage.model_dump()
             self.partial_log_row["response"] = json.dumps(response)
             self.partial_log_row["duration"] = int((time.perf_counter() - self.start_time) * 1000)
 
@@ -799,7 +799,7 @@ def intercepting_decorator(func):
                     if type(output).__name__ == "LegacyAPIResponse":
                         response = json.loads(output.content)
                     else:
-                        response = output.copy()
+                        response = output.model_copy()
                         if "choices" in response:
                             response = flatten_response(response)
                 elif "lamini" in func.__module__:
@@ -832,7 +832,7 @@ def intercepting_decorator(func):
                             response=response,
                             partial_log_row=log_row,
                         )
-                    response = output.copy()
+                    response = output.model_copy()
 
                 if hasattr(response, "model_dump_json"):
                     response = response.model_dump_json()
