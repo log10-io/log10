@@ -46,7 +46,7 @@ pytest-metadata = ">=1.0.0"
 langchain = {version = ">=0.2.10", optional = true}
 magentic = {version = ">=0.17.0", optional = true, markers = "python_version >= '3.10'"}
 litellm = {version = "^1.49.6", optional = true}
-lamini = {version = "^2.5.7", optional = true}
+lamini = {version = "^2.1.8", optional = true}
 google-cloud-aiplatform = {version = ">=1.44.0", optional = true}
 mistralai = {version = "^0.1.5", optional = true}
 together = {version = "^1.0.1", optional = true}
