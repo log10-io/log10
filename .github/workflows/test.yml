@@ -41,6 +41,8 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     env:
       LOG10_URL: "https://log10.io"
       LOG10_ORG_ID: ${{ secrets.LOG10_ORG_ID }}
