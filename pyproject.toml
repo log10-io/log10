@@ -45,7 +45,7 @@ pytest = ">=8.0.0"
 pytest-metadata = ">=1.0.0"
 langchain = {version = "<0.2.0", optional = true}
 magentic = {version = ">=0.17.0", optional = true, markers = "python_version >= '3.10'"}
-litellm = {version = "^1.52.5", optional = true}
+litellm = {version = "^1.44.8", optional = true}
 lamini = {version = "^2.1.8", optional = true}
 google-cloud-aiplatform = {version = ">=1.44.0", optional = true}
 mistralai = {version = "^0.1.5", optional = true}
@@ -57,8 +57,6 @@ click = {version = "^8.1.7", optional = true}
 rich = {version = "^13.7.1", optional = true}
 tabulate = {version = "^0.9.0", optional = true}
 pandas = {version = ">=2", optional = true}
-anyio = {version = ">=4.4.0, <5"}
-cryptography = {version = ">=43.0.1", optional = true}
 
 
 [tool.poetry.extras]

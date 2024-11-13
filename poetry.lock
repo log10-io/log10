@@ -4127,4 +4127,4 @@ together = ["together"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4.0"
-content-hash = "3631c29b600dd00a6c0d7eddf0c6c644dd3e021892fff201024386d179615560"
+content-hash = "d515c40af7d254da6b39b977cd8ba521049a897d250f26b593f7f17060695274"
