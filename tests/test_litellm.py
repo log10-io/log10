@@ -19,9 +19,9 @@ litellm.callbacks = [log10_handler]
 
 @pytest.mark.chat
 @pytest.mark.stream
-def test_completion_stream(session, anthropic_model):
+def test_completion_stream(session, openai_model):
     response = litellm.completion(
-        model=anthropic_model, messages=[{"role": "user", "content": "Count to 6."}], stream=True
+        model=openai_model, messages=[{"role": "user", "content": "Count to 6."}], stream=True
     )
 
     output = ""

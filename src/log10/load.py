@@ -394,6 +394,8 @@ class StreamingResponseWrapper:
 
     def __next__(self):
         try:
+            if hasattr(self.response, 'read'):
+                self.response.read()
             chunk = next(self.response)
             if hasattr(chunk.choices[0].delta, "content") and chunk.choices[0].delta.content is not None:
                 # Here you can intercept and modify content if needed
