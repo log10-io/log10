@@ -119,9 +119,9 @@ class Anthropic(LLM):
 
     @staticmethod
     def create_tokens_usage(prompt: str, completion: str):
-        client = anthropic.Anthropic()
-        prompt_tokens = client.count_tokens(prompt)
-        completion_tokens = client.count_tokens(completion)
+        # count_tokens is removed from the API in 0.39.0, consider to deprecate anthropic completion
+        prompt_tokens = 0
+        completion_tokens = 0
         total_tokens = prompt_tokens + completion_tokens
 
         # Imitate OpenAI usage format.
