@@ -24,10 +24,11 @@ def test_chat_openai_messages(session, openai_model):
     _LogAssertion(completion_id=session.last_completion_id(), message_content=content).assert_chat_response()
 
 
+@pytest.mark.skip(reason="Anthropic API removed count_tokens in 0.39.0, langchain_community not updated")
 @pytest.mark.chat
-def test_chat_anthropic_messages(session, anthropic_legacy_model):
+def test_chat_anthropic_messages(session, anthropic_model):
     log10(anthropic)
-    llm = ChatAnthropic(model=anthropic_legacy_model, temperature=0.7)
+    llm = ChatAnthropic(model=anthropic_model, temperature=0.7)
     messages = [SystemMessage(content="You are a ping pong machine"), HumanMessage(content="Ping?")]
     completion = llm.predict_messages(messages)
 
