@@ -1879,13 +1879,13 @@ requests-toolbelt = ">=1.0.0,<2.0.0"
 
 [[package]]
 name = "litellm"
-version = "1.44.2"
+version = "1.52.8"
 description = "Library to easily interface with LLM API providers"
 optional = true
 python-versions = "!=2.7.*,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,!=3.7.*,>=3.8"
 files = [
-    {file = "litellm-1.44.2-py3-none-any.whl", hash = "sha256:7c94618f06c5990f8103b65a6752c7713da334524f9c0334346b8f63df5cdfb5"},
-    {file = "litellm-1.44.2.tar.gz", hash = "sha256:b9290b1414caf6a955a5a493fb1b1dce95b2710a934e968c9ab04d0a3fba804c"},
+    {file = "litellm-1.52.8-py3-none-any.whl", hash = "sha256:aa0845be8d5852802d50ab6d0b85b88f9a847a02b88d865b2984077c18dabc98"},
+    {file = "litellm-1.52.8.tar.gz", hash = "sha256:18606f21f01c2be3a8c1589c563879cd3c8251b32480fc3822a2775b5f7a6e13"},
 ]
 
 [package.dependencies]
@@ -1894,7 +1894,7 @@ click = "*"
 importlib-metadata = ">=6.8.0"
 jinja2 = ">=3.1.2,<4.0.0"
 jsonschema = ">=4.22.0,<5.0.0"
-openai = ">=1.40.0"
+openai = ">=1.54.0"
 pydantic = ">=2.0.0,<3.0.0"
 python-dotenv = ">=0.2.0"
 requests = ">=2.31.0,<3.0.0"
@@ -1902,8 +1902,8 @@ tiktoken = ">=0.7.0"
 tokenizers = "*"
 
 [package.extras]
-extra-proxy = ["azure-identity (>=1.15.0,<2.0.0)", "azure-keyvault-secrets (>=4.8.0,<5.0.0)", "google-cloud-kms (>=2.21.3,<3.0.0)", "prisma (==0.11.0)", "pynacl (>=1.5.0,<2.0.0)", "resend (>=0.8.0,<0.9.0)"]
-proxy = ["PyJWT (>=2.8.0,<3.0.0)", "apscheduler (>=3.10.4,<4.0.0)", "backoff", "cryptography (>=42.0.5,<43.0.0)", "fastapi (>=0.111.0,<0.112.0)", "fastapi-sso (>=0.10.0,<0.11.0)", "gunicorn (>=22.0.0,<23.0.0)", "orjson (>=3.9.7,<4.0.0)", "python-multipart (>=0.0.9,<0.0.10)", "pyyaml (>=6.0.1,<7.0.0)", "rq", "uvicorn (>=0.22.0,<0.23.0)"]
+extra-proxy = ["azure-identity (>=1.15.0,<2.0.0)", "azure-keyvault-secrets (>=4.8.0,<5.0.0)", "google-cloud-kms (>=2.21.3,<3.0.0)", "prisma (==0.11.0)", "resend (>=0.8.0,<0.9.0)"]
+proxy = ["PyJWT (>=2.8.0,<3.0.0)", "apscheduler (>=3.10.4,<4.0.0)", "backoff", "cryptography (>=42.0.5,<43.0.0)", "fastapi (>=0.111.0,<0.112.0)", "fastapi-sso (>=0.10.0,<0.11.0)", "gunicorn (>=22.0.0,<23.0.0)", "orjson (>=3.9.7,<4.0.0)", "pynacl (>=1.5.0,<2.0.0)", "python-multipart (>=0.0.9,<0.0.10)", "pyyaml (>=6.0.1,<7.0.0)", "rq", "uvicorn (>=0.22.0,<0.23.0)"]
 
 [[package]]
 name = "logfire-api"
@@ -4305,4 +4305,4 @@ together = ["together"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4.0"
-content-hash = "78bb2fc48df5bce8ac40e1461f46effbf8afd93e9f4b2e370eaf9c18e4111320"
+content-hash = "c095e2c6e2ace56e01284e74e483c1e898a8fdf2ada90b10ff43fb9329e557df"
