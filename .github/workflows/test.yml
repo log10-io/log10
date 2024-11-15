@@ -35,6 +35,10 @@ on:
         description: 'Model name for Magentic tests'
         type: string
         required: false
+      run_litellm_tests:
+        description: 'Run Litellm tests without specifying a model'
+        type: boolean
+        required: false
 
 env:
   PYTHON_VERSION: 3.11.4
@@ -81,6 +85,7 @@ jobs:
           mistralai_model_input=${{ github.event.inputs.mistralai_model }}
           lamini_model_input=${{ github.event.inputs.lamini_model }}
           magentic_model_input=${{ github.event.inputs.magentic_model }}
+          run_litellm_tests=${{ github.event.inputs.run_litellm_tests }}
 
           empty_inputs=true
           if [[ -n "$openai_model_input" ]]; then
@@ -113,9 +118,15 @@ jobs:
             poetry run pytest --lamini_model=$lamini_model_input -vv tests/test_lamini.py
           fi
 
-          if [[ -n "$llm_provider_input" ]]; then
+          if [[ -n "$magentic_model_input" ]]; then
             empty_inputs=false
-            poetry run pytest --llm_provider=$llm_provider_input -vv tests/test_magentic.py
+            poetry run pytest --llm_provider=$magentic_model_input -vv tests/test_magentic.py
+          fi
+
+
+          if [[ "$run_litellm_tests" == "true" ]]; then
+            empty_inputs=false
+            poetry run pytest -vv tests/test_litellm.py
           fi
 
           if $empty_inputs; then
