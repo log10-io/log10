@@ -1,8 +1,8 @@
 import anthropic
 import openai
 import pytest
-from langchain.chat_models import ChatAnthropic, ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage
+from langchain_community.chat_models import ChatAnthropic, ChatOpenAI
 
 from log10.load import log10
 from tests.utils import _LogAssertion
