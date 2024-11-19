@@ -131,10 +131,10 @@ jobs:
 
           if $empty_inputs; then
             echo "All variables are empty"
-            poetry run pytest --llm_provider=litellm --openai_compatibility_model=perplexity/llama-3.1-sonar-small-128k-chat -vv tests/test_magentic.py -m chat
             poetry run pytest -vv tests/ --ignore=tests/test_cli.py --ignore=tests/test_litellm.py
             poetry run pytest -vv tests/test_litellm.py
             poetry run pytest --llm_provider=anthropic -vv tests/test_magentic.py
+            poetry run pytest tests/test_magentic_perplexity.py -vv
           fi
 
       - name: Run scheduled llm tests
@@ -143,4 +143,4 @@ jobs:
           echo "This is a schedule event"
           poetry run pytest -vv tests/ --ignore=tests/test_cli.py
           poetry run pytest --openai_model=gpt-4o -m chat -vv tests/test_openai.py
-          poetry run pytest --llm_provider=litellm --openai_compatibility_model=perplexity/llama-3.1-sonar-small-128k-chat -vv tests/test_magentic.py -m chat
+          poetry run pytest tests/test_magentic_perplexity.py -vv
