@@ -10,7 +10,7 @@ from tests.utils import _LogAssertion
 log10_handler = Log10LitellmLogger(tags=["litellm_perplexity"])
 litellm.callbacks = [log10_handler]
 
-PERPLEXITY_MODEL = "perplexity/llama-3.1-sonar-small-128k-online"
+PERPLEXITY_MODEL = "perplexity/llama-3.1-sonar-small-128k-chat"
 
 
 @pytest.mark.chat
