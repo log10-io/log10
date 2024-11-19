@@ -1,3 +1,5 @@
+import time
+
 import litellm
 import pytest
 from magentic import StreamedStr, prompt
@@ -20,6 +22,8 @@ def test_prompt(session):
 
     output = llm()
     assert isinstance(output, str)
+
+    time.sleep(3)
 
     _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
