@@ -135,7 +135,7 @@ jobs:
             poetry run pytest -vv tests/ --ignore=tests/test_cli.py --ignore=tests/test_litellm.py --ignore=tests/test_magentic_perplexity.py
             poetry run pytest -vv tests/test_litellm.py
             poetry run pytest --llm_provider=anthropic -vv tests/test_magentic.py
-            # poetry run pytest tests/test_magentic_perplexity.py -vv
+            poetry run pytest tests/test_magentic_perplexity.py -vv
           fi
 
       - name: Run scheduled llm tests
