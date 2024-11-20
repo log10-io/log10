@@ -87,6 +87,11 @@ def magentic_models(request):
 
 
 @pytest.fixture
+def openai_compatibility_model(request):
+    return request.config.getoption("--openai_compatibility_model")
+
+
+@pytest.fixture
 def session():
     with log10_session() as session:
         assert session.last_completion_id() is None, "No completion ID should be found."

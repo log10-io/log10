@@ -58,6 +58,7 @@ jobs:
       GOOGLE_API_KEY : ${{ secrets.GOOGLE_API_KEY }}
       PERPLEXITYAI_API_KEY: ${{ secrets.PERPLEXITYAI_API_KEY }}
       CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+      PYTEST_ADDOPTS: "--color=yes"
     steps:
       - uses: actions/checkout@v4
       - name: Install poetry
@@ -131,15 +132,16 @@ jobs:
 
           if $empty_inputs; then
             echo "All variables are empty"
-            poetry run pytest -vv tests/ --ignore=tests/test_cli.py
+            poetry run pytest -vv tests/ --ignore=tests/test_cli.py --ignore=tests/test_litellm.py --ignore=tests/test_magentic_perplexity.py
+            poetry run pytest -vv tests/test_litellm.py
             poetry run pytest --llm_provider=anthropic -vv tests/test_magentic.py
-            poetry run pytest --llm_provider=litellm --openai_compatibility_model=perplexity/llama-3.1-sonar-small-128k-chat -vv tests/test_magentic.py -m chat
+            poetry run pytest tests/test_magentic_perplexity.py -vv
           fi
 
       - name: Run scheduled llm tests
         if: ${{ github.event_name == 'schedule' }}
         run: |
           echo "This is a schedule event"
-          poetry run pytest -vv tests/ --ignore=tests/test_cli.py
+          poetry run pytest -vv tests/ --ignore=tests/test_cli.py --ignore=tests/test_litellm.py --ignore=tests/test_magentic_perplexity.py
           poetry run pytest --openai_model=gpt-4o -m chat -vv tests/test_openai.py
-          poetry run pytest --llm_provider=litellm --openai_compatibility_model=perplexity/llama-3.1-sonar-small-128k-chat -vv tests/test_magentic.py -m chat
+          poetry run pytest tests/test_magentic_perplexity.py -vv
