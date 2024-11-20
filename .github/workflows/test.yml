@@ -132,7 +132,7 @@ jobs:
 
           if $empty_inputs; then
             echo "All variables are empty"
-            poetry run pytest -vv tests/ --ignore=tests/test_cli.py --ignore=tests/test_litellm.py
+            poetry run pytest -vv tests/ --ignore=tests/test_cli.py --ignore=tests/test_litellm.py --ignore=tests/test_magentic_perplexity.py
             poetry run pytest -vv tests/test_litellm.py
             poetry run pytest --llm_provider=anthropic -vv tests/test_magentic.py
             # poetry run pytest tests/test_magentic_perplexity.py -vv
@@ -142,6 +142,6 @@ jobs:
         if: ${{ github.event_name == 'schedule' }}
         run: |
           echo "This is a schedule event"
-          poetry run pytest -vv tests/ --ignore=tests/test_cli.py
+          poetry run pytest -vv tests/ --ignore=tests/test_cli.py --ignore=tests/test_litellm.py --ignore=tests/test_magentic_perplexity.py
           poetry run pytest --openai_model=gpt-4o -m chat -vv tests/test_openai.py
           poetry run pytest tests/test_magentic_perplexity.py -vv
