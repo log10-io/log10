@@ -12,12 +12,10 @@ from tests.utils import _LogAssertion
 log10_handler = Log10LitellmLogger(tags=["litellm_perplexity"])
 litellm.callbacks = [log10_handler]
 
-PERPLEXITY_MODEL = "perplexity/llama-3.1-sonar-small-128k-chat"
-
 
 @pytest.mark.chat
-def test_prompt(session):
-    @prompt("What happened on this day?", model=LitellmChatModel(model=PERPLEXITY_MODEL))
+def test_prompt(session, openai_compatibility_model):
+    @prompt("What happened on this day?", model=LitellmChatModel(model=openai_compatibility_model))
     def llm() -> str: ...
 
     output = llm()
@@ -30,8 +28,8 @@ def test_prompt(session):
 
 @pytest.mark.chat
 @pytest.mark.stream
-def test_prompt_stream(session):
-    @prompt("What happened on this day?", model=LitellmChatModel(model=PERPLEXITY_MODEL))
+def test_prompt_stream(session, openai_compatibility_model):
+    @prompt("What happened on this day?", model=LitellmChatModel(model=openai_compatibility_model))
     def llm() -> StreamedStr: ...
 
     response = llm()
