@@ -15,7 +15,7 @@ litellm.callbacks = [log10_handler]
 
 @pytest.mark.chat
 def test_prompt(session, openai_compatibility_model):
-    @prompt("What happened on this day?", model=LitellmChatModel(model=openai_compatibility_model))
+    @prompt("What is 3 - 3?", model=LitellmChatModel(model=openai_compatibility_model))
     def llm() -> str: ...
 
     output = llm()
@@ -29,7 +29,7 @@ def test_prompt(session, openai_compatibility_model):
 @pytest.mark.chat
 @pytest.mark.stream
 def test_prompt_stream(session, openai_compatibility_model):
-    @prompt("What happened on this day?", model=LitellmChatModel(model=openai_compatibility_model))
+    @prompt("What is 3 * 3?", model=LitellmChatModel(model=openai_compatibility_model))
     def llm() -> StreamedStr: ...
 
     response = llm()

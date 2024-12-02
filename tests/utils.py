@@ -81,7 +81,7 @@ class _LogAssertion:
         message_content = message["content"]
         assert (
             message_content == self._message_content
-        ), f"Message content does not match the generated completion for completion {self._completion_id}."
+        ), f"Message content does not match the generated completion for completion {self._completion_id}. Expected: {self._message_content}, Got: {message_content}"
 
     def assert_tool_calls_response(self):
         assert self._function_args, "No function args generated from the model."
