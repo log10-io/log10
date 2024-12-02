@@ -1920,13 +1920,13 @@ proxy = ["PyJWT (>=2.8.0,<3.0.0)", "apscheduler (>=3.10.4,<4.0.0)", "backoff", "
 
 [[package]]
 name = "logfire-api"
-version = "0.50.1"
+version = "2.6.0"
 description = "Shim for the Logfire SDK which does nothing unless Logfire is installed"
 optional = true
 python-versions = ">=3.8"
 files = [
-    {file = "logfire_api-0.50.1-py3-none-any.whl", hash = "sha256:9f58204e4a261baa49737c93a6556aee58511eef7927b58d31e7a3cb860e9bff"},
-    {file = "logfire_api-0.50.1.tar.gz", hash = "sha256:e3f46e522834453ce622b2a5f4f4e148fce90b3a65ffc0e5b27288aa7687ba81"},
+    {file = "logfire_api-2.6.0-py3-none-any.whl", hash = "sha256:de59e65953d491592cc61770dcf1953daf31d9fabc411569e37a48f7471ed8fa"},
+    {file = "logfire_api-2.6.0.tar.gz", hash = "sha256:2e6dffc227743887627a8bf0e0e0583c4d24ed3b98a5ba39efb1c46db9bdad7c"},
 ]
 
 [[package]]
@@ -2916,20 +2916,21 @@ typing-extensions = ">=4.6.0,<4.7.0 || >4.7.0"
 
 [[package]]
 name = "pydantic-settings"
-version = "2.2.1"
+version = "2.6.1"
 description = "Settings management using Pydantic"
 optional = true
 python-versions = ">=3.8"
 files = [
-    {file = "pydantic_settings-2.2.1-py3-none-any.whl", hash = "sha256:0235391d26db4d2190cb9b31051c4b46882d28a51533f97440867f012d4da091"},
-    {file = "pydantic_settings-2.2.1.tar.gz", hash = "sha256:00b9f6a5e95553590434c0fa01ead0b216c3e10bc54ae02e37f359948643c5ed"},
+    {file = "pydantic_settings-2.6.1-py3-none-any.whl", hash = "sha256:7fb0637c786a558d3103436278a7c4f1cfd29ba8973238a50c5bb9a55387da87"},
+    {file = "pydantic_settings-2.6.1.tar.gz", hash = "sha256:e0f92546d8a9923cb8941689abf85d6601a8c19a23e97a34b2964a2e3f813ca0"},
 ]
 
 [package.dependencies]
-pydantic = ">=2.3.0"
+pydantic = ">=2.7.0"
 python-dotenv = ">=0.21.0"
 
 [package.extras]
+azure-key-vault = ["azure-identity (>=1.16.0)", "azure-keyvault-secrets (>=4.8.0)"]
 toml = ["tomli (>=2.0.1)"]
 yaml = ["pyyaml (>=6.0.1)"]
 
@@ -4415,4 +4416,4 @@ together = ["together"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4.0"
-content-hash = "d23ff3bcdbbd65f5734531807fc85a1b093c42c23cda4db170a83a044075b732"
+content-hash = "6d9cd6b27f7dd9633b4937b332815a1dfc330c3c7ffd589ec14132b3d666e86c"
