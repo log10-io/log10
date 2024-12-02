@@ -165,9 +165,15 @@ class LLM(ABC):
 
     def api_request(self, rel_url: str, request: dict):
         def is_safe_url(url: str) -> bool:
+            ALLOWED_DOMAINS = ["log10.io"]
             parsed = urlparse(url)
             base_domain = urlparse(self.log10_config.url).netloc
-            return parsed.netloc == base_domain or not parsed.netloc
+            return (
+                parsed.scheme in {"http", "https"}
+                and parsed.netloc == base_domain
+                and not parsed.path.startswith("//")
+                and parsed.netloc in ALLOWED_DOMAINS
+            )
 
         full_url = urljoin(self.log10_config.url, rel_url.strip())
         if not is_safe_url(full_url):
