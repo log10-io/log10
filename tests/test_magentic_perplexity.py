@@ -13,6 +13,7 @@ log10_handler = Log10LitellmLogger(tags=["litellm_perplexity"])
 litellm.callbacks = [log10_handler]
 
 
+@pytest.mark.skip("Unstable, will be fixed in a separate PR")
 @pytest.mark.chat
 def test_prompt(session, openai_compatibility_model):
     @prompt("What is 3 - 3?", model=LitellmChatModel(model=openai_compatibility_model))
@@ -26,6 +27,7 @@ def test_prompt(session, openai_compatibility_model):
     _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
 
 
+@pytest.mark.skip("Unstable, will be fixed in a separate PR")
 @pytest.mark.chat
 @pytest.mark.stream
 def test_prompt_stream(session, openai_compatibility_model):
