@@ -5,6 +5,7 @@ import traceback
 from abc import ABC
 from enum import Enum
 from typing import List, Optional
+from urllib.parse import urljoin, urlparse
 
 import requests
 
@@ -163,9 +164,18 @@ class LLM(ABC):
         raise Exception("Not implemented")
 
     def api_request(self, rel_url: str, method: str, request: dict):
+        def is_safe_url(url: str) -> bool:
+            parsed = urlparse(url)
+            base_domain = urlparse(self.log10_config.url).netloc
+            return parsed.netloc == base_domain or not parsed.netloc
+
+        full_url = urljoin(self.log10_config.url, rel_url.strip())
+        if not is_safe_url(full_url):
+            raise ValueError("Invalid URL: " + full_url)
+
         return requests.request(
             method,
-            f"{self.log10_config.url}{rel_url}",
+            full_url,
             headers={
                 "x-log10-token": self.log10_config.token,
                 "Content-Type": "application/json",
