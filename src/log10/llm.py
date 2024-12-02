@@ -163,7 +163,7 @@ class LLM(ABC):
     def chat_request(self, messages: List[Message], hparams: dict = None) -> dict:
         raise Exception("Not implemented")
 
-    def api_request(self, rel_url: str, method: str, request: dict):
+    def api_request(self, rel_url: str, request: dict):
         def is_safe_url(url: str) -> bool:
             parsed = urlparse(url)
             base_domain = urlparse(self.log10_config.url).netloc
@@ -173,8 +173,7 @@ class LLM(ABC):
         if not is_safe_url(full_url):
             raise ValueError("Invalid URL: " + full_url)
 
-        return requests.request(
-            method,
+        return requests.post(
             full_url,
             headers={
                 "x-log10-token": self.log10_config.token,
@@ -188,7 +187,7 @@ class LLM(ABC):
         if not self.log10_config:
             return None
 
-        res = self.api_request("/api/completions", "POST", {"organization_id": self.log10_config.org_id})
+        res = self.api_request("/api/completions", {"organization_id": self.log10_config.org_id})
         self.last_completion_response = res.json()
         completion_id = res.json()["completionID"]
 
@@ -200,7 +199,6 @@ class LLM(ABC):
 
         res = self.api_request(
             f"/api/completions/{completion_id}",
-            "POST",
             {
                 "kind": kind == Kind.text and "completion" or "chat",
                 "organization_id": self.log10_config.org_id,
@@ -238,7 +236,6 @@ class LLM(ABC):
 
         self.api_request(
             f"/api/completions/{completion_id}",
-            "POST",
             {
                 "organization_id": self.log10_config.org_id,
                 "response": json.dumps(response),

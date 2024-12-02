@@ -94,7 +94,6 @@ class Log10LitellmLogger(CustomLogger, LLM):
         run = self.runs.get(litellm_call_id, None)
         self.api_request(
             f"/api/completions/{run['completion_id']}",
-            "POST",
             update_log_row,
         )
 
