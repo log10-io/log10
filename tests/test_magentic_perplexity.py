@@ -36,4 +36,5 @@ def test_prompt_stream(session, openai_compatibility_model):
     output = ""
     for chunk in response:
         output += chunk
+    time.sleep(3)
     _LogAssertion(completion_id=session.last_completion_id(), message_content=output).assert_chat_response()
