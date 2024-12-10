@@ -53,9 +53,7 @@ class Log10Config:
 
 
 class Message(ABC):
-    def __init__(
-        self, role: Role, content: str, id: str = None, completion: str = None
-    ):
+    def __init__(self, role: Role, content: str, id: str = None, completion: str = None):
         self.id = id
         self.role = role
         self.content = content
@@ -86,9 +84,7 @@ class Completion(ABC):
 
 
 class ChatCompletion(Completion):
-    def __init__(
-        self, role: str, content: str, response: dict = None, completion_id: str = None
-    ):
+    def __init__(self, role: str, content: str, response: dict = None, completion_id: str = None):
         self.role = role
         self.content = content
         self.response = response
@@ -212,9 +208,7 @@ class LLM(ABC):
         if not self.log10_config:
             return None
 
-        res = self.api_request(
-            "/api/completions", {"organization_id": self.log10_config.org_id}
-        )
+        res = self.api_request("/api/completions", {"organization_id": self.log10_config.org_id})
         self.last_completion_response = res.json()
         completion_id = res.json()["completionID"]
 
@@ -238,15 +232,9 @@ class LLM(ABC):
                 "organization_id": self.log10_config.org_id,
                 "session_id": self.session_id,
                 "orig_module": (
-                    "openai.api_resources.completion"
-                    if kind == Kind.text
-                    else "openai.api_resources.chat_completion"
+                    "openai.api_resources.completion" if kind == Kind.text else "openai.api_resources.chat_completion"
                 ),
-                "orig_qualname": (
-                    "Completion.create"
-                    if kind == Kind.text
-                    else "ChatCompletion.create"
-                ),
+                "orig_qualname": ("Completion.create" if kind == Kind.text else "ChatCompletion.create"),
                 "status": "started",
                 "tags": tags,
                 "request": json.dumps(request),
