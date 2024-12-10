@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import traceback
 from abc import ABC
 from enum import Enum
@@ -12,6 +13,20 @@ import requests
 
 Role = Enum("Role", ["system", "assistant", "user"])
 Kind = Enum("Kind", ["chat", "text"])
+
+
+def validate_completion_id(completion_id: str):
+    if not completion_id:
+        raise ValueError("completion_id is not a valid uuidv4 string")
+
+    if not isinstance(completion_id, str):
+        raise ValueError("completion_id is not a string")
+
+    if not re.match(
+        r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        completion_id,
+    ):
+        raise ValueError("completion_id is not a valid uuidv4 string")
 
 
 class Log10Config:
@@ -197,6 +212,13 @@ class LLM(ABC):
         self.last_completion_response = res.json()
         completion_id = res.json()["completionID"]
 
+        # Verify completion_id is a uuidv4 string
+        try:
+            validate_completion_id(completion_id)
+        except ValueError as e:
+            logging.warning(f"Failed to validate completion_id: {e}")
+            return None
+
         # merge tags
         if tags:
             tags = list(set(tags + self.log10_config.tags))
@@ -209,10 +231,10 @@ class LLM(ABC):
                 "kind": kind == Kind.text and "completion" or "chat",
                 "organization_id": self.log10_config.org_id,
                 "session_id": self.session_id,
-                "orig_module": "openai.api_resources.completion"
-                if kind == Kind.text
-                else "openai.api_resources.chat_completion",
-                "orig_qualname": "Completion.create" if kind == Kind.text else "ChatCompletion.create",
+                "orig_module": (
+                    "openai.api_resources.completion" if kind == Kind.text else "openai.api_resources.chat_completion"
+                ),
+                "orig_qualname": ("Completion.create" if kind == Kind.text else "ChatCompletion.create"),
                 "status": "started",
                 "tags": tags,
                 "request": json.dumps(request),
