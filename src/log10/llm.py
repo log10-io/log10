@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import traceback
 from abc import ABC
 from enum import Enum
@@ -8,7 +9,6 @@ from typing import List, Optional
 from urllib.parse import urljoin, urlparse
 
 import requests
-import re
 
 
 Role = Enum("Role", ["system", "assistant", "user"])
