@@ -51,7 +51,6 @@ logging-chat:
 	python examples/logging/mistralai_chat_no_streaming.py
 	python examples/logging/openai_chat.py
 	python examples/logging/openai_chat_not_given.py
-	python examples/logging/lamini_generate.py
 	# python examples/logging/vertexai_gemini_chat.py
 	python examples/logging/openai_async_logging.py
 	python examples/logging/openai_async_stream_logging.py
