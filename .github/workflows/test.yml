@@ -27,10 +27,6 @@ on:
         description: 'Model name for Mistralai tests'
         type: string
         required: false
-      lamini_model:
-        description: 'Model name for Lamini tests'
-        type: string
-        required: false
       magentic_model:
         description: 'Model name for Magentic tests'
         type: string
@@ -54,7 +50,6 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
-      LAMINI_API_KEY: ${{ secrets.LAMINI_API_KEY }}
       GOOGLE_API_KEY : ${{ secrets.GOOGLE_API_KEY }}
       PERPLEXITYAI_API_KEY: ${{ secrets.PERPLEXITYAI_API_KEY }}
       CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
@@ -84,7 +79,6 @@ jobs:
           anthropic_model_input=${{ github.event.inputs.anthropic_model }}
           google_model_input=${{ github.event.inputs.google_model }}
           mistralai_model_input=${{ github.event.inputs.mistralai_model }}
-          lamini_model_input=${{ github.event.inputs.lamini_model }}
           magentic_model_input=${{ github.event.inputs.magentic_model }}
           run_litellm_tests=${{ github.event.inputs.run_litellm_tests }}
 
@@ -112,11 +106,6 @@ jobs:
           if [[ -n "$mistralai_model_input" ]]; then
             empty_inputs=false
             poetry run pytest --mistralai_model=$mistralai_model_input -vv tests/test_mistralai.py
-          fi
-
-          if [[ -n "$lamini_model_input" ]]; then
-            empty_inputs=false
-            poetry run pytest --lamini_model=$lamini_model_input -vv tests/test_lamini.py
           fi
 
           if [[ -n "$magentic_model_input" ]]; then

@@ -12,8 +12,6 @@ def pytest_addoption(parser):
 
     parser.addoption("--anthropic_legacy_model", action="store", help="Model name for legacy Anthropic tests")
 
-    parser.addoption("--lamini_model", action="store", help="Model name for Lamini tests")
-
     parser.addoption(
         "--mistralai_model", action="store", default="mistral-tiny", help="Model name for Mistralai tests"
     )
@@ -52,11 +50,6 @@ def anthropic_legacy_model(request):
 @pytest.fixture
 def mistralai_model(request):
     return request.config.getoption("--mistralai_model")
-
-
-@pytest.fixture
-def lamini_model(request):
-    return request.config.getoption("--lamini_model")
 
 
 @pytest.fixture
