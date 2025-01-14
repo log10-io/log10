@@ -59,9 +59,9 @@ def _get_time_diff(created_at):
     if diff.days > 0:
         return f"{diff.days} days ago"
     elif diff.seconds > 3600:
-        return f"{diff.seconds//3600} hours ago"
+        return f"{diff.seconds // 3600} hours ago"
     elif diff.seconds > 60:
-        return f"{diff.seconds//60} minutes ago"
+        return f"{diff.seconds // 60} minutes ago"
 
 
 def _try_get(url: str, timeout: int = 10) -> httpx.Response:

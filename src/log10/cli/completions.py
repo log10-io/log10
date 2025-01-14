@@ -304,10 +304,7 @@ def download_completions(limit, offset, timeout, tags, from_date, to_date, file)
         return
 
     rich.print(
-        f"[bold green]📥 Downloaded {fetched_total} | "
-        f"⏱️ {elapsed_time:.1f}s. | "
-        f"⚡ {rate:.2f}/s\n"
-        f"💾 Saved to {file}"
+        f"[bold green]📥 Downloaded {fetched_total} | ⏱️ {elapsed_time:.1f}s. | ⚡ {rate:.2f}/s\n💾 Saved to {file}"
     )
 
 
