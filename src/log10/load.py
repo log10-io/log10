@@ -209,7 +209,7 @@ class log10_session:
         # organizationSlug will not be returned from httpx hook
         if not response.get("organizationSlug", ""):
             return None
-        return f'{url}/app/{response["organizationSlug"]}/completions/{response["completionID"]}'
+        return f"{url}/app/{response['organizationSlug']}/completions/{response['completionID']}"
 
     def last_completion_id(self):
         if last_completion_response_var.get() is None:

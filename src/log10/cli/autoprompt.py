@@ -16,7 +16,7 @@ def _parse_messages_to_single_prompt(messages: list) -> str:
     """
     return "\n\n".join(
         [
-            f'{m.get("role")}: {m.get("content")}'
+            f"{m.get('role')}: {m.get('content')}"
             for m in messages
             if m.get("role") in ALLOWED_ROLES and m.get("content")
         ]

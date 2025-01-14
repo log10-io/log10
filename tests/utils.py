@@ -52,9 +52,9 @@ class _LogAssertion:
         choice = self.response_choices[0]
         assert choice.get("text", {}), f"No text logged for completion {self._completion_id}."
         text = choice["text"]
-        assert (
-            self._text == text
-        ), f"Text does not match the generated completion for completion {self._completion_id}."
+        assert self._text == text, (
+            f"Text does not match the generated completion for completion {self._completion_id}."
+        )
 
     def assert_system_message_request(self):
         if not self._system_message:
@@ -62,13 +62,13 @@ class _LogAssertion:
 
         assert self.request.get("messages", ""), f"No request message logged for completion {self._completion_id}."
         system_message = self.request["messages"][0]
-        assert system_message.get(
-            "content", ""
-        ), f"No system message content logged for completion {self._completion_id}."
+        assert system_message.get("content", ""), (
+            f"No system message content logged for completion {self._completion_id}."
+        )
         content = system_message["content"]
-        assert (
-            self._system_message == content
-        ), f"System message content does not match the generated completion for completion {self._completion_id}."
+        assert self._system_message == content, (
+            f"System message content does not match the generated completion for completion {self._completion_id}."
+        )
 
     def assert_chat_response(self):
         assert self._message_content, "No output generated from the model."
@@ -79,9 +79,9 @@ class _LogAssertion:
         message = choice["message"]
         assert message.get("content", ""), f"No message content logged for completion {self._completion_id}."
         message_content = message["content"]
-        assert (
-            message_content == self._message_content
-        ), f"Message content does not match the generated completion for completion {self._completion_id}. Expected: {self._message_content}, Got: {message_content}"
+        assert message_content == self._message_content, (
+            f"Message content does not match the generated completion for completion {self._completion_id}. Expected: {self._message_content}, Got: {message_content}"
+        )
 
     def assert_tool_calls_response(self):
         assert self._function_args, "No function args generated from the model."
@@ -97,9 +97,9 @@ class _LogAssertion:
             for t in response_tool_calls
         ]
 
-        assert len(response_function_args) == len(
-            self._function_args
-        ), f"Function calls do not match the generated completion for completion {self._completion_id}."
+        assert len(response_function_args) == len(self._function_args), (
+            f"Function calls do not match the generated completion for completion {self._completion_id}."
+        )
 
     def assert_anthropic_tool_calls_response(self, content):
         ## Anthropic tool calls response might have chain of thought
@@ -109,6 +109,6 @@ class _LogAssertion:
             choice = self.response_choices[0]
             logged_content = choice.get("message", {}).get("content", "")
             assert logged_content, f"No content logged for completion {self._completion_id}."
-            assert (
-                content == logged_content
-            ), f"Content does not match the generated completion for completion {self._completion_id}."
+            assert content == logged_content, (
+                f"Content does not match the generated completion for completion {self._completion_id}."
+            )
