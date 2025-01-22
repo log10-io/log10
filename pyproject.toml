@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 name = "log10-io"
 
-version = "0.16.0"
+version = "0.16.1"
 authors = ["log10 team"]
 license = "MIT"
 description = "Unified LLM data management"
@@ -60,8 +60,8 @@ anyio = ">=4.4.0"
 cryptography = {version = ">=43.0.1", optional = true}
 tqdm = ">=4.66.3"
 zipp = ">=3.19.1"
-jinja2 = ">=3.1.4"
-aiohttp = ">=3.10.11"
+jinja2 = ">=3.1.5"
+aiohttp = ">=3.11.10"
 urllib3 = ">=2.2.2"
 certifi = ">=2024.7.4"
 scikit-learn = ">=1.5.0"
