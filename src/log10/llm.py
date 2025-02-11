@@ -9,6 +9,7 @@ from typing import List, Optional
 from urllib.parse import urljoin, urlparse
 
 import requests
+from copy import deepcopy
 
 
 Role = Enum("Role", ["system", "assistant", "user"])
@@ -225,6 +226,10 @@ class LLM(ABC):
         else:
             tags = self.log10_config.tags
 
+        request_copy = deepcopy(request)
+        if "logging_obj" in request_copy:
+            del request_copy["logging_obj"]
+
         res = self.api_request(
             f"/api/completions/{completion_id}",
             {
@@ -237,7 +242,7 @@ class LLM(ABC):
                 "orig_qualname": ("Completion.create" if kind == Kind.text else "ChatCompletion.create"),
                 "status": "started",
                 "tags": tags,
-                "request": json.dumps(request),
+                "request": json.dumps(request_copy),
             },
         )
 
