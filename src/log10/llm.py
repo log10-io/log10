@@ -4,12 +4,12 @@ import os
 import re
 import traceback
 from abc import ABC
+from copy import deepcopy
 from enum import Enum
 from typing import List, Optional
 from urllib.parse import urljoin, urlparse
 
 import requests
-from copy import deepcopy
 
 
 Role = Enum("Role", ["system", "assistant", "user"])
